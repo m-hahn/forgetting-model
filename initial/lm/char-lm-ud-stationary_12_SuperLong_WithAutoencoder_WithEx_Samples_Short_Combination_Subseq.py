@@ -720,7 +720,7 @@ topNouns.append("declaration")
 
 
 
-with open("../forgetting/fromCorpus_counts.csv", "r") as inFile:
+with open("../../../forgetting/fromCorpus_counts.csv", "r") as inFile:
    counts = [x.split("\t") for x in inFile.read().strip().split("\n")]
    header = counts[0]
    header = dict(list(zip(header, range(len(header)))))
