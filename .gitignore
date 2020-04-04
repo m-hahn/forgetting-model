@@ -1,1 +1,4 @@
 slurm*out
+*.swp
+initial/lm_noise/*.tsv
+initial/lm_noise/searchResults.txt
