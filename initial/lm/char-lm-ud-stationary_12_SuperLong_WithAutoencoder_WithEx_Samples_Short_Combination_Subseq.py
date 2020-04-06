@@ -27,7 +27,7 @@ parser.add_argument("--weight_dropout_out", type=float, default=random.choice([0
 parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.01]))
 #parser.add_argument("--char_noise_prob", type = float, default=random.choice([0.0]))
 parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.000002, 0.00001, 0.00002, 0.00005])) #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
-parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.0001, 0.001, 0.01, 0.1]))
+parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.2])) # 0.0001, 
 parser.add_argument("--myID", type=int, default=random.randint(0,1000000000))
 parser.add_argument("--sequence_length", type=int, default=random.choice([20]))
 parser.add_argument("--verbose", type=bool, default=False)
@@ -767,7 +767,7 @@ def getPerNounReconstructionsSanity():
               print("NOUNS SO FAR", topNouns.index(NOUN))
     
          fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITHOUT VERB, SANITY")
+    print("FRACTIONS_PER_NOUN, WITHOUT VERB, SANITY NEW")
     print(fractionsPerNoun)
     
 def getPerNounReconstructionsSanityVerb():
@@ -803,7 +803,7 @@ def getPerNounReconstructionsSanityVerb():
               print("NOUNS SO FAR", topNouns.index(NOUN))
     
          fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITH VERB, SANITY")
+    print("FRACTIONS_PER_NOUN, WITH VERB, SANITY NEW")
     print(fractionsPerNoun)
     
 
@@ -840,7 +840,7 @@ def getPerNounReconstructionsSanity2Verbs():
               print("NOUNS SO FAR", topNouns.index(NOUN))
     
          fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITH 2 VERBS, SANITY")
+    print("FRACTIONS_PER_NOUN, WITH 2 VERBS, SANITY NEW")
     print(fractionsPerNoun)
     
 
@@ -879,7 +879,7 @@ def getPerNounReconstructions():
               print("NOUNS SO FAR", topNouns.index(NOUN))
     
          fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITHOUT VERB")
+    print("FRACTIONS_PER_NOUN, WITHOUT VERB NEW")
     print(fractionsPerNoun)
     
     
@@ -917,7 +917,7 @@ def getPerNounReconstructionsVerb():
               print("NOUNS SO FAR", topNouns.index(NOUN))
     
          fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITH VERB")
+    print("FRACTIONS_PER_NOUN, WITH VERB NEW")
     print(fractionsPerNoun)
     
     
@@ -954,7 +954,7 @@ def getPerNounReconstructions2Verbs():
               print("NOUNS SO FAR", topNouns.index(NOUN))
     
          fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITH TWO VERBS")
+    print("FRACTIONS_PER_NOUN, WITH TWO VERBS NEW")
     print(fractionsPerNoun)
     
     
