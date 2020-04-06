@@ -510,7 +510,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
 
 
-def sampleReconstructions(numeric, numeric_noised, NOUN):
+def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
       if True:
           beginning = zeroBeginning
 
@@ -552,7 +552,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN):
 
           logits = autoencoder.output(autoencoder.relu(autoencoder.output_mlp(out_full) )) 
           probs = autoencoder.softmax(logits)
-          if i == 15:
+          if i == 15-offset:
             assert args.sequence_length == 20
             thatProbs = float(probs[0,:, stoi["that"]+3].mean())
 #          print(i, probs[0,:, stoi["that"]+3].mean())
@@ -758,7 +758,7 @@ def getPerNounReconstructionsSanity():
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN)
+                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 0)
                  (nounFraction, thatFraction) = fractions
                  thatFractions.append(math.log(thatProbs))
     
@@ -794,7 +794,7 @@ def getPerNounReconstructionsSanityVerb():
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN)
+                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 1)
                  (nounFraction, thatFraction) = fractions
                  thatFractions.append(math.log(thatProbs))
     
@@ -831,7 +831,7 @@ def getPerNounReconstructionsSanity2Verbs():
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN)
+                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
                  (nounFraction, thatFraction) = fractions
                  thatFractions.append(math.log(thatProbs))
     
@@ -870,7 +870,7 @@ def getPerNounReconstructions():
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN)
+                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 0)
                  (nounFraction, thatFraction) = fractions
                  thatFractions.append(math.log(thatProbs))
     
@@ -908,7 +908,7 @@ def getPerNounReconstructionsVerb():
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN)
+                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 1)
                  (nounFraction, thatFraction) = fractions
                  thatFractions.append(math.log(thatProbs))
     
@@ -921,7 +921,45 @@ def getPerNounReconstructionsVerb():
     print(fractionsPerNoun)
     
     
+def getPerNounReconstructions2Verbs():
+    fractionsPerNoun = []
+    for NOUN in topNouns:
+    #     NOUN = "belief"
+         
+         for sentenceList in nounsAndVerbs:
+           print(sentenceList)
+           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
+           thatFractions = []
+    
+           for condition in [0]:
+              if condition == 0:
+                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} knew was"
+              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
+              print(len(numerified))
+              numerified = numerified[-args.sequence_length-1:]
+              assert len(numerified) == args.sequence_length+1, len(numerified)
+              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
+              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
+              print("===========")
+              surprisalsPerRun = []
+              for RUN in range(1): #args.NUMBER_OF_RUNS):
+                 numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
+                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
+                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
+                 (nounFraction, thatFraction) = fractions
+                 thatFractions.append(math.log(thatProbs))
+    
+                 
+              print(thatFractions)
+              print("NOUNS SO FAR", topNouns.index(NOUN))
+    
+         fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
+    print("FRACTIONS_PER_NOUN, WITH TWO VERBS")
+    print(fractionsPerNoun)
+    
+    
    
+  
     
     
 getPerNounReconstructionsSanity()

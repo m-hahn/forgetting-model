@@ -1,23 +1,14 @@
-data = read.csv("tableSearchResults_new.tsv", sep="\t")
+data = read.csv("tableSearchResults.tsv", sep="\t")
 
 
 library(ggplot2)
 
 require(ggrepel)
 
-ggplot(data, aes(x=deletion_rate, y=predictionLoss, group=version, color=version)) + geom_smooth(method="loess")
+ggplot(data, aes(x=memRate, y=predictionLoss, group=version, color=version)) + geom_smooth(method="loess")
 
 library(dplyr)
 library(tidyr)
-
-
-
-
-
-
-
-###############################################
-
 
 ggplot(data %>% filter(grepl("Long", version)), aes(x=memRate, y=predictionLoss, group=version, color=version)) + geom_smooth(method="loess")
 
