@@ -1,0 +1,5 @@
+Interesting:
+char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq.py_114245134
+
+Too much forgetting
+char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq.py_201496184
