@@ -1071,171 +1071,6 @@ if args.load_from_plain_lm is not None:
 
 
 
-def getPerNounReconstructionsSanity2VerbsUsingPlainLM3(): # Surprisal for EOS after 2 or 3 verbs
-    print(plain_lm) 
-    surprisalsPerNoun = []
-    thatFractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = { 0 : [], 1 : []}
-           surprisals = { 0 : [], 1 : []}
-
-    
-           for condition in [0,1]:
-              if condition == 0 or True:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won"
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 0 if condition == 0 else 0)
-         
-                 #print(resultNumeric)
-                 #print(resultNumeric.size())
-                 #print(itos[2033-3])
-                 if condition == 0:
-                   appended = ["won", "was", "true", "."]
-                 else:
-                   appended = ["was", "true", "."]
-                 appended = torch.LongTensor([stoi[x]+3 for x in appended]).view(1, -1).expand(args.NUMBER_OF_REPLICATES*args.batchSize, -1).cuda()
-                 #print(appended.size())
-                 resultNumeric = torch.cat([resultNumeric, appended], dim=1)
-                 resultNumeric = resultNumeric[:, -(1+args.sequence_length):]
-                 #print(resultNumeric.size())
-                 
-                 #quit()
-                 totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
-                 print(totalSurprisal.size())
-#                 quit()
-  #               print("predictionsPlainLM", predictionsPlainLM.size())
-   #              print(".", predictionsPlainLM[-1, :, stoi["."]+3].mean())
-    #             print("was", predictionsPlainLM[-1, :, stoi["was"]+3].mean())
-                 print(samplesFromLM)
-      #           print(predictionsPlainLM.size())
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions[condition].append(math.log(thatProbs))
-
-
-    #             assert RUN == 0
-                 if condition == 0:
-    #                print(totalSurprisal)
-    #                print(totalSurprisal[-4:])
-    #                print(totalSurprisal[-4:].sum(dim=0))
-    #                quit()
-                    surprisals[condition].append(float(totalSurprisal[-1:, :].sum(dim=0).mean()))
-                 else:
-                    surprisals[condition].append(float(totalSurprisal[-1:, :].sum(dim=0).mean()))
-
-
-
-                 
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-         surprisals0 = sum(surprisals[0])/len(surprisals[0])
-         surprisals1 = sum(surprisals[1])/len(surprisals[1])
-         surprisalsPerNoun.append((NOUN, surprisals1, surprisals0))
-         
-         thatFractions0 = sum(thatFractions[0])/len(thatFractions[0])
-         thatFractions1 = sum(thatFractions[1])/len(thatFractions[1])
-         thatFractionsPerNoun.append((NOUN, thatFractions1, thatFractions0))
-    print("SURPRISALS_PER_NOUN, WITH VERB, SANITY NEW")
-    print(surprisalsPerNoun)
-    print(thatFractionsPerNoun)
-    print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
-    print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
-    print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
-    print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
-    quit()
-   
-
-
-
-def getPerNounReconstructionsSanity2VerbsUsingPlainLM2(): # Surprisal for EOS after 2 or 3 verbs
-    print(plain_lm) 
-    surprisalsPerNoun = []
-    thatFractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = { 0 : [], 1 : []}
-           surprisals = { 0 : [], 1 : []}
-
-    
-           for condition in [0,1]:
-              if condition == 0:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won was true . ."
-              else:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} was true . ."
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 5 if condition == 0 else 4)
-#                 print(resultNumeric)
- #                print(resultNumeric.size())
-                 totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
-                 print(totalSurprisal.size())
-#                 quit()
-  #               print("predictionsPlainLM", predictionsPlainLM.size())
-   #              print(".", predictionsPlainLM[-1, :, stoi["."]+3].mean())
-    #             print("was", predictionsPlainLM[-1, :, stoi["was"]+3].mean())
-                 print(samplesFromLM)
-      #           print(predictionsPlainLM.size())
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions[condition].append(math.log(thatProbs))
-
-
-    #             assert RUN == 0
-                 if condition == 0:
-    #                print(totalSurprisal)
-    #                print(totalSurprisal[-4:])
-    #                print(totalSurprisal[-4:].sum(dim=0))
-    #                quit()
-                    surprisals[condition].append(float(totalSurprisal[-3:, :].sum(dim=0).mean()))
-                 else:
-                    surprisals[condition].append(float(totalSurprisal[-3:, :].sum(dim=0).mean()))
-
-
-
-                 
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-         surprisals0 = sum(surprisals[0])/len(surprisals[0])
-         surprisals1 = sum(surprisals[1])/len(surprisals[1])
-         surprisalsPerNoun.append((NOUN, surprisals1, surprisals0))
-         
-         thatFractions0 = sum(thatFractions[0])/len(thatFractions[0])
-         thatFractions1 = sum(thatFractions[1])/len(thatFractions[1])
-         thatFractionsPerNoun.append((NOUN, thatFractions1, thatFractions0))
-    print("SURPRISALS_PER_NOUN, WITH VERB, SANITY NEW")
-    print(surprisalsPerNoun)
-    print(thatFractionsPerNoun)
-    print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
-    print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
-    print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
-    print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
-    quit()
-   
-
-
-  
 def getPerNounReconstructionsSanity2VerbsUsingPlainLM(): # Next-word prediction after observing 2 verbs
     print(plain_lm) 
     surprisalsPerNoun = []
@@ -1259,7 +1094,7 @@ def getPerNounReconstructionsSanity2VerbsUsingPlainLM(): # Next-word prediction 
               print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
               print("###########")
               surprisals = []
-              for RUN in range(20): #args.NUMBER_OF_RUNS):
+              for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
                  result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
@@ -1276,26 +1111,30 @@ def getPerNounReconstructionsSanity2VerbsUsingPlainLM(): # Next-word prediction 
 
 
     #             assert RUN == 0
-                 surprisals.append((float(predictionsPlainLM[-1, :, stoi["."]+3].mean()) - float(predictionsPlainLM[-1, :, stoi["was"]+3].mean())))
+                 surprisals.append((float(predictionsPlainLM[-1, :, stoi["."]+3].mean()) , float(predictionsPlainLM[-1, :, stoi["was"]+3].mean())))
 
 
                  
               print("NOUNS SO FAR", topNouns.index(NOUN))
-                  
-         surprisalsPerNoun.append((NOUN, sum(surprisals)/len(surprisals)))
-         thatFractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
+         surprisals0 = [x[0] for x in surprisals]
+         surprisals1 = [x[1] for x in surprisals]
+
+         surprisals0 = sum(surprisals0)/len(surprisals0)
+         surprisals1 = sum(surprisals1)/len(surprisals1)
+         surprisalsPerNoun.append((NOUN, surprisals1, surprisals0))
+         thatFractionsPerNoun.append((NOUN, math.log(sum([math.exp(x) for x in thatFractions])/len(thatFractions))))
     print("SURPRISALS_PER_NOUN, WITH VERB, SANITY NEW")
     print(surprisalsPerNoun)
     print(thatFractionsPerNoun)
-    print([x[1] for x in surprisalsPerNoun])
-    print([x[1] for x in thatFractionsPerNoun])
+    print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
+    print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
+    print("thatFraction = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
+    print("counts = c("+",".join([str(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])+")")
     quit()
    
 
     
-#getPerNounReconstructionsSanity2VerbsUsingPlainLM()
-#getPerNounReconstructionsSanity2VerbsUsingPlainLM2()
-getPerNounReconstructionsSanity2VerbsUsingPlainLM3()
+getPerNounReconstructionsSanity2VerbsUsingPlainLM()
 quit()
   
 getPerNounReconstructionsSanity()

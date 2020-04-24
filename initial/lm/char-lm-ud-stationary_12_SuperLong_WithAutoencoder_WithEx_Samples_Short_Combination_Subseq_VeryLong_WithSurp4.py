@@ -64,8 +64,13 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.15
+assert args.deletion_rate > 0.0
 assert args.deletion_rate < 0.9
+
+
+############################################
+#assert args.deletion_rate < 0.45
+##############################
 
 #############################
 
@@ -73,6 +78,7 @@ assert args.tuning in [0,1]
 assert args.batchSize == 1
 print(args.myID)
 import sys
+print(sys.argv)
 if args.tuning == 1:
    sys.stdout = open("/u/scr/mhahn/reinforce-logs-both/full-logs/"+__file__+"_"+str(args.myID), "w")
 
@@ -159,7 +165,7 @@ class PlainLanguageModel(torch.nn.Module):
         out, self.hidden = self.rnn(embedded, self.hidden)
         logits = self.output(out) 
         probs = self.softmax(logits)
-        print(probs.size())
+#        print(probs.size())
         dist = torch.distributions.Categorical(probs=probs)
          
         nextWord = (dist.sample())
@@ -729,20 +735,20 @@ def showAttention(word):
 
 
 nounsAndVerbs = []
-#nounsAndVerbs.append(["the school principal",       "the teacher",        "had an affair with",                     "had been fired",                     "was quoted in the newspaper"])
-#nounsAndVerbs.append(["the famous sculptor",        "the painter",        "admired more than anyone",            "wasn't talented",                    "was completely untrue"])
-#nounsAndVerbs.append(["the marketing whiz",  "the artist",         "had hired",                  "was a fraud",                        "shocked everyone"])
-#nounsAndVerbs.append(["the marathon runner",         "the psychiatrist",       "treated for his illness",                "was actually doping",            "was ridiculous"])
-#nounsAndVerbs.append(["the frightened child",           "the medic",          "rescued from the flood",    "was completely unharmed",            "relieved everyone"])
-#nounsAndVerbs.append(["the alleged criminal",        "the officer",        "arrested after the murder",                  "was not in fact guilty",             "was bogus"])
-#nounsAndVerbs.append(["the college student",         "the professor",      "accused of cheating",                     "was dropping the class",             "made the professor happy"])
-#nounsAndVerbs.append(["the suspected mobster",         "the media",          "portrayed in detail",               "was on the run",                     "turned out to be true"])
-#nounsAndVerbs.append(["the leading man",           "the starlet",        "fell in love with",                    "would miss the show",                "almost made her cry"])
-#nounsAndVerbs.append(["the old preacher",        "the parishioners",   "fired yesterday",                     "stole money from the church",        "proved to be true"])
-#nounsAndVerbs.append(["the young violinist",      "the sponsors",       "backed financially",                    "abused drugs",                       "is likely true"])
-#nounsAndVerbs.append(["the conservative senator",        "the diplomat",       "opposed in the election",                   "won in the run-off",                   "really made him angry"])
+nounsAndVerbs.append(["the school principal",       "the teacher",        "had an affair with",                     "had been fired",                     "was quoted in the newspaper"])
+nounsAndVerbs.append(["the famous sculptor",        "the painter",        "admired more than anyone",            "wasn't talented",                    "was completely untrue"])
+nounsAndVerbs.append(["the marketing whiz",  "the artist",         "had hired",                  "was a fraud",                        "shocked everyone"])
+nounsAndVerbs.append(["the marathon runner",         "the psychiatrist",       "treated for his illness",                "was actually doping",            "was ridiculous"])
+nounsAndVerbs.append(["the frightened child",           "the medic",          "rescued from the flood",    "was completely unharmed",            "relieved everyone"])
+nounsAndVerbs.append(["the alleged criminal",        "the officer",        "arrested after the murder",                  "was not in fact guilty",             "was bogus"])
+nounsAndVerbs.append(["the college student",         "the professor",      "accused of cheating",                     "was dropping the class",             "made the professor happy"])
+nounsAndVerbs.append(["the suspected mobster",         "the media",          "portrayed in detail",               "was on the run",                     "turned out to be true"])
+nounsAndVerbs.append(["the leading man",           "the starlet",        "fell in love with",                    "would miss the show",                "almost made her cry"])
+nounsAndVerbs.append(["the old preacher",        "the parishioners",   "fired yesterday",                     "stole money from the church",        "proved to be true"])
+nounsAndVerbs.append(["the young violinist",      "the sponsors",       "backed financially",                    "abused drugs",                       "is likely true"])
+nounsAndVerbs.append(["the conservative senator",        "the diplomat",       "opposed in the election",                   "won in the run-off",                   "really made him angry"])
 
-nounsAndVerbs.append(["the senator",        "the diplomat",       "opposed"])
+#nounsAndVerbs.append(["the senator",        "the diplomat",       "opposed"])
 
 #nounsAndVerbs = nounsAndVerbs[:1]
 
@@ -1071,7 +1077,80 @@ if args.load_from_plain_lm is not None:
 
 
 
-def getPerNounReconstructionsSanity2VerbsUsingPlainLM3(): # Surprisal for EOS after 2 or 3 verbs
+def correlation(x, y):
+   variance_x = (x.pow(2)).mean() - x.mean().pow(2)
+   variance_y = (y.pow(2)).mean() - y.mean().pow(2)
+   return ((x-x.mean())* (y-y.mean())).mean()/(variance_x*variance_y).sqrt()
+
+def getPerNounReconstructions2VerbsUsingPlainLM(): # Surprisal for EOS after 2 or 3 verbs
+    print(plain_lm) 
+    surprisalsPerNoun = []
+    thatFractionsPerNoun = []
+    for NOUN in topNouns:
+         for sentenceList in nounsAndVerbs:
+           print(sentenceList)
+           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
+           thatFractions = { 0 : [], 1 : []}
+           surprisals = { 0 : [], 1 : []}
+           if True:
+              sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won"
+              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
+              print(len(numerified))
+              numerified = numerified[-args.sequence_length-1:]
+              assert len(numerified) == args.sequence_length+1, len(numerified)
+              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
+              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
+              print("###########")
+              for RUN in range(1): #args.NUMBER_OF_RUNS):
+
+                 numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
+                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
+                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
+                 for condition in [0,1]:
+                   if condition == 0:
+                     appended = ["won", "was", "true", "."]
+                   else:
+                     appended = ["was", "true", "."]
+                   appended = torch.LongTensor([stoi[x]+3 for x in appended]).view(1, -1).expand(args.NUMBER_OF_REPLICATES*args.batchSize, -1).cuda()
+                   resultNumeric = torch.cat([resultNumeric, appended], dim=1)
+                   resultNumeric = resultNumeric[:, -(1+args.sequence_length):]
+                   
+                   totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
+                   print(samplesFromLM)
+      #             print(predictionsPlainLM.size())
+                   (nounFraction, thatFraction) = fractions
+                   thatFractions[condition].append(math.log(thatProbs))
+
+
+                   if condition == 0:
+                      surprisals[condition].append(float(totalSurprisal[-4:, :].sum(dim=0).mean()))
+                   else:
+                      surprisals[condition].append(float(totalSurprisal[-3:, :].sum(dim=0).mean()))
+              print("NOUNS SO FAR", topNouns.index(NOUN))
+         surprisals0 = sum(surprisals[0])/len(surprisals[0])
+         surprisals1 = sum(surprisals[1])/len(surprisals[1])
+         surprisalsPerNoun.append((NOUN, surprisals1, surprisals0))
+         
+         thatFractions0 = sum(thatFractions[0])/len(thatFractions[0])
+         thatFractions1 = sum(thatFractions[1])/len(thatFractions[1])
+         thatFractionsPerNoun.append((NOUN, thatFractions1, thatFractions0))
+    print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
+    print(surprisalsPerNoun)
+    print(thatFractionsPerNoun)
+    print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
+    print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
+    differences = torch.FloatTensor([x[2]-x[1] for x in surprisalsPerNoun])
+    print("counts = c("+",".join([str(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])+")")
+    ratios = torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])
+    print(ratios)
+    print("PLAIN LM Correlation", correlation(ratios, differences))
+
+    print(differences)
+    #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
+    #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
+
+
+def getPerNounReconstructionsSanity2VerbsUsingPlainLM(): # Surprisal for EOS after 2 or 3 verbs
     print(plain_lm) 
     surprisalsPerNoun = []
     thatFractionsPerNoun = []
@@ -1084,10 +1163,12 @@ def getPerNounReconstructionsSanity2VerbsUsingPlainLM3(): # Surprisal for EOS af
            thatFractions = { 0 : [], 1 : []}
            surprisals = { 0 : [], 1 : []}
 
-    
-           for condition in [0,1]:
-              if condition == 0 or True:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won"
+  
+  
+#           for condition in [0,1]:
+ #             if condition == 0 or True:
+           if True:
+              sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won"
               numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
               print(len(numerified))
               numerified = numerified[-args.sequence_length-1:]
@@ -1098,43 +1179,32 @@ def getPerNounReconstructionsSanity2VerbsUsingPlainLM3(): # Surprisal for EOS af
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 0 if condition == 0 else 0)
+                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 0)
          
                  #print(resultNumeric)
                  #print(resultNumeric.size())
-                 #print(itos[2033-3])
-                 if condition == 0:
-                   appended = ["won", "was", "true", "."]
-                 else:
-                   appended = ["was", "true", "."]
-                 appended = torch.LongTensor([stoi[x]+3 for x in appended]).view(1, -1).expand(args.NUMBER_OF_REPLICATES*args.batchSize, -1).cuda()
-                 #print(appended.size())
-                 resultNumeric = torch.cat([resultNumeric, appended], dim=1)
-                 resultNumeric = resultNumeric[:, -(1+args.sequence_length):]
-                 #print(resultNumeric.size())
-                 
-                 #quit()
-                 totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
-                 print(totalSurprisal.size())
-#                 quit()
-  #               print("predictionsPlainLM", predictionsPlainLM.size())
-   #              print(".", predictionsPlainLM[-1, :, stoi["."]+3].mean())
-    #             print("was", predictionsPlainLM[-1, :, stoi["was"]+3].mean())
-                 print(samplesFromLM)
-      #           print(predictionsPlainLM.size())
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions[condition].append(math.log(thatProbs))
+                         #print(itos[2033-3])
+                 for condition in [0,1]:
+                   if condition == 0:
+                     appended = ["won", "was", "true", "."]
+                   else:
+                     appended = ["was", "true", "."]
+                   appended = torch.LongTensor([stoi[x]+3 for x in appended]).view(1, -1).expand(args.NUMBER_OF_REPLICATES*args.batchSize, -1).cuda()
+                   #print(appended.size())
+                   resultNumeric = torch.cat([resultNumeric, appended], dim=1)
+                   resultNumeric = resultNumeric[:, -(1+args.sequence_length):]
+                   #print(resultNumeric.size())
+                   
+                   totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
+                   print(samplesFromLM)
+                   (nounFraction, thatFraction) = fractions
+                   thatFractions[condition].append(math.log(thatProbs))
 
 
-    #             assert RUN == 0
-                 if condition == 0:
-    #                print(totalSurprisal)
-    #                print(totalSurprisal[-4:])
-    #                print(totalSurprisal[-4:].sum(dim=0))
-    #                quit()
-                    surprisals[condition].append(float(totalSurprisal[-1:, :].sum(dim=0).mean()))
-                 else:
-                    surprisals[condition].append(float(totalSurprisal[-1:, :].sum(dim=0).mean()))
+                   if condition == 0:
+                      surprisals[condition].append(float(totalSurprisal[-4:, :].sum(dim=0).mean()))
+                   else:
+                      surprisals[condition].append(float(totalSurprisal[-3:, :].sum(dim=0).mean()))
 
 
 
@@ -1147,159 +1217,26 @@ def getPerNounReconstructionsSanity2VerbsUsingPlainLM3(): # Surprisal for EOS af
          thatFractions0 = sum(thatFractions[0])/len(thatFractions[0])
          thatFractions1 = sum(thatFractions[1])/len(thatFractions[1])
          thatFractionsPerNoun.append((NOUN, thatFractions1, thatFractions0))
-    print("SURPRISALS_PER_NOUN, WITH VERB, SANITY NEW")
+    print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, SANITY NEW")
     print(surprisalsPerNoun)
     print(thatFractionsPerNoun)
     print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
     print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
-    print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
-    print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
-    quit()
+    #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
+    #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
+    differences = torch.FloatTensor([x[2]-x[1] for x in surprisalsPerNoun])
+    print("counts = c("+",".join([str(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])+")")
+    ratios = torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])
+    print(ratios)
+    print("PLAIN LM SANITY Correlation", correlation(ratios, differences))
    
 
-
-
-def getPerNounReconstructionsSanity2VerbsUsingPlainLM2(): # Surprisal for EOS after 2 or 3 verbs
-    print(plain_lm) 
-    surprisalsPerNoun = []
-    thatFractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = { 0 : [], 1 : []}
-           surprisals = { 0 : [], 1 : []}
-
-    
-           for condition in [0,1]:
-              if condition == 0:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won was true . ."
-              else:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} was true . ."
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 5 if condition == 0 else 4)
-#                 print(resultNumeric)
- #                print(resultNumeric.size())
-                 totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
-                 print(totalSurprisal.size())
-#                 quit()
-  #               print("predictionsPlainLM", predictionsPlainLM.size())
-   #              print(".", predictionsPlainLM[-1, :, stoi["."]+3].mean())
-    #             print("was", predictionsPlainLM[-1, :, stoi["was"]+3].mean())
-                 print(samplesFromLM)
-      #           print(predictionsPlainLM.size())
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions[condition].append(math.log(thatProbs))
-
-
-    #             assert RUN == 0
-                 if condition == 0:
-    #                print(totalSurprisal)
-    #                print(totalSurprisal[-4:])
-    #                print(totalSurprisal[-4:].sum(dim=0))
-    #                quit()
-                    surprisals[condition].append(float(totalSurprisal[-3:, :].sum(dim=0).mean()))
-                 else:
-                    surprisals[condition].append(float(totalSurprisal[-3:, :].sum(dim=0).mean()))
-
-
-
-                 
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-         surprisals0 = sum(surprisals[0])/len(surprisals[0])
-         surprisals1 = sum(surprisals[1])/len(surprisals[1])
-         surprisalsPerNoun.append((NOUN, surprisals1, surprisals0))
-         
-         thatFractions0 = sum(thatFractions[0])/len(thatFractions[0])
-         thatFractions1 = sum(thatFractions[1])/len(thatFractions[1])
-         thatFractionsPerNoun.append((NOUN, thatFractions1, thatFractions0))
-    print("SURPRISALS_PER_NOUN, WITH VERB, SANITY NEW")
-    print(surprisalsPerNoun)
-    print(thatFractionsPerNoun)
-    print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
-    print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
-    print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
-    print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
-    quit()
-   
-
-
-  
-def getPerNounReconstructionsSanity2VerbsUsingPlainLM(): # Next-word prediction after observing 2 verbs
-    print(plain_lm) 
-    surprisalsPerNoun = []
-    thatFractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = []
-    
-           for condition in [0]:
-              if condition == 0:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won was"
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
-              surprisals = []
-              for RUN in range(20): #args.NUMBER_OF_RUNS):
-                 numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
-#                 print(resultNumeric)
- #                print(resultNumeric.size())
-                 totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
-  #               print("predictionsPlainLM", predictionsPlainLM.size())
-   #              print(".", predictionsPlainLM[-1, :, stoi["."]+3].mean())
-    #             print("was", predictionsPlainLM[-1, :, stoi["was"]+3].mean())
-     #            print(samplesFromLM)
-      #           print(predictionsPlainLM.size())
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions.append(math.log(thatProbs))
-
-
-    #             assert RUN == 0
-                 surprisals.append((float(predictionsPlainLM[-1, :, stoi["."]+3].mean()) - float(predictionsPlainLM[-1, :, stoi["was"]+3].mean())))
-
-
-                 
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-                  
-         surprisalsPerNoun.append((NOUN, sum(surprisals)/len(surprisals)))
-         thatFractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("SURPRISALS_PER_NOUN, WITH VERB, SANITY NEW")
-    print(surprisalsPerNoun)
-    print(thatFractionsPerNoun)
-    print([x[1] for x in surprisalsPerNoun])
-    print([x[1] for x in thatFractionsPerNoun])
-    quit()
-   
-
-    
-#getPerNounReconstructionsSanity2VerbsUsingPlainLM()
-#getPerNounReconstructionsSanity2VerbsUsingPlainLM2()
-getPerNounReconstructionsSanity2VerbsUsingPlainLM3()
-quit()
-  
-getPerNounReconstructionsSanity()
-getPerNounReconstructionsSanityVerb()
+getPerNounReconstructions2VerbsUsingPlainLM()
+getPerNounReconstructionsSanity2VerbsUsingPlainLM()
+#quit()
+#  
+#getPerNounReconstructionsSanity()
+#getPerNounReconstructionsSanityVerb()
 
 for epoch in range(1000):
    print(epoch)
@@ -1319,12 +1256,16 @@ for epoch in range(1000):
    while updatesCount <= maxUpdates:
       counter += 1
       updatesCount += 1
-      if updatesCount % 10000 == 0:
-         getPerNounReconstructionsSanity()
-         getPerNounReconstructionsSanityVerb()
-         getPerNounReconstructions()
-         getPerNounReconstructionsVerb()
-         getPerNounReconstructions2Verbs()
+      if updatesCount % 50000 == 0:
+         getPerNounReconstructions2VerbsUsingPlainLM()
+         getPerNounReconstructionsSanity2VerbsUsingPlainLM()
+  
+
+#         getPerNounReconstructionsSanity()
+#         getPerNounReconstructionsSanityVerb()
+#         getPerNounReconstructions()
+#         getPerNounReconstructionsVerb()
+#         getPerNounReconstructions2Verbs()
          print("=========================")
          showAttention("the")
          showAttention("was")
