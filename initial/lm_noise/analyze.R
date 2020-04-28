@@ -10,7 +10,44 @@ ggplot(data, aes(x=deletion_rate, y=predictionLoss, group=version, color=version
 library(dplyr)
 library(tidyr)
 
+data = data %>% mutate(performance = (pred_weight*predictionLoss+(1-pred_weight)*reconstructionLoss))
 
+
+ggplot(data %>% group_by(learning_rate_memory) %>% summarise(reconstructionLoss = mean(reconstructionLoss)), aes(x=log(learning_rate_memory), y=reconstructionLoss)) + geom_line()
+ggplot(data %>% group_by(learning_rate_autoencoder) %>% summarise(reconstructionLoss = mean(reconstructionLoss)), aes(x=log(learning_rate_autoencoder), y=reconstructionLoss)) + geom_line()
+ggplot(data %>% group_by(learning_rate_autoencoder) %>% summarise(reconstructionLoss = mean(reconstructionLoss)), aes(x=log(learning_rate_autoencoder), y=reconstructionLoss)) + geom_smooth(method="gam")
+ggplot(data %>% group_by(learning_rate_memory) %>% summarise(predictionLoss = mean(predictionLoss)), aes(x=log(learning_rate_memory), y=predictionLoss)) + geom_line()
+ggplot(data %>% group_by(learning_rate_autoencoder) %>% summarise(predictionLoss = mean(predictionLoss)), aes(x=log(learning_rate_autoencoder), y=predictionLoss)) + geom_line()
+
+
+ggplot(data %>% group_by(learning_rate_memory) %>% summarise(predictionLoss_median = median(predictionLoss), predictionLoss_min = min(predictionLoss), predictionLoss_max = max(predictionLoss)), aes(x=log(learning_rate_memory), y=predictionLoss_median)) + geom_line() + geom_line(aes(y=predictionLoss_min)) + geom_line(aes(y=predictionLoss_max))
+
+
+
+ggplot(data %>% group_by(learning_rate_autoencoder) %>% summarise(performance = mean(pred_weight*predictionLoss+(1-pred_weight)*reconstructionLoss)), aes(x=log(learning_rate_autoencoder), y=performance)) + geom_line()
+ggplot(data, aes(x=log(learning_rate_autoencoder), y=performance)) + geom_smooth(method="loess")
+ggplot(data, aes(x=log(learning_rate_memory), y=performance)) + geom_smooth(method="loess")
+
+ggplot(data, aes(x=momentum, y=reconstructionLoss)) + geom_smooth(method="loess") + facet_wrap(~deletion_rate)
+
+
+
+ggplot(data %>% group_by(lr_decay) %>% summarise(performance = mean(performance)), aes(x=log(lr_decay), y=performance)) + geom_line()
+
+
+
+ggplot(data %>% group_by(momentum) %>% summarise(performance = mean(performance)), aes(x=momentum, y=performance)) + geom_line()
+
+
+ggplot(data %>% group_by(entropy_weight) %>% summarise(performance = mean(performance)), aes(x=log(entropy_weight+1), y=performance)) + geom_line()
+
+plot(data$learning_rate, data$performance)
+
+
+
+##########################
+summary(lm(reconstructionLoss ~ log(learning_rate_memory) + log(learning_rate_autoencoder) + pred_weight + NUMBER_OF_REPLICATES+ deletion_rate + momentum, data=data))
+##########################
 
 
 

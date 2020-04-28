@@ -49,7 +49,7 @@ if True:
 
    lastR = None
    with open("lm_noise/tableSearchResults_new.tsv", "w") as outFile:
-     print("\t".join(["deletion_rate", "pred_weight", "predictionLoss", "prediction_loss", "params", "version", "filenum", "load_from_lm"] + PARAMS), file=outFile)
+     print("\t".join(["deletion_rate", "pred_weight", "predictionLoss", "reconstructionLoss", "params", "version", "filenum", "load_from_lm"] + PARAMS), file=outFile)
      for r in results:
       if lastR is not None and lastR[0] != r[0]:
          print("-----------")
