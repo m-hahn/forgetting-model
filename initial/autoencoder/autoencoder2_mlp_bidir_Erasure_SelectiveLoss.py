@@ -89,8 +89,8 @@ stoi_total = dict([(itos_total[i],i) for i in range(len(itos_total))])
 ############################################################
 # Model
 
-rnn_encoder = torch.nn.LSTM(2*args.word_embedding_size, int(args.hidden_dim/2.0), args.layer_num, bidirectional=True).cuda()
-rnn_decoder = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim, args.layer_num).cuda()
+rnn_encoder = torch.nn.LSTM(2*args.word_embedding_size, int(args.hidden_dim/2.0), args.layer_num, bidirectional=True).cuda() # encoder reads a noised input
+rnn_decoder = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim, args.layer_num).cuda() # outputs a denoised reconstruction
 output = torch.nn.Linear(args.hidden_dim, len(itos)+3).cuda()
 word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
 
