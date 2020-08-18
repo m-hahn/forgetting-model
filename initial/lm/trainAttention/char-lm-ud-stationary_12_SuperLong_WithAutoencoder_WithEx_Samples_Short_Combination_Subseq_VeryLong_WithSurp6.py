@@ -107,12 +107,12 @@ itos_total = ["<SOS>", "<EOS>", "OOV"] + itos
 stoi_total = dict([(itos_total[i],i) for i in range(len(itos_total))])
 
 
-with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
-     itos_chars = [x for x in inFile.read().strip().split("\n")]
-stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
-
-
-itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
+#with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
+#     itos_chars = [x for x in inFile.read().strip().split("\n")]
+#stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
+#
+#
+#itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
 
 
 import random
@@ -364,29 +364,29 @@ def prepareDatasetChunks(data, train=True):
 #         if count % 100000 == 0:
 #             print(count/len(data))
          numerified.append((stoi[char]+3 if char in stoi else 2))
-         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
+#         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
 
        if len(numerified) > (args.batchSize*(args.sequence_length+1)):
          sequenceLengthHere = args.sequence_length+1
 
          cutoff = int(len(numerified)/(args.batchSize*sequenceLengthHere)) * (args.batchSize*sequenceLengthHere)
          numerifiedCurrent = numerified[:cutoff]
-         numerifiedCurrent_chars = numerified_chars[:cutoff]
+#         numerifiedCurrent_chars = numerified_chars[:cutoff]
 
-         for i in range(len(numerifiedCurrent_chars)):
-            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i][:15] + [1]
-            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i] + ([0]*(16-len(numerifiedCurrent_chars[i])))
+#         for i in range(len(numerifiedCurrent_chars)):
+#            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i][:15] + [1]
+#            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i] + ([0]*(16-len(numerifiedCurrent_chars[i])))
 
 
          numerified = numerified[cutoff:]
-         numerified_chars = numerified_chars[cutoff:]
+#         numerified_chars = numerified_chars[cutoff:]
        
          numerifiedCurrent = torch.LongTensor(numerifiedCurrent).view(args.batchSize, -1, sequenceLengthHere).transpose(0,1).transpose(1,2).cuda()
-         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2).cuda()
+#         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2).cuda()
 
          numberOfSequences = numerifiedCurrent.size()[0]
          for i in range(numberOfSequences):
-             yield numerifiedCurrent[i], numerifiedCurrent_chars[i]
+             yield numerifiedCurrent[i], None
          hidden = None
        else:
          print("Skipping")
@@ -838,7 +838,7 @@ topNouns.append("declaration")
 
 
 
-with open("../../../forgetting/fromCorpus_counts.csv", "r") as inFile:
+with open("../../../../forgetting/fromCorpus_counts.csv", "r") as inFile:
    counts = [x.split("\t") for x in inFile.read().strip().split("\n")]
    header = counts[0]
    header = dict(list(zip(header, range(len(header)))))
@@ -871,7 +871,7 @@ def getPerNounReconstructionsSanity():
               assert len(numerified) == args.sequence_length+1, len(numerified)
               numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
               print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
+              print("########### SANITY")
               surprisalsPerRun = []
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
@@ -907,7 +907,7 @@ def getPerNounReconstructionsSanityVerb():
               assert len(numerified) == args.sequence_length+1, len(numerified)
               numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
               print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
+              print("########### SANITY")
               surprisalsPerRun = []
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
@@ -944,7 +944,7 @@ def getPerNounReconstructionsSanity2Verbs():
               assert len(numerified) == args.sequence_length+1, len(numerified)
               numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
               print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
+              print("########### SANITY")
               surprisalsPerRun = []
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
@@ -1102,14 +1102,14 @@ def getPerNounReconstructions2VerbsUsingPlainLM(): # Surprisal for EOS after 2 o
            thatFractions = { 0 : [], 1 : []}
            surprisals = { 0 : [], 1 : []}
            if True:
-              sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won"
+              sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won elections"
               numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
               print(len(numerified))
               numerified = numerified[-args.sequence_length-1:]
               assert len(numerified) == args.sequence_length+1, len(numerified)
               numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
               print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
+              print("########### MODEL")
               for RUN in range(1): #args.NUMBER_OF_RUNS):
 
                  numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
@@ -1117,7 +1117,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(): # Surprisal for EOS after 2 o
                  result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
                  for condition in [0,1]:
                    if condition == 0:
-                     appended = ["won", "was", "true", "."]
+                     appended = ["won", "elections", "was", "true", "."]
                    else:
                      appended = ["was", "true", "."]
                    appended = torch.LongTensor([stoi[x]+3 for x in appended]).view(1, -1).expand(args.NUMBER_OF_REPLICATES*args.batchSize, -1).cuda()
@@ -1177,14 +1177,14 @@ def getPerNounReconstructionsSanity2VerbsUsingPlainLM(): # Surprisal for EOS aft
 #           for condition in [0,1]:
  #             if condition == 0 or True:
            if True:
-              sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won"
+              sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won elections"
               numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
               print(len(numerified))
               numerified = numerified[-args.sequence_length-1:]
               assert len(numerified) == args.sequence_length+1, len(numerified)
               numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
               print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
+              print("########### MODEL")
               for RUN in range(1): #args.NUMBER_OF_RUNS):
                  numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
@@ -1195,7 +1195,7 @@ def getPerNounReconstructionsSanity2VerbsUsingPlainLM(): # Surprisal for EOS aft
                          #print(itos[2033-3])
                  for condition in [0,1]:
                    if condition == 0:
-                     appended = ["won", "was", "true", "."]
+                     appended = ["won", "elections", "was", "true", "."]
                    else:
                      appended = ["was", "true", "."]
                    appended = torch.LongTensor([stoi[x]+3 for x in appended]).view(1, -1).expand(args.NUMBER_OF_REPLICATES*args.batchSize, -1).cuda()

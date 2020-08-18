@@ -35,7 +35,7 @@ parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--deletion_rate", type=float, default=0.5)
 
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.25, 0.5, 0.75]))
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
 
 
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
@@ -107,12 +107,12 @@ itos_total = ["<SOS>", "<EOS>", "OOV"] + itos
 stoi_total = dict([(itos_total[i],i) for i in range(len(itos_total))])
 
 
-with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
-     itos_chars = [x for x in inFile.read().strip().split("\n")]
-stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
-
-
-itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
+#with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
+#     itos_chars = [x for x in inFile.read().strip().split("\n")]
+#stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
+#
+#
+#itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
 
 
 import random
@@ -217,9 +217,9 @@ class PlainLanguageModel(torch.nn.Module):
           lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, args.batchSize)
           losses = lossTensor.data.cpu().numpy()
           numericCPU = numeric.cpu().data.numpy()
-          print(("NONE", itos_total[numericCPU[0][0]]))
-          for i in range((args.sequence_length)):
-             print((losses[i][0], itos_total[numericCPU[i+1][0]]))
+          #print(("NONE", itos_total[numericCPU[0][0]]))
+          #for i in range((args.sequence_length)):
+          #   print((losses[i][0], itos_total[numericCPU[i+1][0]]))
        samples = self.sample(numeric[-1])
        return lossTensor, target_tensor.view(-1).size()[0], samples, log_probs
    
@@ -364,29 +364,29 @@ def prepareDatasetChunks(data, train=True):
 #         if count % 100000 == 0:
 #             print(count/len(data))
          numerified.append((stoi[char]+3 if char in stoi else 2))
-         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
+#         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
 
        if len(numerified) > (args.batchSize*(args.sequence_length+1)):
          sequenceLengthHere = args.sequence_length+1
 
          cutoff = int(len(numerified)/(args.batchSize*sequenceLengthHere)) * (args.batchSize*sequenceLengthHere)
          numerifiedCurrent = numerified[:cutoff]
-         numerifiedCurrent_chars = numerified_chars[:cutoff]
+#         numerifiedCurrent_chars = numerified_chars[:cutoff]
 
-         for i in range(len(numerifiedCurrent_chars)):
-            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i][:15] + [1]
-            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i] + ([0]*(16-len(numerifiedCurrent_chars[i])))
+#         for i in range(len(numerifiedCurrent_chars)):
+#            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i][:15] + [1]
+#            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i] + ([0]*(16-len(numerifiedCurrent_chars[i])))
 
 
          numerified = numerified[cutoff:]
-         numerified_chars = numerified_chars[cutoff:]
+#         numerified_chars = numerified_chars[cutoff:]
        
          numerifiedCurrent = torch.LongTensor(numerifiedCurrent).view(args.batchSize, -1, sequenceLengthHere).transpose(0,1).transpose(1,2).cuda()
-         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2).cuda()
+#         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2).cuda()
 
          numberOfSequences = numerifiedCurrent.size()[0]
          for i in range(numberOfSequences):
-             yield numerifiedCurrent[i], numerifiedCurrent_chars[i]
+             yield numerifiedCurrent[i], None
          hidden = None
        else:
          print("Skipping")
@@ -594,15 +594,15 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
          memory_hidden_logit_per_wordtype_cpu = memory_hidden_logit_per_wordtype.cpu().data
          attention_bilinear_term = attention_bilinear_term.cpu().data
          numeric_embedded_cpu = numeric_embedded.cpu().data
-         print(("NONE", itos_total[numericCPU[0][0]]))
-         for i in range((args.sequence_length+1)):
-            print(autoencoder_losses[i][0] if i < args.sequence_length else "--", "\t", lm_losses[0][0] if args.predictability_weight > 0 and i == args.sequence_length else "---" , "\t", itos_total[numericCPU[i+1][0]],"\t", itos_total[numeric_noisedCPU[i+1][0]],"\t", memory_hidden_CPU[i+1],"\t", float(baselineValues[0]) if i == args.sequence_length else "","\t", float(numeric_embedded_cpu[i+1,0,0]),"\t", float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]),"\t", float(attention_bilinear_term[i+1,0,0]))
+ #        print(("NONE", itos_total[numericCPU[0][0]]))
+#         for i in range((args.sequence_length+1)):
+            #print(autoencoder_losses[i][0] if i < args.sequence_length else "--", "\t", lm_losses[0][0] if args.predictability_weight > 0 and i == args.sequence_length else "---" , "\t", itos_total[numericCPU[i+1][0]],"\t", itos_total[numeric_noisedCPU[i+1][0]],"\t", memory_hidden_CPU[i+1],"\t", float(baselineValues[0]) if i == args.sequence_length else "","\t", float(numeric_embedded_cpu[i+1,0,0]),"\t", float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]),"\t", float(attention_bilinear_term[i+1,0,0]))
 #            print((, itos_total[numericCPU[i+1][0]], itos_total[numeric_noisedCPU[i+1][0]], memory_hidden_CPU[i+1]))
 
 
-         if args.predictability_weight > 0:
-          print(lm_lossTensor.view(-1))
-         print(baselineValues.view(-1))
+         #if args.predictability_weight > 0:
+         # print(lm_lossTensor.view(-1))
+         #print(baselineValues.view(-1))
  #        if args.predictability_weight > 0:
 #          print("EMPIRICAL DEVIATION FROM BASELINE", (lm_lossTensor-baselineValues).abs().mean())
                
@@ -720,7 +720,7 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 5000000 if args.tuning == 1 else 10000000000
+maxUpdates = 500000 if args.tuning == 1 else 10000000000
 
 def showAttention(word):
     attention = forward((torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), None), train=True, printHere=True, provideAttention=True)
@@ -838,7 +838,7 @@ topNouns.append("declaration")
 
 
 
-with open("../../../forgetting/fromCorpus_counts.csv", "r") as inFile:
+with open("../../../../forgetting/fromCorpus_counts.csv", "r") as inFile:
    counts = [x.split("\t") for x in inFile.read().strip().split("\n")]
    header = counts[0]
    header = dict(list(zip(header, range(len(header)))))
@@ -852,228 +852,6 @@ print(len(topNouns))
 
 
 
-def getPerNounReconstructionsSanity():
-    fractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = []
-    
-           for condition in [0]:
-              if condition == 0:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
-              surprisalsPerRun = []
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 0)
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions.append(math.log(thatProbs))
-    
-                 
-              print(thatFractions)
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-    
-         fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITHOUT VERB, SANITY NEW")
-    print(fractionsPerNoun)
-    
-def getPerNounReconstructionsSanityVerb():
-    fractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = []
-    
-           for condition in [0]:
-              if condition == 0:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} knew"
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
-              surprisalsPerRun = []
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 1)
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions.append(math.log(thatProbs))
-    
-                 
-              print(thatFractions)
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-    
-         fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITH VERB, SANITY NEW")
-    print(fractionsPerNoun)
-    
-
-def getPerNounReconstructionsSanity2Verbs():
-    fractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = []
-    
-           for condition in [0]:
-              if condition == 0:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} knew was"
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
-              surprisalsPerRun = []
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions.append(math.log(thatProbs))
-    
-                 
-              print(thatFractions)
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-    
-         fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITH 2 VERBS, SANITY NEW")
-    print(fractionsPerNoun)
-    
-
-
-
-def getPerNounReconstructions():
-    fractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = []
-    
-           for condition in [0]:
-              if condition == 0:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("===========")
-              surprisalsPerRun = []
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 0)
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions.append(math.log(thatProbs))
-    
-                 
-              print(thatFractions)
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-    
-         fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITHOUT VERB NEW")
-    print(fractionsPerNoun)
-    
-    
- 
-def getPerNounReconstructionsVerb():
-    fractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = []
-    
-           for condition in [0]:
-              if condition == 0:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} knew"
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("===========")
-              surprisalsPerRun = []
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 1)
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions.append(math.log(thatProbs))
-    
-                 
-              print(thatFractions)
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-    
-         fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITH VERB NEW")
-    print(fractionsPerNoun)
-    
-    
-def getPerNounReconstructions2Verbs():
-    fractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = []
-    
-           for condition in [0]:
-              if condition == 0:
-                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} knew was"
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("===========")
-              surprisalsPerRun = []
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
-                 (nounFraction, thatFraction) = fractions
-                 thatFractions.append(math.log(thatProbs))
-    
-                 
-              print(thatFractions)
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-    
-         fractionsPerNoun.append((NOUN, sum(thatFractions)/len(thatFractions)))
-    print("FRACTIONS_PER_NOUN, WITH TWO VERBS NEW")
-    print(fractionsPerNoun)
     
     
 plain_lm = PlainLanguageModel()
@@ -1091,7 +869,13 @@ def correlation(x, y):
    variance_y = (y.pow(2)).mean() - y.mean().pow(2)
    return ((x-x.mean())* (y-y.mean())).mean()/(variance_x*variance_y).sqrt()
 
-def getPerNounReconstructions2VerbsUsingPlainLM(): # Surprisal for EOS after 2 or 3 verbs
+
+def rindex(x, y):
+   return max([i for i in range(len(x)) if x[i] == y])
+
+def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
+    assert SANITY in ["Sanity", "Model"]
+    assert VERBS in [1,2]
     print(plain_lm) 
     surprisalsPerNoun = []
     thatFractionsPerNoun = []
@@ -1102,29 +886,48 @@ def getPerNounReconstructions2VerbsUsingPlainLM(): # Surprisal for EOS after 2 o
            thatFractions = { 0 : [], 1 : []}
            surprisals = { 0 : [], 1 : []}
            if True:
-              sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won"
+              if VERBS == 2:
+                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} FOO"
+              else:
+                 sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won elections FOO"
+
               numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
               print(len(numerified))
               numerified = numerified[-args.sequence_length-1:]
               assert len(numerified) == args.sequence_length+1, len(numerified)
               numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
               print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
+              print("########### ", SANITY, VERBS)
+              THAT_INDEX = len(numerified) - rindex(sentence.split(" "), "that")
+              print("THAT_INDEX", THAT_INDEX, sentence)
               for RUN in range(1): #args.NUMBER_OF_RUNS):
 
                  numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
+                 if SANITY == "Sanity":
+                     numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
+                 elif SANITY == "Model":
+                     numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
+                 else:
+                     assert False
                  result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
                  for condition in [0,1]:
-                   if condition == 0:
-                     appended = ["won", "was", "true", "."]
+                   if VERBS == 2:
+                      if condition == 0:
+                        appended = ["won", "elections", "was", "true", "."]
+                      else:
+                        appended = ["was", "true", "."]
                    else:
-                     appended = ["was", "true", "."]
+                      if condition == 0:
+                        appended = ["was", "true", "."]
+                      else:
+                        appended = ["."]
+
                    appended = torch.LongTensor([stoi[x]+3 for x in appended]).view(1, -1).expand(args.NUMBER_OF_REPLICATES*args.batchSize, -1).cuda()
                    resultNumeric = torch.cat([resultNumeric, appended], dim=1)
                    resultNumeric = resultNumeric[:, -(1+args.sequence_length):]
                    
                    totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
+                   print("SAMPLES FROM LM")
                    print(samplesFromLM)
       #             print(predictionsPlainLM.size())
                    (nounFraction, thatFraction) = fractions
@@ -1152,96 +955,15 @@ def getPerNounReconstructions2VerbsUsingPlainLM(): # Surprisal for EOS after 2 o
     print("counts = c("+",".join([str(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])+")")
     ratios = torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])
     print(ratios)
-    print("PLAIN LM Correlation", correlation(ratios, differences))
+    print("PLAIN LM Correlation", correlation(ratios, differences), SANITY, VERBS)
 
     print(differences)
     #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
 
 
-def getPerNounReconstructionsSanity2VerbsUsingPlainLM(): # Surprisal for EOS after 2 or 3 verbs
-    print(plain_lm) 
-    surprisalsPerNoun = []
-    thatFractionsPerNoun = []
-    for NOUN in topNouns:
-    #     NOUN = "belief"
-         
-         for sentenceList in nounsAndVerbs:
-           print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
-           thatFractions = { 0 : [], 1 : []}
-           surprisals = { 0 : [], 1 : []}
-
-  
-  
-#           for condition in [0,1]:
- #             if condition == 0 or True:
-           if True:
-              sentence = context + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} won"
-              numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-              print(len(numerified))
-              numerified = numerified[-args.sequence_length-1:]
-              assert len(numerified) == args.sequence_length+1, len(numerified)
-              numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-              print(" ".join([itos[int(x)-3] for x in numerified[:,0]]))
-              print("###########")
-              for RUN in range(1): #args.NUMBER_OF_RUNS):
-                 numeric, _ = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 0)
-         
-                 #print(resultNumeric)
-                 #print(resultNumeric.size())
-                         #print(itos[2033-3])
-                 for condition in [0,1]:
-                   if condition == 0:
-                     appended = ["won", "was", "true", "."]
-                   else:
-                     appended = ["was", "true", "."]
-                   appended = torch.LongTensor([stoi[x]+3 for x in appended]).view(1, -1).expand(args.NUMBER_OF_REPLICATES*args.batchSize, -1).cuda()
-                   #print(appended.size())
-                   resultNumeric = torch.cat([resultNumeric, appended], dim=1)
-                   resultNumeric = resultNumeric[:, -(1+args.sequence_length):]
-                   #print(resultNumeric.size())
-                   
-                   totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
-                   print(samplesFromLM)
-                   (nounFraction, thatFraction) = fractions
-                   thatFractions[condition].append(math.log(thatProbs))
-
-
-                   if condition == 0:
-                      surprisals[condition].append(float(totalSurprisal[-4:, :].sum(dim=0).mean()))
-                   else:
-                      surprisals[condition].append(float(totalSurprisal[-3:, :].sum(dim=0).mean()))
-
-
-
-                 
-              print("NOUNS SO FAR", topNouns.index(NOUN))
-         surprisals0 = sum(surprisals[0])/len(surprisals[0])
-         surprisals1 = sum(surprisals[1])/len(surprisals[1])
-         surprisalsPerNoun.append((NOUN, surprisals1, surprisals0))
-         
-         thatFractions0 = sum(thatFractions[0])/len(thatFractions[0])
-         thatFractions1 = sum(thatFractions[1])/len(thatFractions[1])
-         thatFractionsPerNoun.append((NOUN, thatFractions1, thatFractions0))
-    print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, SANITY NEW")
-    print(surprisalsPerNoun)
-    print(thatFractionsPerNoun)
-    print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
-    print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
-    #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
-    #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
-    differences = torch.FloatTensor([x[2]-x[1] for x in surprisalsPerNoun])
-    print("counts = c("+",".join([str(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])+")")
-    ratios = torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])
-    print(ratios)
-    print("PLAIN LM SANITY Correlation", correlation(ratios, differences))
-   
-
-getPerNounReconstructions2VerbsUsingPlainLM()
-getPerNounReconstructionsSanity2VerbsUsingPlainLM()
+#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
+#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity")
 #quit()
 #  
 #getPerNounReconstructionsSanity()
@@ -1269,8 +991,11 @@ for epoch in range(1000):
        with open("/u/scr/mhahn/reinforce-logs-both/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
          sys.stdout = outFile
          print(updatesCount)
-         getPerNounReconstructions2VerbsUsingPlainLM()
-         getPerNounReconstructionsSanity2VerbsUsingPlainLM()
+         print(args)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
   
 
 #         getPerNounReconstructionsSanity()
