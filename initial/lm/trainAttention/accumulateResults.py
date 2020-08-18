@@ -31,11 +31,11 @@ for f in files:
        momentum = float(arguments["momentum"])
        results.append({"iterations" : iterations, "pred_weight" : pred_weight, "del_rate" : del_rate, "correlations" : correlations, "id" : id_, "lr_mem" : learning_rate_memory, "mom" : momentum})
 with open("output/results.tsv", "w") as outFile2:
- print("\t".join(["pred_weight", "del_rate", "model2"]), file=outFile2)
+ print("\t".join(["pred_weight", "del_rate", "model1", "model2"]), file=outFile2)
  with open("output/results.txt", "w") as outFile:
   for r in sorted(results, key=lambda x:x["correlations"].get("Model 2", 0.0), reverse=True):
     print(r)
     print(r, file=outFile)
-    print("\t".join([str(x) for x in [r["pred_weight"], r["del_rate"], r["correlations"].get("Model 2", 0.0)]]), file=outFile2)
+    print("\t".join([str(x) for x in [r["pred_weight"], r["del_rate"], r["correlations"].get("Model 1", "NA"), r["correlations"].get("Model 2", "NA")]]), file=outFile2)
 
 
