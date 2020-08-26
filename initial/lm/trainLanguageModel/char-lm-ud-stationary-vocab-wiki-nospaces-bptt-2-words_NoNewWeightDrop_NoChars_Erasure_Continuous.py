@@ -71,12 +71,12 @@ itos_total = ["<SOS>", "<EOS>", "OOV"] + itos
 stoi_total = dict([(itos_total[i],i) for i in range(len(itos_total))])
 
 
-with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
-     itos_chars = [x for x in inFile.read().strip().split("\n")]
-stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
-
-
-itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
+#with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
+#     itos_chars = [x for x in inFile.read().strip().split("\n")]
+#stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
+#
+#
+#itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
 
 
 import random
@@ -173,31 +173,31 @@ def prepareDatasetChunks(data, train=True):
 #         if count % 100000 == 0:
 #             print(count/len(data))
          numerified.append((stoi[char]+3 if char in stoi else 2))
-         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
+#         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
 
        if len(numerified) > (args.batchSize*args.sequence_length):
          sequenceLengthHere = args.sequence_length
 
          cutoff = int(len(numerified)/(args.batchSize*sequenceLengthHere)) * (args.batchSize*sequenceLengthHere)
          numerifiedCurrent = numerified[:cutoff]
-         numerifiedCurrent_chars = numerified_chars[:cutoff]
+#         numerifiedCurrent_chars = numerified_chars[:cutoff]
 
-         for i in range(len(numerifiedCurrent_chars)):
-            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i][:15] + [1]
-            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i] + ([0]*(16-len(numerifiedCurrent_chars[i])))
+#         for i in range(len(numerifiedCurrent_chars)):
+#            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i][:15] + [1]
+#            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i] + ([0]*(16-len(numerifiedCurrent_chars[i])))
 
 
          numerified = numerified[cutoff:]
-         numerified_chars = numerified_chars[cutoff:]
+ #        numerified_chars = numerified_chars[cutoff:]
        
          numerifiedCurrent = torch.LongTensor(numerifiedCurrent).view(args.batchSize, -1, sequenceLengthHere).transpose(0,1).transpose(1,2).cuda()
-         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2).cuda()
+#         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2).cuda()
 
 #         print(numerifiedCurrent_chars.size())
  #        quit()
          numberOfSequences = numerifiedCurrent.size()[0]
          for i in range(numberOfSequences):
-             yield numerifiedCurrent[i], numerifiedCurrent_chars[i]
+             yield numerifiedCurrent[i], None
          hidden = None
        else:
          print("Skipping")
@@ -211,7 +211,7 @@ hidden = None
 zeroBeginning = torch.LongTensor([0 for _ in range(args.batchSize)]).cuda().view(1,args.batchSize)
 beginning = None
 
-zeroBeginning_chars = torch.zeros(1, args.batchSize, 16).long().cuda()
+#zeroBeginning_chars = torch.zeros(1, args.batchSize, 16).long().cuda()
 
 
 zeroHidden = torch.zeros((args.layer_num, args.batchSize, args.hidden_dim)).cuda()

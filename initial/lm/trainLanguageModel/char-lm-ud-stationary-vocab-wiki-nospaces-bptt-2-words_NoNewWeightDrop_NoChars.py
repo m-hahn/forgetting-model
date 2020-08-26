@@ -29,8 +29,6 @@ parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 #parser.add_argument("--char_emb_dim", type=int, default=128)
 #parser.add_argument("--char_enc_hidden_dim", type=int, default=64)
 #parser.add_argument("--char_dec_hidden_dim", type=int, default=128)
-parser.add_argument("--deletion_rate", type=float, default=0.2)
-
 
 model = "REAL_REAL"
 
@@ -217,14 +215,14 @@ bernoulli = torch.distributions.bernoulli.Bernoulli(torch.tensor([0.1 for _ in r
 
 bernoulli_input = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_in for _ in range(args.batchSize * 2 * args.word_embedding_size)]).cuda())
 bernoulli_output = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_out for _ in range(args.batchSize * args.hidden_dim)]).cuda())
-noiseBernoulli = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.deletion_rate for _ in range(args.batchSize * args.sequence_length)]).cuda().view(args.sequence_length, args.batchSize))
+
 
 
 
 def forward(numeric, train=True, printHere=False):
       global hidden
       global beginning
-      global beginning_chars
+#      global beginning_chars
       if hidden is None:
           hidden = None
           beginning = zeroBeginning
@@ -243,22 +241,42 @@ def forward(numeric, train=True, printHere=False):
 
 
       numeric, numeric_chars = numeric
-      noise_mask = noiseBernoulli.sample()
-      numeric_noised = noise_mask.long() * numeric
-#      numeric_noised = [[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
- #     numeric_noised = torch.LongTensor([[0 for _ in range(args.sequence_length-len(y))] + y for y in numeric_noised]).cuda().t()
-
+#      print(numeric_chars.size())
       numeric = torch.cat([beginning, numeric], dim=0)
-      numeric_noised = torch.cat([beginning, numeric_noised], dim=0)
+
+#      numeric_chars = torch.cat([beginning_chars, numeric_chars], dim=0)
 
       beginning = numeric[numeric.size()[0]-1].view(1, args.batchSize)
+ #     beginning_chars = numeric_chars[numeric_chars.size()[0]-1].view(1, args.batchSize, 16)
 
-      input_tensor = Variable(numeric_noised[:-1], requires_grad=False)
+
+      input_tensor = Variable(numeric[:-1], requires_grad=False)
       target_tensor = Variable(numeric[1:], requires_grad=False)
 
+#      input_tensor_chars = Variable(numeric_chars[:-1], requires_grad=False)
+#      target_tensor_chars = Variable(numeric_chars[:-1], requires_grad=False)
 
+   #   embedded_chars = input_tensor_chars.transpose(0,2).transpose(2,1)
+  #    embedded_chars = embedded_chars.contiguous().view(16, -1)
+#      _, embedded_chars = char_composition(character_embeddings(embedded_chars), None)
+ #     embedded_chars = embedded_chars[0].view(2, args.sequence_length, args.batchSize, args.char_enc_hidden_dim)
+      #print(embedded_chars.size())
 
+    #  embedded_chars = char_composition_output(torch.cat([embedded_chars[0], embedded_chars[1]], dim=2))
+      #print(embedded_chars.size())
+
+    #  print(word_embeddings)
+      #if train and (embedding_full_dropout_prob is not None):
+      #   embedded = embedded_dropout(word_embeddings, input_tensor, dropout=embedding_full_dropout_prob, scale=None) #word_embeddings(input_tensor)
+      #else:
       embedded = word_embeddings(input_tensor)
+      #print(embedded.size())
+#      print("=========")
+#      print(numeric[:,5])
+#      print(embedded[:,5,:].mean(dim=1)[numeric[:-1,5] == 3])
+#      print(embedded_chars[:,5,:].mean(dim=1)[numeric[:-1,5] == 3])
+     # embedded = torch.cat([embedded, embedded_chars], dim=2)
+      #print(embedded.size())
       if train:
          embedded = char_dropout(embedded)
          mask = bernoulli_input.sample()
@@ -290,8 +308,6 @@ def forward(numeric, train=True, printHere=False):
          lossTensor = print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, args.batchSize)
          losses = lossTensor.data.cpu().numpy()
          numericCPU = numeric.cpu().data.numpy()
-         numeric_noisedCPU = numeric_noised.cpu().data.numpy()
-
 #         boundaries_index = [0 for _ in numeric]
          print(("NONE", itos_total[numericCPU[0][0]]))
          for i in range((args.sequence_length)):
@@ -300,7 +316,7 @@ def forward(numeric, train=True, printHere=False):
    #            boundaries_index[0] += 1
     #        else:
      #          boundary = False
-            print((losses[i][0], itos_total[numericCPU[i+1][0]], itos_total[numeric_noisedCPU[i+1][0]]))
+            print((losses[i][0], itos_total[numericCPU[i+1][0]]))
       return loss, target_tensor.view(-1).size()[0]
 
 def backward(loss, printHere):

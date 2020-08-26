@@ -1,5 +1,8 @@
 print("Character aware!")
 
+
+# Derived from char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop.py
+
 # Character-aware version of the `Tabula Rasa' language model
 # char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop.py
 # Adopted for English and German
@@ -8,14 +11,14 @@ import sys
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
-parser.add_argument("--load-from", dest="load_from", type=str)
+#parser.add_argument("--load-from", dest="load_from", type=str)
 #parser.add_argument("--save-to", dest="save_to", type=str)
 
 import random
 
 parser.add_argument("--batchSize", type=int, default=random.choice([128]))
 parser.add_argument("--word_embedding_size", type=int, default=random.choice([512]))
-parser.add_argument("--hidden_dim", type=int, default=random.choice([1024]))
+parser.add_argument("--hidden_dim", type=int, default=random.choice([512]))
 parser.add_argument("--layer_num", type=int, default=random.choice([2]))
 parser.add_argument("--weight_dropout_in", type=float, default=random.choice([0.05]))
 parser.add_argument("--weight_dropout_out", type=float, default=random.choice([0.05]))
@@ -23,12 +26,14 @@ parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.
 #parser.add_argument("--char_noise_prob", type = float, default=random.choice([0.0]))
 parser.add_argument("--learning_rate", type = float, default= random.choice([1.0]))
 parser.add_argument("--myID", type=int, default=random.randint(0,1000000000))
-parser.add_argument("--sequence_length", type=int, default=random.choice([50]))
+parser.add_argument("--sequence_length", type=int, default=random.choice([20]))
 parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
-#parser.add_argument("--char_emb_dim", type=int, default=128)
-#parser.add_argument("--char_enc_hidden_dim", type=int, default=64)
-#parser.add_argument("--char_dec_hidden_dim", type=int, default=128)
+parser.add_argument("--char_emb_dim", type=int, default=128)
+parser.add_argument("--char_enc_hidden_dim", type=int, default=64)
+parser.add_argument("--char_dec_hidden_dim", type=int, default=128)
+
+
 parser.add_argument("--deletion_rate", type=float, default=0.2)
 
 
@@ -68,12 +73,12 @@ itos_total = ["<SOS>", "<EOS>", "OOV"] + itos
 stoi_total = dict([(itos_total[i],i) for i in range(len(itos_total))])
 
 
-#with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
-#     itos_chars = [x for x in inFile.read().strip().split("\n")]
-#stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
-#
-#
-#itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
+with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
+     itos_chars = [x for x in inFile.read().strip().split("\n")]
+stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
+
+
+itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
 
 
 import random
@@ -86,20 +91,20 @@ print(torch.__version__)
 #from weight_drop import WeightDrop
 
 
-rnn = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim, args.layer_num).cuda()
-
-rnn_parameter_names = [name for name, _ in rnn.named_parameters()]
-print(rnn_parameter_names)
-#quit()
+rnn_encoder = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim, args.layer_num).cuda()
+rnn_decoder = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim, args.layer_num).cuda()
 
 
-rnn_drop = rnn #WeightDrop(rnn, layer_names=[(name, args.weight_dropout_in) for name, _ in rnn.named_parameters() if name.startswith("weight_ih_")] + [ (name, args.weight_dropout_hidden) for name, _ in rnn.named_parameters() if name.startswith("weight_hh_")])
 
-output = torch.nn.Linear(args.hidden_dim, len(itos)+3).cuda()
+
+output = torch.nn.Linear(2*args.hidden_dim, len(itos)+3).cuda()
 
 word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
 
 logsoftmax = torch.nn.LogSoftmax(dim=2)
+
+attention_softmax = torch.nn.Softmax(dim=1)
+
 
 train_loss = torch.nn.NLLLoss(ignore_index=0)
 print_loss = torch.nn.NLLLoss(size_average=False, reduce=False, ignore_index=0)
@@ -108,18 +113,23 @@ char_dropout = torch.nn.Dropout2d(p=args.char_dropout_prob)
 
 train_loss_chars = torch.nn.NLLLoss(ignore_index=0, reduction='sum')
 
-modules = [rnn, output, word_embeddings]
+
+attention_proj = torch.nn.Linear(args.hidden_dim, args.hidden_dim, bias=False).cuda()
+#attention_layer = torch.nn.Bilinear(args.hidden_dim, args.hidden_dim, 1, bias=False).cuda()
+attention_proj.weight.data.fill_(0)
+
+modules = [rnn_encoder, rnn_encoder, output, word_embeddings, attention_proj]
 
 
 #character_embeddings = torch.nn.Embedding(num_embeddings = len(itos_chars_total)+3, embedding_dim=args.char_emb_dim).cuda()
-
+#
 #char_composition = torch.nn.LSTM(args.char_emb_dim, args.char_enc_hidden_dim, 1, bidirectional=True).cuda()
 #char_composition_output = torch.nn.Linear(2*args.char_enc_hidden_dim, args.word_embedding_size).cuda()
-
+#
 #char_decoder_rnn = torch.nn.LSTM(args.char_emb_dim + args.hidden_dim, args.char_dec_hidden_dim, 1).cuda()
 #char_decoder_output = torch.nn.Linear(args.char_dec_hidden_dim, len(itos_chars_total))
-
-
+#
+#
 #modules += [character_embeddings, char_composition, char_composition_output, char_decoder_rnn, char_decoder_output]
 def parameters():
    for module in modules:
@@ -139,12 +149,6 @@ optim = torch.optim.SGD(parameters(), lr=learning_rate, momentum=0.0) # 0.02, 0.
 #  checkpoint = torch.load(MODELS_HOME+"/"+args.load_from+".pth.tar")
 #  for name, module in named_modules.items():
  #     module.load_state_dict(checkpoint[name])
-if args.load_from is not None:
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__+"_code_"+str(args.load_from)+".txt")
-  for i in range(len(checkpoint["components"])):
-      modules[i].load_state_dict(checkpoint["components"][i])
-#else:
-#  assert False
 
 from torch.autograd import Variable
 
@@ -170,31 +174,31 @@ def prepareDatasetChunks(data, train=True):
 #         if count % 100000 == 0:
 #             print(count/len(data))
          numerified.append((stoi[char]+3 if char in stoi else 2))
-#         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
+         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
 
        if len(numerified) > (args.batchSize*args.sequence_length):
          sequenceLengthHere = args.sequence_length
 
          cutoff = int(len(numerified)/(args.batchSize*sequenceLengthHere)) * (args.batchSize*sequenceLengthHere)
          numerifiedCurrent = numerified[:cutoff]
-#         numerifiedCurrent_chars = numerified_chars[:cutoff]
+         numerifiedCurrent_chars = numerified_chars[:cutoff]
 
-#         for i in range(len(numerifiedCurrent_chars)):
-#            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i][:15] + [1]
-#            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i] + ([0]*(16-len(numerifiedCurrent_chars[i])))
+         for i in range(len(numerifiedCurrent_chars)):
+            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i][:15] + [1]
+            numerifiedCurrent_chars[i] = numerifiedCurrent_chars[i] + ([0]*(16-len(numerifiedCurrent_chars[i])))
 
 
          numerified = numerified[cutoff:]
- #        numerified_chars = numerified_chars[cutoff:]
+         numerified_chars = numerified_chars[cutoff:]
        
          numerifiedCurrent = torch.LongTensor(numerifiedCurrent).view(args.batchSize, -1, sequenceLengthHere).transpose(0,1).transpose(1,2).cuda()
-#         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2).cuda()
+         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2).cuda()
 
 #         print(numerifiedCurrent_chars.size())
  #        quit()
          numberOfSequences = numerifiedCurrent.size()[0]
          for i in range(numberOfSequences):
-             yield numerifiedCurrent[i], None
+             yield numerifiedCurrent[i], numerifiedCurrent_chars[i]
          hidden = None
        else:
          print("Skipping")
@@ -208,7 +212,7 @@ hidden = None
 zeroBeginning = torch.LongTensor([0 for _ in range(args.batchSize)]).cuda().view(1,args.batchSize)
 beginning = None
 
-#zeroBeginning_chars = torch.zeros(1, args.batchSize, 16).long().cuda()
+zeroBeginning_chars = torch.zeros(1, args.batchSize, 16).long().cuda()
 
 
 zeroHidden = torch.zeros((args.layer_num, args.batchSize, args.hidden_dim)).cuda()
@@ -216,8 +220,8 @@ zeroHidden = torch.zeros((args.layer_num, args.batchSize, args.hidden_dim)).cuda
 bernoulli = torch.distributions.bernoulli.Bernoulli(torch.tensor([0.1 for _ in range(args.batchSize)]).cuda())
 
 bernoulli_input = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_in for _ in range(args.batchSize * 2 * args.word_embedding_size)]).cuda())
-bernoulli_output = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_out for _ in range(args.batchSize * args.hidden_dim)]).cuda())
-noiseBernoulli = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.deletion_rate for _ in range(args.batchSize * args.sequence_length)]).cuda().view(args.sequence_length, args.batchSize))
+bernoulli_output = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_out for _ in range(args.batchSize * 2 * args.hidden_dim)]).cuda())
+
 
 
 
@@ -225,59 +229,93 @@ def forward(numeric, train=True, printHere=False):
       global hidden
       global beginning
       global beginning_chars
-      if hidden is None:
+      if True or hidden is None:
           hidden = None
           beginning = zeroBeginning
-   #       beginning_chars = zeroBeginning_chars
-      elif hidden is not None:
-          hidden1 = Variable(hidden[0]).detach()
-          hidden2 = Variable(hidden[1]).detach()
-          forRestart = bernoulli.sample()
-          hidden1 = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroHidden, hidden1)
-          hidden2 = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroHidden, hidden2)
-          hidden = (hidden1, hidden2)
-          beginning = torch.where(forRestart.unsqueeze(0) == 1, zeroBeginning, beginning)
-  #        beginning_chars = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroBeginning_chars, beginning_chars)
-
+          beginning_chars = zeroBeginning_chars
+#      elif hidden is not None:
+#          hidden1 = Variable(hidden[0]).detach()
+#          hidden2 = Variable(hidden[1]).detach()
+#          forRestart = bernoulli.sample()
+#          hidden1 = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroHidden, hidden1)
+#          hidden2 = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroHidden, hidden2)
+#          hidden = (hidden1, hidden2)
+#          beginning = torch.where(forRestart.unsqueeze(0) == 1, zeroBeginning, beginning)
+#          beginning_chars = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroBeginning_chars, beginning_chars)
+#
 
 
 
       numeric, numeric_chars = numeric
-      noise_mask = noiseBernoulli.sample()
-      numeric_noised = noise_mask.long() * numeric
-#      numeric_noised = [[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
- #     numeric_noised = torch.LongTensor([[0 for _ in range(args.sequence_length-len(y))] + y for y in numeric_noised]).cuda().t()
-
+#      print(numeric_chars.size())
       numeric = torch.cat([beginning, numeric], dim=0)
-      numeric_noised = torch.cat([beginning, numeric_noised], dim=0)
+
+#      numeric_chars = torch.cat([beginning_chars, numeric_chars], dim=0)
 
       beginning = numeric[numeric.size()[0]-1].view(1, args.batchSize)
+ #     beginning_chars = numeric_chars[numeric_chars.size()[0]-1].view(1, args.batchSize, 16)
 
-      input_tensor = Variable(numeric_noised[:-1], requires_grad=False)
+
+      input_tensor = Variable(numeric[:-1], requires_grad=False)
       target_tensor = Variable(numeric[1:], requires_grad=False)
 
+      #input_tensor_chars = Variable(numeric_chars[:-1], requires_grad=False)
+      #target_tensor_chars = Variable(numeric_chars[:-1], requires_grad=False)
 
+      #embedded_chars = input_tensor_chars.transpose(0,2).transpose(2,1)
+      #embedded_chars = embedded_chars.contiguous().view(16, -1)
+      #_, embedded_chars = char_composition(character_embeddings(embedded_chars), None)
+      #embedded_chars = embedded_chars[0].view(2, args.sequence_length, args.batchSize, args.char_enc_hidden_dim)
+      #print(embedded_chars.size())
 
+      #embedded_chars = char_composition_output(torch.cat([embedded_chars[0], embedded_chars[1]], dim=2))
+      #print(embedded_chars.size())
+
+    #  print(word_embeddings)
+      #if train and (embedding_full_dropout_prob is not None):
+      #   embedded = embedded_dropout(word_embeddings, input_tensor, dropout=embedding_full_dropout_prob, scale=None) #word_embeddings(input_tensor)
+      #else:
       embedded = word_embeddings(input_tensor)
+      #print(embedded.size())
+#      print("=========")
+#      print(numeric[:,5])
+#      print(embedded[:,5,:].mean(dim=1)[numeric[:-1,5] == 3])
+#      print(embedded_chars[:,5,:].mean(dim=1)[numeric[:-1,5] == 3])
+      #embedded = torch.cat([embedded, embedded_chars], dim=2)
+      #print(embedded.size())
       if train:
          embedded = char_dropout(embedded)
          mask = bernoulli_input.sample()
          mask = mask.view(1, args.batchSize, 2*args.word_embedding_size)
          embedded = embedded * mask
 
-      out, hidden = rnn_drop(embedded, hidden)
+      out_encoder, hidden = rnn_encoder(embedded, hidden)
+
+      #print(embedded.size(), out_encoder.size())
+      out_decoder, _ = rnn_decoder(embedded, hidden)
+
+ #     print(attention_proj(out_encoder).transpose(0,1).size(), out_decoder.transpose(0,1).transpose(1,2).size())
+      attention = torch.bmm(attention_proj(out_encoder).transpose(0,1), out_decoder.transpose(0,1).transpose(1,2))
+      attention = attention_softmax(attention).transpose(0,1)
+#      print(attention.size(), out_encoder.size())
+      from_encoder = (out_encoder.unsqueeze(2) * attention.unsqueeze(3)).sum(dim=0).transpose(0,1)
+      out_full = torch.cat([out_decoder, from_encoder], dim=2)
+      #print(out_full.size())
+      #quit()
+      
+
 #      if train:
 #          out = dropout(out)
 
 
       if train:
         mask = bernoulli_output.sample()
-        mask = mask.view(1, args.batchSize, args.hidden_dim)
-        out = out * mask
+        mask = mask.view(1, args.batchSize, 2*args.hidden_dim)
+        out_full = out_full * mask
 
 
 
-      logits = output(out) 
+      logits = output(out_full) 
       log_probs = logsoftmax(logits)
    #   print(logits)
   #    print(log_probs)
@@ -290,8 +328,6 @@ def forward(numeric, train=True, printHere=False):
          lossTensor = print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, args.batchSize)
          losses = lossTensor.data.cpu().numpy()
          numericCPU = numeric.cpu().data.numpy()
-         numeric_noisedCPU = numeric_noised.cpu().data.numpy()
-
 #         boundaries_index = [0 for _ in numeric]
          print(("NONE", itos_total[numericCPU[0][0]]))
          for i in range((args.sequence_length)):
@@ -300,7 +336,7 @@ def forward(numeric, train=True, printHere=False):
    #            boundaries_index[0] += 1
     #        else:
      #          boundary = False
-            print((losses[i][0], itos_total[numericCPU[i+1][0]], itos_total[numeric_noisedCPU[i+1][0]]))
+            print((losses[i][0], itos_total[numericCPU[i+1][0]]))
       return loss, target_tensor.view(-1).size()[0]
 
 def backward(loss, printHere):
@@ -328,7 +364,9 @@ for epoch in range(10000):
 
 
 
-   rnn_drop.train(True)
+   rnn_encoder.train(True)
+   rnn_decoder.train(True)
+
    startTime = time.time()
    trainChars = 0
    counter = 0
@@ -371,7 +409,8 @@ for epoch in range(10000):
           break
 
  #     break
-   rnn_drop.train(False)
+   rnn_encoder.train(False)
+   rnn_decoder.train(False)
 
 
    dev_data = corpusIteratorWikiWords.dev(args.language)
