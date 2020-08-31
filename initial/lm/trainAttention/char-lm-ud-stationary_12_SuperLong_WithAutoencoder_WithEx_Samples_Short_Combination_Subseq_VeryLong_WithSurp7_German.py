@@ -35,7 +35,7 @@ parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--deletion_rate", type=float, default=0.5)
 
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75])) # , 1.0
 
 
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
@@ -66,6 +66,9 @@ assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
 assert args.deletion_rate > 0.0
 assert args.deletion_rate < 0.9
+
+assert args.deletion_rate > 0.2
+assert args.deletion_rate < 0.7
 
 
 ############################################
@@ -735,11 +738,11 @@ def showAttention(word):
 
 nounsAndVerbs = []
 nounsAndVerbs.append(["der Schulleiter",    "den der Lehrer",    "kritisierte",           "gefeuert wurde",           "erschien in der Zeitung", "Was the XXXX quoted in the newspaper?", "Y"])
-nounsAndVerbs.append(["der Bildhauer",    "den der Maler",    "bewunderte",      "kein Talent hatte",          "war unwahr", "Was the XXXX untrue?", "Y"])
+nounsAndVerbs.append(["der Bildhauer",    "den der Maler",    "bewunderte",      "Talent hatte",          "war unwahr", "Was the XXXX untrue?", "Y"])
 nounsAndVerbs.append(["der Marketingspezialist", "den der Künstler",     "anheuerte",         "ein Betrüger war",            "schockierte alle", "Did the XXXX shock everyone?", "Y"])
 nounsAndVerbs.append(["der Marathonläufer",     "den der Psychiater",    "behandelte",        "gedopt war",      "schien lächerlich", "Was the XXXX ridiculous?", "Y"])
 nounsAndVerbs.append(["das Kind",      "das der Sanitäter",     "rettete",  "unbeschadet war",      "erleichterte alle", "Did the XXXX relieve everyone?", "Y"])
-nounsAndVerbs.append(["der Kriminelle",    "den der Polizist",    "festnahm",         "eigentlich unschuldig war",       "war völlig falsch", "Was the XXXX bogus?", "Y"])
+nounsAndVerbs.append(["der Kriminelle",    "den der Polizist",    "festnahm",         "unschuldig war",       "war völlig falsch", "Was the XXXX bogus?", "Y"])
 nounsAndVerbs.append(["der Student",     "der Professor",   "hasste",           "das Studium abbrach",       "machte den Professor glücklich", "Did the XXXX make the professor happy?", "Y"])
 nounsAndVerbs.append(["der Mafioso",     "den der Journalist",     "portraitierte",        "geflohen war",           "stellte sich als wahr heraus", "Did the XXXX turn out to be true?", "Y"])
 nounsAndVerbs.append(["die Schauspielerin",            "den der Star",    "liebte",          "die Show verpasste",        "brachte sie zum Weinen", "Did the XXXX almost make her cry?", "Y"])
@@ -749,7 +752,7 @@ nounsAndVerbs.append(["der Abgeordnete",    "den der Diplomat",    "kannte",    
 nounsAndVerbs.append(["der Kommandant",    "den der Präsident",    "einsetzte",  "einen Krieg anzettelte",     "beunruhigte die Leute", "Did the XXXX trouble people?", "Y"])
 nounsAndVerbs.append(["das Opfer",    "das der Verbrecher",    "angriff",  "überlebten",     "beruhigte alle", "Did the XXXX calm everyone down?", "Y"])
 nounsAndVerbs.append(["der Politiker",    "den der Banker",    "unterstützte",  "Geldwäsche betrieb",     "war ein Schock für seine Anhänger", "Did the XXXX come as a shock?", "Y"])
-nounsAndVerbs.append(["der Chirurg",    "den der Patient",    "anzeigte",  "einen gefälschten Doktor hatte",     "war keine Überraschung", "Was the XXXX unsurprising?", "Y"])
+nounsAndVerbs.append(["der Chirurg",    "den der Patient",    "anzeigte",  "keinen Doktor hatte",     "war keine Überraschung", "Was the XXXX unsurprising?", "Y"])
 nounsAndVerbs.append(["der Extremist",    "den der Agent",    "verfolgte",          "einen Preis bekam",     "war beunruhigend", "Was the XXXX disconcerting?", "Y"])
 nounsAndVerbs.append(["der Büroangestellte",    "den der Kunde",    "anrief",  "ein Superheld war",     "schien absurd", "Did the XXXX seem absurd?", "Y"])
 nounsAndVerbs.append(["der Händler",    "der Unternehmer",    "konsultierte",  "geheime Informationen hatte",     "wurde bestätigt", "Was the XXXX confirmed?", "Y"])
@@ -758,10 +761,10 @@ nounsAndVerbs.append(["der Taxifahrer", "den der Tourist", "fragte", "log", "sch
 nounsAndVerbs.append(["der Buchhändler", "den der Dieb", "ausraubte", "einen Herzinfarkt bekam", "schockierte seine Familie", "", "Y"])
 nounsAndVerbs.append(["der Nachbar", "den die Frau", "verdächtigte", "ihren Hund vergiftete", "war eine Lüge", "", "Y"])
 nounsAndVerbs.append(["der Wissenschaftler", "dem der Bürgermeister", "vertraute", "Daten fälschte", "war eine böse Verleumdung", "", "Y"])
-nounsAndVerbs.append(["der Schüler", "den der Junge", "schikanierte", "in der Prüfung abschrieb", "schockierte seine Eltern", "", "Y"])
+nounsAndVerbs.append(["der Schüler", "den der Junge", "schikanierte", "in der Prüfung betrog", "schockierte seine Eltern", "", "Y"])
 nounsAndVerbs.append(["der Betrüger", "den die Frau", "erkannte", "gefasst wurde", "beruhigte die Leute", "", "Y"])
-nounsAndVerbs.append(["der Unternehmer", "den der Philanthrop", "finanzierte", "alles für eine Jacht ausgab", "war eine Enttäuschung", "", "Y"])
-nounsAndVerbs.append(["der Lebensretter", "den der Schwimmer", "rief", "die ertrinkenden Kinder rettete", "beeindruckte die ganze Stadt", "", "Y"])
+nounsAndVerbs.append(["der Unternehmer", "den der Philanthrop", "finanzierte", "das Geld ausgab", "war eine Enttäuschung", "", "Y"])
+nounsAndVerbs.append(["der Lebensretter", "den der Schwimmer", "rief", "die Kinder rettete", "beeindruckte die ganze Stadt", "", "Y"])
 
 
 
@@ -997,10 +1000,13 @@ for epoch in range(1000):
          print("=========================")
          showAttention("der")
          showAttention("war")
+         showAttention("ist")
+         showAttention("dass")
          showAttention("tatsache")
          showAttention("information")
          showAttention("bericht")
          showAttention("von")
+         
 
          sys.stdout = STDOUT
 
@@ -1108,6 +1114,8 @@ with open("/u/scr/mhahn/reinforce-logs-both/results/"+__file__+"_"+str(args.myID
 print("=========================")
 showAttention("der")
 showAttention("war")
+showAttention("ist")
+showAttention("dass")
 showAttention("tatsache")
 showAttention("information")
 showAttention("bericht")
