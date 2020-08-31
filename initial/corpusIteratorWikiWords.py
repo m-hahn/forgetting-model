@@ -1,12 +1,17 @@
 from paths import WIKIPEDIA_HOME
 import random
- 
+import gzip 
 
 def load(language, partition="train", removeMarkup=True):
-  path = WIKIPEDIA_HOME+"/english-"+partition+"-tagged.txt"
+  if language == "english":
+     path = WIKIPEDIA_HOME+"/english-"+partition+"-tagged.txt"
+  elif language == "german":
+    path = WIKIPEDIA_HOME+"/german-"+partition+"-tagged.txt.gz"
   chunk = []
-  with open(path, "r") as inFile:
+  with open(path, "r") if language == "english" else gzip.open(path, "rb") as inFile:
     for line in inFile:
+      if language == "german":
+        line = line.decode()
       index = line.find("\t")
       if index == -1:
         if removeMarkup:
