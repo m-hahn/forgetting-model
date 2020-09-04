@@ -7,16 +7,16 @@ print("Character aware!")
 # Character-aware version of the `Tabula Rasa' language model
 # char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop.py
 # Adopted for English and German
+import random
 import sys
 
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="german")
-parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=642882182) # language model taking noised input
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=613843841)
-parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=244706489) # plain language model without noise
+parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=random.choice([522622844])) # language model taking noised input
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([518982544, 469764721, 310179465, 12916800]))
+parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([244706489, 273846868])) # plain language model without noise
 
-import random
 
 parser.add_argument("--batchSize", type=int, default=random.choice([1]))
 parser.add_argument("--word_embedding_size", type=int, default=random.choice([512]))
@@ -956,6 +956,10 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
 
 
+#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=1)
+#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+#quit()
+ 
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity")
 #quit()
@@ -987,7 +991,7 @@ for epoch in range(1000):
          print(updatesCount)
          print(args)
          getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
-         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=1)
          getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
          getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
   
