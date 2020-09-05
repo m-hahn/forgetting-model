@@ -14,7 +14,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="german")
 parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=random.choice([522622844])) # language model taking noised input
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([518982544, 469764721, 310179465, 12916800]))
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([324335239, 850440410, 244607436, 722339692]))
 parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([244706489, 273846868])) # plain language model without noise
 
 
@@ -172,7 +172,7 @@ class PlainLanguageModel(torch.nn.Module):
          
         nextWord = (dist.sample())
         nextWordStrings = [itos_total[x] for x in nextWord.cpu().numpy()[0]]
-#w        assert "OOV" not in nextWordStrings, nextWordStrings
+        assert "OOV" not in nextWordStrings, nextWordStrings
         for i in range(args.NUMBER_OF_REPLICATES*args.batchSize):
             results[i] += " "+nextWordStrings[i]
         embedded = self.word_embeddings(nextWord)
@@ -329,7 +329,7 @@ optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory
 
 if args.load_from_autoencoder is not None:
   #try:
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss_WithoutComma.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
 #  except FileNotFoundError:
  #    checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
   for i in range(len(checkpoint["components"])):
@@ -663,6 +663,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
 
 
           logits = autoencoder.output(autoencoder.relu(autoencoder.output_mlp(out_full) )) 
+          logits.data[:,:, stoi_total["OOV"]] = -10000000      
           probs = autoencoder.softmax(logits)
           if i == 15-offset:
             assert args.sequence_length == 20
@@ -677,6 +678,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
   #        print(nextWord.size())
           nextWordDistCPU = nextWord.cpu().numpy()[0]
           nextWordStrings = [itos_total[x] for x in nextWordDistCPU]
+#          assert "OOV" not in nextWordStrings, nextWordStrings 
           for i in range(args.batchSize*args.NUMBER_OF_REPLICATES):
              result[i] += " "+nextWordStrings[i]
              result_numeric[i].append( nextWordDistCPU[i] )

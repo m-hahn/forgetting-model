@@ -172,7 +172,7 @@ class PlainLanguageModel(torch.nn.Module):
          
         nextWord = (dist.sample())
         nextWordStrings = [itos_total[x] for x in nextWord.cpu().numpy()[0]]
-#w        assert "OOV" not in nextWordStrings, nextWordStrings
+        assert "OOV" not in nextWordStrings, nextWordStrings
         for i in range(args.NUMBER_OF_REPLICATES*args.batchSize):
             results[i] += " "+nextWordStrings[i]
         embedded = self.word_embeddings(nextWord)
@@ -663,6 +663,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
 
 
           logits = autoencoder.output(autoencoder.relu(autoencoder.output_mlp(out_full) )) 
+          logits.data[:,:, stoi_total["OOV"]] = -10000000      
           probs = autoencoder.softmax(logits)
           if i == 15-offset:
             assert args.sequence_length == 20
@@ -677,6 +678,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
   #        print(nextWord.size())
           nextWordDistCPU = nextWord.cpu().numpy()[0]
           nextWordStrings = [itos_total[x] for x in nextWordDistCPU]
+#          assert "OOV" not in nextWordStrings, nextWordStrings 
           for i in range(args.batchSize*args.NUMBER_OF_REPLICATES):
              result[i] += " "+nextWordStrings[i]
              result_numeric[i].append( nextWordDistCPU[i] )
