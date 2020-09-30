@@ -10,7 +10,11 @@ for f in files:
      args = dict([x.split("=") for x in data[0][10:-1].split(", ")])
      devLosses = [float(x) for x in data[1].strip().split(" ")]
      num_iter = len(devLosses)
-     load_from = args["load_from"]
+     try:
+       load_from = args.get("load_from", "None")
+     except KeyError:
+       print("ERROR", args)
+       continue
      last_loss = devLosses[-1]
      hasEnded = len(devLosses) > 1 and devLosses[-2] < devLosses[-1]
      myID = args["myID"]

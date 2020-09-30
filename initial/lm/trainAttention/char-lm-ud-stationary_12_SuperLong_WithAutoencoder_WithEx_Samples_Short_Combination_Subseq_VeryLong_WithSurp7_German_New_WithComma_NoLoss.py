@@ -14,8 +14,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="german")
 parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=random.choice([522622844])) # language model taking noised input
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([518982544, 469764721, 310179465, 12916800]))
-parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([136525999])) #244706489, 273846868])) # plain language model without noise
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([324335239, 850440410, 244607436]))
+parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([136525999, 458957841])) #244706489, 273846868])) # plain language model without noise
 
 
 parser.add_argument("--batchSize", type=int, default=random.choice([1]))
@@ -64,11 +64,8 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.0
-assert args.deletion_rate < 0.9
+assert args.deletion_rate == 0.0
 
-assert args.deletion_rate > 0.2
-assert args.deletion_rate < 0.7
 
 
 ############################################
@@ -329,7 +326,7 @@ optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory
 
 if args.load_from_autoencoder is not None:
   #try:
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss_WithoutComma.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
 #  except FileNotFoundError:
  #    checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
   for i in range(len(checkpoint["components"])):
@@ -465,7 +462,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
 
       # NOISE MEMORY ACCORDING TO MODEL
-      memory_filter = torch.bernoulli(input=memory_hidden)
+      memory_filter = torch.bernoulli(input=1-0.0*memory_hidden)
       bernoulli_logprob = torch.where(memory_filter == 1, torch.log(memory_hidden+1e-10), torch.log(1-memory_hidden+1e-10))
       bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
       if args.entropy_weight > 0:
@@ -688,7 +685,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
          print(r)
       nounFraction = (float(len([x for x in result if NOUN in x]))/len(result))
 
-      thatFraction = (float(len([x for x in result if NOUN+" dass" in x]))/len(result))
+      thatFraction = (float(len([x for x in result if NOUN+" , dass" in x]))/len(result))
 
       return result, torch.LongTensor(result_numeric).cuda(), (nounFraction, thatFraction), thatProbs
 
@@ -890,9 +887,9 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
            surprisals = { 0 : [], 1 : []}
            if True:
               if VERBS == 2:
-                 sentence = context + f"{articles[NOUN]} {NOUN} dass {sentenceList[0]} {sentenceList[1]} {sentenceList[2]} FOO".lower()
+                 sentence = context + f"{articles[NOUN]} {NOUN} , dass {sentenceList[0]} , {sentenceList[1]} {sentenceList[2]} FOO".lower()
               else:
-                 sentence = context + f"{articles[NOUN]} {NOUN} dass {sentenceList[0]} {sentenceList[1]} {sentenceList[2]} gewann FOO".lower()
+                 sentence = context + f"{articles[NOUN]} {NOUN} , dass {sentenceList[0]} , {sentenceList[1]} {sentenceList[2]} , gewann FOO".lower()
 
               numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
               print(len(numerified))
@@ -916,12 +913,12 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                  for condition in [0,1]:
                    if VERBS == 2:
                       if condition == 0:
-                        appended = [ "gewann", "war", "falsch", "."]
+                        appended = [",", "gewann", ",", "war", "falsch", "."]
                       else:
-                        appended = ["war", "falsch", "."]
+                        appended = [",", "war", "falsch", "."]
                    else:
                       if condition == 0:
-                        appended = ["war", "falsch", "."]
+                        appended = [",", "war", "falsch", "."]
                       else:
                         appended = ["."]
 
@@ -967,8 +964,8 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
 
 
-getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=1)
-getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=1)
+#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
 #quit()
  
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
@@ -996,7 +993,7 @@ for epoch in range(1000):
    while updatesCount <= maxUpdates:
       counter += 1
       updatesCount += 1
-      if updatesCount % 50000 == 0:
+      if True:
        with open("/u/scr/mhahn/reinforce-logs-both/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
          sys.stdout = outFile
          print(updatesCount)
@@ -1024,116 +1021,5 @@ for epoch in range(1000):
          
 
          sys.stdout = STDOUT
-
-#      if updatesCount % 10000 == 0:
-#         optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-#         optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
-#
-      try:
-         numeric = next(training_chars)
-      except StopIteration:
-         break
-      printHere = (counter % 50 == 0)
-      loss, charCounts = forward(numeric, printHere=printHere, train=True)
-      backward(loss, printHere)
-#      if loss.data.cpu().numpy() > 15.0:
-#          lossHasBeenBad += 1
-#      else:
-#          lossHasBeenBad = 0
-      if lossHasBeenBad > 100:
-          print("Loss exploding, has been bad for a while")
-          print(loss)
-          assert False
-      trainChars += charCounts 
-      if printHere:
-          print(("Loss here", loss))
-          print((epoch,counter, trainChars))
-          print("Dev losses")
-          print(devLosses)
-          print("Words per sec "+str(trainChars/(time.time()-startTime)))
-          print(args.learning_rate_memory, args.learning_rate_autoencoder)
-          print(lastSaved)
-          print(__file__)
-          print(args)
-
-      if (time.time() - totalStartTime)/60 > 4000:
-          print("Breaking early to get some result within 72 hours")
-          totalStartTime = time.time()
-          break
-
-# #     break
-#   rnn_drop.train(False)
-#
-#
-#   dev_data = corpusIteratorWikiWords.dev(args.language)
-#   print("Got data")
-#   dev_chars = prepareDatasetChunks(dev_data, train=False)
-#
-#
-#     
-#   dev_loss = 0
-#   dev_char_count = 0
-#   counter = 0
-#   hidden, beginning = None, None
-#   while True:
-#       counter += 1
-#       try:
-#          numeric = next(dev_chars)
-#       except StopIteration:
-#          break
-#       printHere = (counter % 50 == 0)
-#       loss, numberOfCharacters = forward(numeric, printHere=printHere, train=False)
-#       dev_loss += numberOfCharacters * loss.cpu().data.numpy()
-#       dev_char_count += numberOfCharacters
-#   devLosses.append(dev_loss/dev_char_count)
-#   print(devLosses)
-##   quit()
-#   #if args.save_to is not None:
-# #     torch.save(dict([(name, module.state_dict()) for name, module in named_modules.items()]), MODELS_HOME+"/"+args.save_to+".pth.tar")
-#
-#   with open("/u/scr/mhahn/recursive-prd/memory-upper-neural-pos-only_recursive_words/estimates-"+args.language+"_"+__file__+"_model_"+str(args.myID)+"_"+model+".txt", "w") as outFile:
-#       print(str(args), file=outFile)
-#       print(" ".join([str(x) for x in devLosses]), file=outFile)
-#
-#   if len(devLosses) > 1 and devLosses[-1] > devLosses[-2]:
-#      break
-#
-#   state = {"arguments" : str(args), "words" : itos, "components" : [c.state_dict() for c in modules]}
-#   torch.save(state, "/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__+"_code_"+str(args.myID)+".txt")
-#
-#
-#
-#
-#
-#
-#   learning_rate = args.learning_rate * math.pow(args.lr_decay, len(devLosses))
-#   optim = torch.optim.SGD(parameters(), lr=learning_rate, momentum=0.0) # 0.02, 0.9
-
-
-
-
-#      global runningAverageBaselineDeviation
-#      global runningAveragePredictionLoss
-#
-
-
-with open("/u/scr/mhahn/reinforce-logs-both/results/"+__file__+"_"+str(args.myID), "w") as outFile:
-   print(args, file=outFile)
-   print(runningAverageReward, file=outFile)
-   print(expectedRetentionRate, file=outFile)
-   print(runningAverageBaselineDeviation, file=outFile)
-   print(runningAveragePredictionLoss, file=outFile)
-   print(runningAverageReconstructionLoss, file=outFile)
-
-
-print("=========================")
-showAttention("der")
-showAttention("war")
-showAttention("ist")
-showAttention("dass")
-showAttention("tatsache")
-showAttention("information")
-showAttention("bericht")
-showAttention("von")
-
+         quit()
 

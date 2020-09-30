@@ -14,8 +14,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="german")
 parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=random.choice([522622844])) # language model taking noised input
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([324335239, 850440410, 244607436, 722339692]))
-parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([244706489, 273846868])) # plain language model without noise
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([324335239, 850440410, 244607436]))
+parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([136525999])) #244706489, 273846868])) # plain language model without noise
 
 
 parser.add_argument("--batchSize", type=int, default=random.choice([1]))
@@ -688,7 +688,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
          print(r)
       nounFraction = (float(len([x for x in result if NOUN in x]))/len(result))
 
-      thatFraction = (float(len([x for x in result if NOUN+" dass" in x]))/len(result))
+      thatFraction = (float(len([x for x in result if NOUN+" , dass" in x]))/len(result))
 
       return result, torch.LongTensor(result_numeric).cuda(), (nounFraction, thatFraction), thatProbs
 
@@ -890,9 +890,9 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
            surprisals = { 0 : [], 1 : []}
            if True:
               if VERBS == 2:
-                 sentence = context + f"{articles[NOUN]} {NOUN} dass {sentenceList[0]} {sentenceList[1]} {sentenceList[2]} FOO".lower()
+                 sentence = context + f"{articles[NOUN]} {NOUN} , dass {sentenceList[0]} , {sentenceList[1]} {sentenceList[2]} FOO".lower()
               else:
-                 sentence = context + f"{articles[NOUN]} {NOUN} dass {sentenceList[0]} {sentenceList[1]} {sentenceList[2]} gewann FOO".lower()
+                 sentence = context + f"{articles[NOUN]} {NOUN} , dass {sentenceList[0]} , {sentenceList[1]} {sentenceList[2]} , gewann FOO".lower()
 
               numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
               print(len(numerified))
@@ -916,12 +916,12 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                  for condition in [0,1]:
                    if VERBS == 2:
                       if condition == 0:
-                        appended = [ "gewann", "war", "falsch", "."]
+                        appended = [",", "gewann", ",", "war", "falsch", "."]
                       else:
-                        appended = ["war", "falsch", "."]
+                        appended = [",", "war", "falsch", "."]
                    else:
                       if condition == 0:
-                        appended = ["war", "falsch", "."]
+                        appended = [",", "war", "falsch", "."]
                       else:
                         appended = ["."]
 
@@ -957,16 +957,18 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     differences = torch.FloatTensor([x[2]-x[1] for x in surprisalsPerNoun])
     print("counts = c("+",".join([str(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])+")")
     ratios = torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])
+    thatFractionsPerNoun = {x[0] : x[1] for x in thatFractionsPerNoun}
+    thatFractions = torch.FloatTensor([float(thatFractionsPerNoun[NOUN]) for NOUN in topNouns])
     print(ratios)
     print("PLAIN LM Correlation", correlation(ratios, differences), SANITY, VERBS)
-
+    print("THAT_correlation", correlation(ratios, thatFractions), SANITY, VERBS)
     print(differences)
     #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
 
 
-#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=1)
-#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=1)
+getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
 #quit()
  
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
