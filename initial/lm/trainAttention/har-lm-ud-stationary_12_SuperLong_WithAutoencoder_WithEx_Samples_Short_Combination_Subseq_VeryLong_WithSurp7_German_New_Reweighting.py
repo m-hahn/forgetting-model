@@ -14,8 +14,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="german")
 parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=random.choice([522622844])) # language model taking noised input
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([518982544, 469764721, 12916800])) # 310179465, has a corrupted file
-parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([129313017, 643395320])) #136525999])) #244706489, 273846868])) # plain language model without noise
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([518982544, 469764721, 310179465, 12916800]))
+parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([129313017])) #244706489, 273846868])) # plain language model without noise
 
 
 parser.add_argument("--batchSize", type=int, default=random.choice([1]))
@@ -30,7 +30,7 @@ parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.
 parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.000002, 0.00001, 0.00002, 0.00005])) #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
 parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.2])) # 0.0001, 
 parser.add_argument("--myID", type=int, default=random.randint(0,1000000000))
-parser.add_argument("--sequence_length", type=int, default=random.choice([20]))
+parser.add_argument("--sequence_length", type=int, default=random.choice([13]))
 parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--deletion_rate", type=float, default=0.5)
@@ -179,7 +179,7 @@ class PlainLanguageModel(torch.nn.Module):
      return results
 
 
-  def forward(self, numeric, train=True, printHere=False):
+  def forward(self, numeric, train=True, printHere=False, getSamples=True):
        if self.hidden is None or True:
            self.hidden = None
            self.beginning = self.zeroBeginning
@@ -224,7 +224,10 @@ class PlainLanguageModel(torch.nn.Module):
           #print(("NONE", itos_total[numericCPU[0][0]]))
           #for i in range((args.sequence_length)):
           #   print((losses[i][0], itos_total[numericCPU[i+1][0]]))
-       samples = self.sample(numeric[-1])
+       if getSamples:
+          samples = self.sample(numeric[-1])
+       else:
+          samples = None
        return lossTensor, target_tensor.view(-1).size()[0], samples, log_probs
    
 
@@ -420,7 +423,47 @@ runningAveragePredictionLoss = 5.0
 runningAverageReconstructionLoss = 5.0
 expectedRetentionRate = 0.5
 
+def getNoiseModelLikelihood(numeric, numeric_noised):
+      global hidden
+      global beginning
+      global beginning_chars
+      if True:
+          hidden = None
+          beginning = zeroBeginning
 
+
+      ######################################################
+      ######################################################
+      # Run Loss Model
+
+      numeric = numeric.expand(-1, args.NUMBER_OF_REPLICATES)
+      numeric = torch.cat([beginning, numeric], dim=0)
+      embedded_everything = lm.word_embeddings(numeric)
+
+      # Positional embeddings
+      numeric_positions = torch.LongTensor(range(args.sequence_length+2)).cuda().unsqueeze(1)
+      embedded_positions = memory.positional_embeddings(numeric_positions)
+      numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
+
+      # Retention probabilities
+      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
+      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
+
+  #    print(embedded_positions.size(), embedded_everything.size())
+ #     print(memory.memory_bilinear(embedded_positions).size())
+#      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
+      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
+
+      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
+      memory_hidden = memory.sigmoid(memory_hidden_logit)
+      memory_hidden = torch.where(numeric.unsqueeze(2) == stoi_total["OOV"], constantAlmostOne, memory_hidden) # Don't drop OOV. Those don't occur in the critical items.
+
+      memory_filter = (numeric_noised > 0).long()
+      bernoulli_logprob = torch.where(memory_filter == 1, torch.log(memory_hidden.squeeze(-1)+1e-10), torch.log(1-memory_hidden.squeeze(-1)+1e-10))
+      return bernoulli_logprob.sum(dim=0)
+
+
+constantAlmostOne = (torch.zeros(15, args.NUMBER_OF_REPLICATES, 1)+0.99).cuda()
 
 def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False):
       global hidden
@@ -456,6 +499,8 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
       memory_hidden = memory.sigmoid(memory_hidden_logit)
+#      print(numeric.size(), constantAlmostOne.size(), memory_hidden.size())
+      memory_hidden = torch.where(numeric.unsqueeze(2) == stoi_total["OOV"], constantAlmostOne, memory_hidden) # Don't drop OOV. Those don't occur in the critical items.
       if provideAttention:
          return memory_hidden
 
@@ -645,12 +690,13 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
 
       out_encoder, _ = autoencoder.rnn_encoder(embedded_noised, None)
 
-
+      zeroLikelihood = torch.zeros(args.batchSize*args.NUMBER_OF_REPLICATES).cuda()
 
       hidden = None
       result  = ["" for _ in range(args.batchSize*args.NUMBER_OF_REPLICATES)]
       result_numeric = [[] for _ in range(args.batchSize*args.NUMBER_OF_REPLICATES)]
       embeddedLast = embedded[0].unsqueeze(0)
+      denoiserLikelihoods = []
       for i in range(args.sequence_length+1):
           out_decoder, hidden = autoencoder.rnn_decoder(embeddedLast, hidden)
     
@@ -665,9 +711,10 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
           logits = autoencoder.output(autoencoder.relu(autoencoder.output_mlp(out_full) )) 
           logits.data[:,:, stoi_total["OOV"]] = -10000000      
           probs = autoencoder.softmax(logits)
-          if i == 15-offset:
-            assert args.sequence_length == 20
-            thatProbs = float(probs[0,:, stoi["dass"]+3].mean())
+          thatProbs = 0.5
+#          if i == 15-offset:
+ #           assert args.sequence_length == 20
+  #          thatProbs = float(probs[0,:, stoi["dass"]+3].mean())
 #          print(i, probs[0,:, stoi["dass"]+3].mean())
  #         quit()
 
@@ -675,6 +722,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
        
 #          nextWord = (dist.sample())
           nextWord = torch.where(numeric_noised[i] == 0, (dist.sample()), numeric[i:i+1])
+          denoiserLikelihoods.append(torch.where(numeric_noised[i] == 0, dist.log_prob(nextWord), zeroLikelihood))
   #        print(nextWord.size())
           nextWordDistCPU = nextWord.cpu().numpy()[0]
           nextWordStrings = [itos_total[x] for x in nextWordDistCPU]
@@ -684,13 +732,13 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset):
              result_numeric[i].append( nextWordDistCPU[i] )
           embeddedLast = autoencoder.word_embeddings(nextWord)
 #          print(embeddedLast.size())
-      for r in result[:10]:
-         print(r)
+#      for r in result[:10]:
+ #        print(r)
       nounFraction = (float(len([x for x in result if NOUN in x]))/len(result))
 
       thatFraction = (float(len([x for x in result if NOUN+" dass" in x]))/len(result))
 
-      return result, torch.LongTensor(result_numeric).cuda(), (nounFraction, thatFraction), thatProbs
+      return result, torch.LongTensor(result_numeric).cuda(), (nounFraction, thatFraction), thatProbs, torch.stack(denoiserLikelihoods, dim=0).sum(dim=0)
 
 
 
@@ -893,7 +941,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                  sentence = context + f"{articles[NOUN]} {NOUN} dass {sentenceList[0]} {sentenceList[1]} {sentenceList[2]} FOO".lower()
               else:
                  sentence = context + f"{articles[NOUN]} {NOUN} dass {sentenceList[0]} {sentenceList[1]} {sentenceList[2]} gewann FOO".lower()
-
+              #sentenceLength = len(sentence.split(" ")) - len(context.split(" "))
               numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
               print(len(numerified))
               numerified = numerified[-args.sequence_length-1:]
@@ -912,7 +960,24 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                      numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
                  else:
                      assert False
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
+                 result, resultNumeric, fractions, thatProbs, denoiserLikelihoods = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
+
+                 totalSurprisal, _, _, _ = plain_lm.forward(resultNumeric, train=False, getSamples=False)
+                 totalSurprisal = totalSurprisal.sum(dim=0)
+                 assert totalSurprisal.size()[0] == args.NUMBER_OF_REPLICATES*args.batchSize, totalSurprisal.size()
+                 # denoiserLikelihoods
+                 # totalSurprisal
+                 # Noise Model Likelihood
+                 noiseModelLikelihood = getNoiseModelLikelihood(resultNumeric.transpose(0,1).contiguous(), numeric_noised)
+                 #print(noiseModelLikelihood)
+                 #print(noiseModelLikelihood.mean(), denoiserLikelihoods.mean(), totalSurprisal.mean())
+                 weightsOfSentences = torch.nn.Softmax()((-totalSurprisal) + noiseModelLikelihood - denoiserLikelihoods).squeeze(0)
+                 weightsOfSentencesCPU = weightsOfSentences.cpu()
+#                 print(weightsOfSentencesCPU.size())
+                 for i in range(min(10, weightsOfSentences.size()[0])):
+                    print(float(weightsOfSentencesCPU[i]), result[i])
+#                 print(weightsOfSentences)
+                 #quit()
                  for condition in [0,1]:
                    if VERBS == 2:
                       if condition == 0:
@@ -929,19 +994,21 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                    resultNumeric = torch.cat([resultNumeric, appended], dim=1)
                    resultNumeric = resultNumeric[:, -(1+args.sequence_length):]
                    
-                   totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
-                   print("SAMPLES FROM LM")
-                   print(samplesFromLM)
+                   totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, getSamples=False)
+#                   print("SAMPLES FROM LM")
+ #                  print(samplesFromLM)
       #             print(predictionsPlainLM.size())
                    (nounFraction, thatFraction) = fractions
                    thatFractions[condition].append(math.log(thatProbs))
 
-
+                   totalSurprisalAveraged = (totalSurprisal * weightsOfSentences.unsqueeze(0)).sum(dim=0)
                    if condition == 0:
-                      surprisals[condition].append(float(totalSurprisal[-4:, :].sum(dim=0).mean()))
+#                      print(totalSurprisalAveraged.size())
+                      surprisals[condition].append(float(totalSurprisalAveraged[-4:].sum()))
                    else:
-                      surprisals[condition].append(float(totalSurprisal[-3:, :].sum(dim=0).mean()))
+                      surprisals[condition].append(float(totalSurprisalAveraged[-3:].sum()))
               print("NOUNS SO FAR", topNouns.index(NOUN))
+              #quit()
          surprisals0 = sum(surprisals[0])/len(surprisals[0])
          surprisals1 = sum(surprisals[1])/len(surprisals[1])
          surprisalsPerNoun.append((NOUN, surprisals1, surprisals0))
@@ -966,6 +1033,8 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
 
+#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
+#quit()
 
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=1)
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)

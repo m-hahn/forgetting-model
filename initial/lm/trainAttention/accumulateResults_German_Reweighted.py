@@ -1,10 +1,10 @@
 import glob
-files = glob.glob("/u/scr/mhahn/reinforce-logs-both/full-logs/char*")
+files = glob.glob("/u/scr/mhahn/reinforce-logs-both/full-logs/har*")
 results = []
 for f in files:
    if "erman" not in f:
      continue
-   if "Reweight" in f:
+   if "Reweight" not in f:
       continue
    id_ = f[f.rfind("_")+1:]
    with open(f, "r") as inFile:
@@ -34,7 +34,7 @@ for f in files:
        learning_rate_memory = float(arguments["learning_rate_memory"])
        momentum = float(arguments["momentum"])
        results.append({"iterations" : iterations, "pred_weight" : pred_weight, "del_rate" : del_rate, "correlations" : correlations, "id" : id_, "lr_mem" : learning_rate_memory, "mom" : momentum, "args" : arguments})
-with open("output/results_german.tsv", "w") as outFile2:
+with open("output/results_german_reweighted.tsv", "w") as outFile2:
  print("\t".join(["pred_weight", "del_rate", "model1", "model2", "sanity1", "sanity2", "denoiser", "noised_lm", "lm"]), file=outFile2)
  with open("output/results_german.txt", "w") as outFile:
   for r in sorted(results, key=lambda x:x["correlations"].get("Model 2", 0.0), reverse=True):

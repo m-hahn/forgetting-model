@@ -4,8 +4,6 @@ results = []
 for f in files:
    if "erman" not in f:
      continue
-   if "Reweight" in f:
-      continue
    id_ = f[f.rfind("_")+1:]
    with open(f, "r") as inFile:
        data = inFile.read().split("\n")
@@ -14,7 +12,7 @@ for f in files:
               arguments = data[1]
        else:
               arguments = None
-       correlations = [x[28:].split(") ") for x in data if x.startswith("PLAIN LM Correlation ")]
+       correlations = [x[24:].split(") ") for x in data if x.startswith("THAT_correlation ")]
        try:
           correlations = dict((x[1], float(x[0])) for x in correlations)
        except IndexError:
@@ -34,7 +32,7 @@ for f in files:
        learning_rate_memory = float(arguments["learning_rate_memory"])
        momentum = float(arguments["momentum"])
        results.append({"iterations" : iterations, "pred_weight" : pred_weight, "del_rate" : del_rate, "correlations" : correlations, "id" : id_, "lr_mem" : learning_rate_memory, "mom" : momentum, "args" : arguments})
-with open("output/results_german.tsv", "w") as outFile2:
+with open("output/results_german_THAT.tsv", "w") as outFile2:
  print("\t".join(["pred_weight", "del_rate", "model1", "model2", "sanity1", "sanity2", "denoiser", "noised_lm", "lm"]), file=outFile2)
  with open("output/results_german.txt", "w") as outFile:
   for r in sorted(results, key=lambda x:x["correlations"].get("Model 2", 0.0), reverse=True):
