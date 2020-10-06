@@ -1,3 +1,5 @@
+assert False, "want to block these for now"
+
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -954,6 +956,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
               print("THAT_INDEX", THAT_INDEX, sentence)
               logWeightsForSentences = []
               totalSurprisals = {0 : [], 1: []}
+              hasThat = []
               for RUN in range(10): #args.NUMBER_OF_RUNS):
 
                  numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
@@ -974,6 +977,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                  noiseModelLikelihood = getNoiseModelLikelihood(resultNumeric.transpose(0,1).contiguous(), numeric_noised)
                  #print(noiseModelLikelihood)
                  #print(noiseModelLikelihood.mean(), denoiserLikelihoods.mean(), totalSurprisal.mean())
+                 hasThat.append((resultNumeric == stoi["dass"]+3).sum(dim=1).clamp(max=1, min=0))
                  logWeightsForSentences.append(((-totalSurprisal) + noiseModelLikelihood - denoiserLikelihoods).detach())
 #                 weightsOfSentences = torch.nn.Softmax()((-totalSurprisal) + noiseModelLikelihood - denoiserLikelihoods).squeeze(0)
                  logWeightsForSentencesCPU = logWeightsForSentences[-1].cpu()
@@ -1003,8 +1007,9 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
  #                  print(samplesFromLM)
       #             print(predictionsPlainLM.size())
                    (nounFraction, thatFraction) = fractions
-                   thatFractions[condition].append(math.log(thatProbs))
+                   #thatFractions[condition].append(math.log(thatProbs))
                    totalSurprisals[condition].append(totalSurprisal.detach())
+              hasThat = torch.cat(hasThat, dim=0)
               totalSurprisals0 = torch.cat(totalSurprisals[0], dim=1)
               totalSurprisals1 = torch.cat(totalSurprisals[1], dim=1)
               totalLogWeights = torch.cat(logWeightsForSentences, dim=1)
@@ -1013,8 +1018,10 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
               totalSurprisals1 = (totalSurprisals1 * totalWeights).sum(dim=0)
               surprisals[0].append(float(totalSurprisals0[-4:].sum()))
               surprisals[1].append(float(totalSurprisals1[-3:].sum()))
+              thatFractions[0].append(float((hasThat * totalWeights.view(-1)).sum()))
+              thatFractions[1].append(thatFractions[0][-1])
               print("NOUNS SO FAR", topNouns.index(NOUN))
-              #quit()
+              #quit()\
          surprisals0 = sum(surprisals[0])/len(surprisals[0])
          surprisals1 = sum(surprisals[1])/len(surprisals[1])
          surprisalsPerNoun.append((NOUN, surprisals1, surprisals0))
