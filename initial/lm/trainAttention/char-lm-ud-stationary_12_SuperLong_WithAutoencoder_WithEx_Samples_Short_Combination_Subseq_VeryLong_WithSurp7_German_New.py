@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="german")
 parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=random.choice([522622844])) # language model taking noised input
 parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([518982544, 469764721, 12916800])) # 310179465, has a corrupted file
-parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([129313017, 643395320])) #136525999])) #244706489, 273846868])) # plain language model without noise
+parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([129313017, 643395320, 239671536])) #136525999])) #244706489, 273846868])) # plain language model without noise
 
 
 parser.add_argument("--batchSize", type=int, default=random.choice([1]))
@@ -35,7 +35,7 @@ parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--deletion_rate", type=float, default=0.5)
 
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75])) # , 1.0
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75])) # , 1.0 # 0.0, 0.25, 0.5, 
 
 
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
@@ -68,7 +68,7 @@ assert args.deletion_rate > 0.0
 assert args.deletion_rate < 0.9
 
 assert args.deletion_rate > 0.2
-assert args.deletion_rate < 0.7
+assert args.deletion_rate < 0.95
 
 
 ############################################
@@ -934,7 +934,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                    print(samplesFromLM)
       #             print(predictionsPlainLM.size())
                    (nounFraction, thatFraction) = fractions
-                   thatFractions[condition].append(math.log(thatProbs))
+                   thatFractions[condition].append(math.log(thatFraction+0.001))
 
 
                    if condition == 0:
@@ -955,10 +955,14 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
     print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
     differences = torch.FloatTensor([x[2]-x[1] for x in surprisalsPerNoun])
+    print("surprisalDifferences", differences)
     print("counts = c("+",".join([str(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])+")")
     ratios = torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])
     thatFractionsPerNoun = {x[0] : x[1] for x in thatFractionsPerNoun}
     thatFractions = torch.FloatTensor([float(thatFractionsPerNoun[NOUN]) for NOUN in topNouns])
+    print("thatFractionsPerNoun (raw_not_from_softmax)")
+    print(thatFractionsPerNoun)
+    print("log P(that|NOUN):")
     print(ratios)
     print("PLAIN LM Correlation", correlation(ratios, differences), SANITY, VERBS)
     print("THAT_correlation", correlation(ratios, thatFractions), SANITY, VERBS)
