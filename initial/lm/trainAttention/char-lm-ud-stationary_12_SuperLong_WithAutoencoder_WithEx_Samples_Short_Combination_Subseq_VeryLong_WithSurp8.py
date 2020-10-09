@@ -14,7 +14,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
 parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=964163553) # language model taking noised input
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([436749750, 647336050, 516252642, 709961927, 587349044, 727001672]))
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([647336050, 516252642, 709961927, 727001672]))
 parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([27553360, 935649231])) # plain language model without noise
 
 
@@ -189,6 +189,7 @@ class PlainLanguageModel(torch.nn.Module):
 #           self.beginning = torch.where(forRestart.unsqueeze(0) == 1, zeroBeginning, self.beginning)
        print("BEGINNING", "NUMERIC", self.beginning.size(), numeric.size())
        assert numeric.size()[1] == numberOfBatches
+       assert numeric.size()[0] == args.sequence_length+1
        self.beginning = numeric[numeric.size()[0]-1].view(1, numberOfBatches)
        input_tensor = Variable(numeric[:-1], requires_grad=False)
        target_tensor = Variable(numeric[1:], requires_grad=False)
@@ -224,6 +225,8 @@ class PlainLanguageModel(torch.nn.Module):
           logits = self.output(out[-1:]) 
           log_probs = self.logsoftmax(logits)
           loss = self.train_loss(log_probs.view(-1, len(itos)+3), target_tensor[-1].view(-1))
+#          print([itos_total[int(x)] for x in target_tensor[-1].cpu()])
+ #         quit()
           lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor[-1].view(-1)).view(1,numberOfBatches)
        return lossTensor, target_tensor.view(-1).size()[0], None, log_probs
    
@@ -329,6 +332,7 @@ optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory
 
 if args.load_from_autoencoder is not None:
  # try:
+  print(args.load_from_autoencoder)
   checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
 #  except FileNotFoundError:
  #    checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
@@ -936,6 +940,8 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
               result, resultNumeric, fractions, thatProbs = sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
  #             print(resultNumeric.size())
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
+              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
+              resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=False, returnLastSurprisal=True, numberOfBatches=numberOfSamples*24)
 #              print(totalSurprisal.size())
               totalSurprisal = totalSurprisal.view(numberOfSamples, 24)
@@ -1048,6 +1054,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
 
+#getTotalSentenceSurprisals()
 
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity")
@@ -1074,7 +1081,7 @@ for epoch in range(1000):
    while updatesCount <= maxUpdates:
       counter += 1
       updatesCount += 1
-      if updatesCount % 100000 == 0:
+      if updatesCount == maxUpdates:
        with open("/u/scr/mhahn/reinforce-logs-both/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
          sys.stdout = outFile
          print(updatesCount)
