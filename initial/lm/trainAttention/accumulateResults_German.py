@@ -9,6 +9,8 @@ for f in files:
    id_ = f[f.rfind("_")+1:]
    with open(f, "r") as inFile:
        data = inFile.read().split("\n")
+       if "thatFractionsPerNoun (raw_not_from_softmax)" not in data:
+          continue
        iterations = data[0]
        if data[1].startswith("Namespace"):
               arguments = data[1]

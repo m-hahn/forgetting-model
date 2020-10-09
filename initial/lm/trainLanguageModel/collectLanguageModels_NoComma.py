@@ -2,17 +2,19 @@ import glob
 import sys
 results = []
 language = sys.argv[1]
-script = "autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"
+script = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_NoComma.py"
 files = glob.glob("/u/scr/mhahn/recursive-prd/memory-upper-neural-pos-only_recursive_words/estimates-"+language+"_"+script+"_model_*_*.txt")
 for f in files:
-  if language not in f:
-     continue
   with open(f, "r") as inFile:
      data = inFile.read().strip().split("\n")
      args = dict([x.split("=") for x in data[0][10:-1].split(", ")])
      devLosses = [float(x) for x in data[1].strip().split(" ")]
      num_iter = len(devLosses)
-     load_from = args["load_from"]
+     try:
+       load_from = args.get("load_from", "None")
+     except KeyError:
+       print("ERROR", args)
+       continue
      last_loss = devLosses[-1]
      hasEnded = len(devLosses) > 1 and devLosses[-2] < devLosses[-1]
      myID = args["myID"]
