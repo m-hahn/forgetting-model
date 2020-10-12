@@ -52,7 +52,7 @@ parser.add_argument("--RATE_WEIGHT", type=float, default=random.choice([-1.0])) 
 parser.add_argument("--momentum", type=float, default=random.choice([0.0, 0.3, 0.5, 0.7, 0.9]))
 parser.add_argument("--entropy_weight", type=float, default=random.choice([0.0])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
 
-parser.add_argument("--tuning", type=int, default=0) #random.choice([0.00001, 0.00005, 0.0001, 0.0002, 0.0003, 0.0005, 0.0007, 0.0008, 0.001])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
+parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.00005, 0.0001, 0.0002, 0.0003, 0.0005, 0.0007, 0.0008, 0.001])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
 
 model = "REAL_REAL"
 
@@ -64,8 +64,8 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.0
-assert args.deletion_rate < 0.9
+assert args.deletion_rate > 0.2
+assert args.deletion_rate < 0.7
 
 
 ############################################
@@ -732,10 +732,10 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 500000 if args.tuning == 1 else 10000000000
+maxUpdates = 300000 if args.tuning == 1 else 10000000000
 
 def showAttention(word):
-    attention = forward((torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), None), train=True, printHere=True, provideAttention=True)
+    attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
     attention = attention[:,0,0]
     print(*(["SCORES", word, "\t"]+[round(x,2) for x in list(attention.cpu().data.numpy())]))
 
@@ -962,9 +962,12 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
       for noun in topNouns:
        for region in ["V3", "V2", "V1", "EOS"]:
          for condition in ["u", "g"]:
-           print(noun, region, surprisalsPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region], file=outFile)
+           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region], file=outFile)
     for region in ["V3", "V2", "V1", "EOS"]:
        print("CORR", region, correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x]["g"][region]-surprisalsPerNoun[x]["u"][region] for x in topNouns])), correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x]["g"][region]-thatFractionsPerNoun[x]["u"][region] for x in topNouns])))
+    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["u"][region] - surprisalsPerNoun[noun]["g"][region] for region in ["V2", "V1", "EOS"]]) for noun in topNouns])
+    print("CORR total", correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), overallSurprisalForCompletion))
+
 
 def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["Sanity", "Model"]
@@ -1062,6 +1065,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
 #  
 #getPerNounReconstructionsSanity()
 #getPerNounReconstructionsSanityVerb()
+startTimeTotal = time.time()
 
 for epoch in range(1000):
    print(epoch)
@@ -1136,7 +1140,7 @@ for epoch in range(1000):
       trainChars += charCounts 
       if printHere:
           print(("Loss here", loss))
-          print((epoch,counter, trainChars))
+          print((epoch, "Updates", updatesCount, str((100.0*updatesCount)/maxUpdates)+" %", maxUpdates, counter, trainChars, "ETA", ((time.time()-startTimeTotal)/updatesCount * (maxUpdates-updatesCount))/3600.0, "hours"))
           print("Dev losses")
           print(devLosses)
           print("Words per sec "+str(trainChars/(time.time()-startTime)))
