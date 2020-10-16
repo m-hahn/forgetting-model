@@ -18,7 +18,7 @@ parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", typ
 parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([27553360, 935649231])) # plain language model without noise
 
 
-parser.add_argument("--batchSize", type=int, default=random.choice([1]))
+parser.add_argument("--batchSize", type=int, default=random.choice([64, 128]))
 parser.add_argument("--word_embedding_size", type=int, default=random.choice([512]))
 parser.add_argument("--hidden_dim_lm", type=int, default=random.choice([1024]))
 parser.add_argument("--hidden_dim_autoencoder", type=int, default=random.choice([512]))
@@ -27,7 +27,7 @@ parser.add_argument("--weight_dropout_in", type=float, default=random.choice([0.
 parser.add_argument("--weight_dropout_out", type=float, default=random.choice([0.05]))
 parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.01]))
 #parser.add_argument("--char_noise_prob", type = float, default=random.choice([0.0]))
-parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.000002, 0.00001, 0.00002, 0.00005])) #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
+parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.0001, 0.0005])) #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
 parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.2])) # 0.0001, 
 parser.add_argument("--myID", type=int, default=random.randint(0,1000000000))
 parser.add_argument("--sequence_length", type=int, default=random.choice([20]))
@@ -35,11 +35,11 @@ parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--deletion_rate", type=float, default=0.5)
 
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0]))
 
 
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
-parser.add_argument("--NUMBER_OF_REPLICATES", type=int, default=random.choice([12,20]))
+parser.add_argument("--NUMBER_OF_REPLICATES", type=int, default=random.choice([1]))
 
 parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.2, 0.3]))
 TRAIN_LM = False
@@ -62,7 +62,7 @@ args=parser.parse_args()
 
 ############################
 
-assert args.predictability_weight >= 0
+assert args.predictability_weight == 0
 assert args.predictability_weight <= 1
 assert args.deletion_rate > 0.2
 assert args.deletion_rate < 0.7
@@ -75,7 +75,7 @@ assert args.deletion_rate < 0.7
 #############################
 
 assert args.tuning in [0,1]
-assert args.batchSize == 1
+#assert args.batchSize == 1
 print(args.myID)
 import sys
 STDOUT = sys.stdout
@@ -443,7 +443,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       ######################################################
       # Run Loss Model
 
-      numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
+      NUMBER_OF_REPLICATES = numeric.size()[1]
 #      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
 #      numeric = torch.cat([beginning, numeric], dim=0)
       embedded_everything = lm.word_embeddings(numeric)
@@ -515,7 +515,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       autoencoder_log_probs = autoencoder.logsoftmax(autoencoder_logits)
 
       # Prediction Loss 
-      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
+      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES)
 
       ##########################################
       ##########################################
@@ -892,7 +892,7 @@ def encodeContextCrop(inp, context):
      numerified = [stoi_total[char] if char in stoi_total else 2 for char in sentence.split(" ")]
      print(len(numerified))
      numerified = numerified[-args.sequence_length-1:]
-     numerified = torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
+     numerified = torch.LongTensor([numerified for _ in range(1)]).t().cuda()
      return numerified
 
 def flatten(x):
@@ -936,7 +936,9 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
                  numeric = numeric.expand(-1, numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
               else:
-                 numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
+                 numeric = numerified
+                 numeric = numeric.expand(-1, numberOfSamples)
+                 numeric, numeric_noised = forward(numeric, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
@@ -1060,7 +1062,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
 
-#getTotalSentenceSurprisals(SANITY="Sanity")
+#getTotalSentenceSurprisals(SANITY="Model")
 #quit()
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity")
