@@ -35,7 +35,7 @@ parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--deletion_rate", type=float, default=0.5)
 
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0])) # 
 
 
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
@@ -64,7 +64,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.2
+assert args.deletion_rate > 0.1
 assert args.deletion_rate < 0.7
 
 
@@ -920,11 +920,11 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
            for condition in ["g","u"]:
             if condition == "g":
                remainingInput = f"{sentenceList[3]} {sentenceList[4]} .".split(" ")
-               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V3", sentenceList[2]), ("V2", sentenceList[3]), ("V1", sentenceList[4]), ("EOS", ".")]])
+               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V2", sentenceList[3]), ("V1", sentenceList[4]), ("EOS", ".")]])
                assert len(remainingInput) == len(regions)
             else:
                remainingInput = f"{sentenceList[4]} .".split(" ")
-               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V3", sentenceList[2]), ("V1", sentenceList[4]), ("EOS", ".")]])
+               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V1", sentenceList[4]), ("EOS", ".")]])
                assert len(remainingInput) == len(regions)
             for i in range(len(remainingInput)):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context)
@@ -960,6 +960,8 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
          print("NOUNS SO FAR", topNouns.index(NOUN))
          surprisalsPerNoun[NOUN] = surprisalByRegions
          thatFractionsPerNoun[NOUN] = thatFractions
+    print("SURPRISALS BY NOUN", surprisalsPerNoun)
+    print("THAT BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
     with open("/u/scr/mhahn/reinforce-logs-both/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "ThatFraction", file=outFile)

@@ -64,7 +64,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.2
+assert args.deletion_rate > 0.1
 assert args.deletion_rate < 0.7
 
 
@@ -913,44 +913,46 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
       for NOUN in topNouns:
          for sentenceList in nounsAndVerbs:
            print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}"
            thatFractions = {x : {"V3" : 0, "V2" : 0, "V1" : 0, "EOS" : None} for x in ["g", "u"]}
            surprisalByRegions = {x : {"V3" : 0, "V2" : 0, "V1" : 0, "EOS" : 0} for x in ["g", "u"]}
 
            for condition in ["g","u"]:
             if condition == "g":
-               remainingInput = f"{sentenceList[2]} {sentenceList[3]} {sentenceList[4]} .".split(" ")
-               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V3", sentenceList[2]), ("V2", sentenceList[3]), ("V1", sentenceList[4]), ("EOS", ".")]])
+               context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} {sentenceList[3]}"
+               remainingInput = f"{sentenceList[4]} .".split(" ")
+               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V1", sentenceList[4]), ("EOS", ".")]])
                assert len(remainingInput) == len(regions)
             else:
-               remainingInput = f"{sentenceList[2]} {sentenceList[4]} .".split(" ")
-               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V3", sentenceList[2]), ("V1", sentenceList[4]), ("EOS", ".")]])
+               context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
+               remainingInput = f"{sentenceList[4]} .".split(" ")
+               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V1", sentenceList[4]), ("EOS", ".")]])
                assert len(remainingInput) == len(regions)
+            numerified = encodeContextCrop("FOO", context)
+            assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
+     #       print(i, " ########### ", SANITY, VERBS)
+    #        print(numerified.size())
+            if SANITY == "Sanity":
+               numeric = numerified
+               numeric = numeric.expand(-1, numberOfSamples)
+               numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
+            else:
+               numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
+               numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
+            numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
+            numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
+            result, resultNumeric, fractions, thatProbs = sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
+ #           print(resultNumeric.size())
+            resultNumeric = resultNumeric.transpose(0,1).contiguous()
+            balancingInitialWord = torch.LongTensor([stoi_total["OOV"] for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
+            resultNumeric = torch.cat([balancingInitialWord, resultNumeric[:-1]], dim=0).contiguous()
             for i in range(len(remainingInput)):
-              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context)
-              assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
-     #         print(i, " ########### ", SANITY, VERBS)
-    #          print(numerified.size())
-              if SANITY == "Sanity":
-                 numeric = numerified
-                 numeric = numeric.expand(-1, numberOfSamples)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-              else:
-                 numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
-                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
-              numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
-              numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
-              result, resultNumeric, fractions, thatProbs = sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
- #             print(resultNumeric.size())
-              resultNumeric = resultNumeric.transpose(0,1).contiguous()
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
-              resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
+              resultNumeric = torch.cat([resultNumeric[1:], nextWord], dim=0).contiguous()
               totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=False, returnLastSurprisal=True, numberOfBatches=numberOfSamples*24)
 #              print(totalSurprisal.size())
               totalSurprisal = totalSurprisal.view(numberOfSamples, 24)
               surprisalOfNextWord = totalSurprisal.exp().mean(dim=1).log().mean()
-              print("PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in numerified[:,0]]), surprisalOfNextWord)
-              print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,0]]), surprisalOfNextWord)
+              print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,0]]), "Surp:", float(surprisalOfNextWord), "thatProbs:", float(thatProbs))
               print("SURPRISAL", NOUN, sentenceList[0], condition, i, regions[i], remainingInput[i],float( surprisalOfNextWord))
               surprisalByRegions[condition][regions[i]] += float( surprisalOfNextWord)
               if i == 0 or regions[i] != regions[i-1]:
@@ -960,6 +962,8 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
          print("NOUNS SO FAR", topNouns.index(NOUN))
          surprisalsPerNoun[NOUN] = surprisalByRegions
          thatFractionsPerNoun[NOUN] = thatFractions
+    print("SURPRISALS BY NOUN", surprisalsPerNoun)
+    print("THAT BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
     with open("/u/scr/mhahn/reinforce-logs-both/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "ThatFraction", file=outFile)
