@@ -78,14 +78,52 @@ ggplot(dataLong %>% group_by(ID, Noun, Ratio, Condition) %>% summarise(Surprisal
 # RATINGS
 ggplot(dataLong %>% group_by(ID, Noun, Ratio, Condition, deletion_rate) %>% summarise(Surprisal = sum(Surprisal)) %>% mutate(Surprisal = Surprisal - 25.7 - ifelse(Condition == "u", 0, 18.7)) %>% group_by(Noun, Ratio, Condition, deletion_rate) %>% summarise(Surprisal=mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_point() + facet_wrap(~deletion_rate, scales="free")
 
+tValues = data.frame()
+for(deletion_rate_ in unique(dataLong$deletion_rate)) {
+   tValue = coef(summary(lmer(Surprisal ~ Condition.C*Ratio + (1+Condition.C|Noun) + (1+Condition.C+Ratio|ID), data=dataLong %>% filter(deletion_rate==deletion_rate_) %>% mutate(ID=as.factor(ID)) %>% group_by(Noun, ID, Condition, Condition.C, Noun, Ratio) %>% summarise(Surprisal = sum(Surprisal)) %>% mutate(Surprisal = Surprisal - 25.7 - ifelse(Condition == "u", 0, 18.7)))))[4,3]
+   tValues = rbind(tValues, data.frame(deletion_rate=c(deletion_rate_), tValue=c(paste("t =",round(tValue, 4))), yPosition=c(max(((dataLong %>% filter(deletion_rate==deletion_rate_) %>% mutate(ID=as.factor(ID)) %>% group_by(Noun, ID, Condition, Condition.C, Noun, Ratio) %>% summarise(Surprisal = sum(Surprisal)) %>% mutate(Surprisal = Surprisal - 25.7 - ifelse(Condition == "u", 0, 18.7)) %>% summarise(Surprisal=mean(Surprisal)))$Surprisal)))))
+}
+
+
+
+
+ggplot(dataLong %>% group_by(ID, Noun, Ratio, Condition, deletion_rate) %>% summarise(Surprisal = sum(Surprisal)) %>% mutate(Surprisal = Surprisal - 25.7 - ifelse(Condition == "u", 0, 18.7)) %>% group_by(Noun, Ratio, Condition, deletion_rate) %>% summarise(Surprisal=mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_point() + facet_wrap(~deletion_rate, scales="free") + geom_text(data=tValues, aes(x=-2, y=yPosition, label=tValue), inherit.aes=FALSE, parse=FALSE)
+ggsave("figures/logLikelihoodRatio_byDeletionRate.pdf")
+
+
 # Reading Times
 ggplot(dataLong %>% filter(Region == "V1")  %>% group_by(Noun, Ratio, Condition, deletion_rate) %>% summarise(Surprisal=mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_point() + facet_wrap(~deletion_rate, scales="free")
+
+tValues = data.frame()
+for(deletion_rate_ in unique(dataLong$deletion_rate)) {
+   tValue = coef(summary(lmer(Surprisal ~ Condition.C*Ratio + (1+Condition.C|Noun) + (1+Condition.C+Ratio|ID), data=dataLong %>% filter(Region == "V1", deletion_rate==deletion_rate_) %>% mutate(ID=as.factor(ID)))))[4,3]
+   tValues = rbind(tValues, data.frame(deletion_rate=c(deletion_rate_), tValue=c(paste("t =",round(tValue, 4))), yPosition=c(max((dataLong %>% filter(Region == "V1", deletion_rate==deletion_rate_) %>%  group_by(Noun, Ratio, Condition, deletion_rate) %>% summarise(Surprisal=mean(Surprisal)))$Surprisal))))
+}
+
+ggplot(dataLong %>% filter(Region == "V1")  %>% group_by(Noun, Ratio, Condition, deletion_rate) %>% summarise(Surprisal=mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_point()  + geom_text(data=tValues, aes(x=-2, y=yPosition, label=tValue), inherit.aes=FALSE, parse=FALSE)+ facet_wrap(~deletion_rate, scales="free")
+ggsave("figures/surprisals_V1_byDeletionRate.pdf")
+
+
+# Reading Times only in Grammatical Sentences
+ggplot(dataLong %>% filter(Region == "V1", Condition=="g")  %>% group_by(Noun, Ratio, deletion_rate) %>% summarise(Surprisal=mean(Surprisal)), aes(x=Ratio, y=Surprisal)) + geom_smooth(method="lm") + geom_point() + facet_wrap(~deletion_rate, scales="free")
+
+tValues = data.frame()
+for(deletion_rate_ in unique(dataLong$deletion_rate)) {
+   tValue = coef(summary(lmer(Surprisal ~ Ratio + (1|Noun) + (1+Ratio|ID), data=dataLong %>% filter(Region == "V1", deletion_rate==deletion_rate_) %>% mutate(ID=as.factor(ID)))))[2,3]
+   tValues = rbind(tValues, data.frame(deletion_rate=c(deletion_rate_), tValue=c(paste("t =",round(tValue, 4))), yPosition=c(max((dataLong %>% filter(Region == "V1", deletion_rate==deletion_rate_) %>%  group_by(Noun, Ratio, deletion_rate) %>% summarise(Surprisal=mean(Surprisal)))$Surprisal))))
+}
+
+ggplot(dataLong %>% filter(Region == "V1")  %>% group_by(Noun, Ratio, deletion_rate) %>% summarise(Surprisal=mean(Surprisal)), aes(x=Ratio, y=Surprisal)) + geom_smooth(method="lm") + geom_point()  + geom_text(data=tValues, aes(x=-2, y=yPosition, label=tValue), inherit.aes=FALSE, parse=FALSE)+ facet_wrap(~deletion_rate, scales="free")
+ggsave("figures/surprisals_OnlyGramm_V1_byDeletionRate.pdf")
+
 
 
 
 ggplot(dataLong %>% filter(!(Region == "V2" & Condition == "u")) %>% group_by(deletion_rate, Noun, Ratio, Condition) %>% summarise(Surprisal = mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_point() + facet_wrap(~deletion_rate, scales="free")
 
+###################3
 ggplot(dataLong %>% filter(Region == "V1") %>% group_by(deletion_rate, Noun, Ratio, Condition) %>% summarise(Surprisal = mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_point() + facet_wrap(~deletion_rate, scales="free")
+####################
 
 ggplot(dataLong %>% filter(Region != "V2") %>% group_by(deletion_rate, Noun, Ratio, Condition) %>% summarise(Surprisal = mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_point() + facet_wrap(~deletion_rate, scales="free")
 
