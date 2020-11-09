@@ -35,7 +35,7 @@ parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--deletion_rate", type=float, default=0.5)
 
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0])) # 
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
 
 
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
@@ -673,7 +673,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset, numberOfBatches
           probs = autoencoder.softmax(logits)
           if i == 15-offset:
             assert args.sequence_length == 20
-            thatProbs = float(probs[0,:, stoi["that"]+3].mean())
+            thatProbs = None #float(probs[0,:, stoi["that"]+3].mean())
 #          print(i, probs[0,:, stoi["that"]+3].mean())
  #         quit()
 
@@ -696,7 +696,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset, numberOfBatches
       thatFraction = (float(len([x for x in result if NOUN+" that" in x]))/len(result))
       result_numeric = torch.LongTensor(result_numeric).cuda()
       assert result_numeric.size()[0] == numberOfBatches
-      return result, result_numeric, (nounFraction, thatFraction), thatProbs
+      return result, result_numeric, (nounFraction, thatFraction), thatFraction
 
 
 
@@ -747,7 +747,7 @@ def showAttention(word):
 
 nounsAndVerbs = []
 nounsAndVerbs.append(["the principal",       "the teacher",        "kissed",      "was fired",                     "was quoted in the newspaper", "Was the XXXX quoted in the newspaper?", "Y"])
-nounsAndVerbs.append(["the sculptor",        "the painter",        "admired",    "wasn't talented",   "was completely untrue", "Was the XXXX untrue?", "Y"])
+nounsAndVerbs.append(["the sculptor",        "the painter",        "admired",    "was n't talented",   "was completely untrue", "Was the XXXX untrue?", "Y"])
 nounsAndVerbs.append(["the consultant",      "the artist",         "hired",      "was a fraud",       "shocked everyone", "Did the XXXX shock everyone?", "Y"])
 nounsAndVerbs.append(["the runner",          "the psychiatrist",   "treated",    "was doping",        "was ridiculous", "Was the XXXX ridiculous?", "Y"])
 nounsAndVerbs.append(["the child",           "the medic",          "rescued",    "was unharmed",      "relieved everyone", "Did the XXXX relieve everyone?", "Y"])
@@ -961,7 +961,7 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
          surprisalsPerNoun[NOUN] = surprisalByRegions
          thatFractionsPerNoun[NOUN] = thatFractions
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
-    print("THAT BY NOUN", thatFractionsPerNoun)
+    print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
     with open("/u/scr/mhahn/reinforce-logs-both/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "ThatFraction", file=outFile)
@@ -1033,7 +1033,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                    print(samplesFromLM)
       #             print(predictionsPlainLM.size())
                    (nounFraction, thatFraction) = fractions
-                   thatFractions[condition].append(math.log(thatProbs))
+                   thatFractions[condition].append(math.log(thatProbs+1e-5))
 
 
                    if condition == 0:

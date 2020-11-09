@@ -673,7 +673,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset, numberOfBatches
           probs = autoencoder.softmax(logits)
           if i == 15-offset:
             assert args.sequence_length == 20
-            thatProbs = float(probs[0,:, stoi["that"]+3].mean())
+            thatProbs = None #float(probs[0,:, stoi["that"]+3].mean())
 #          print(i, probs[0,:, stoi["that"]+3].mean())
  #         quit()
 
@@ -696,7 +696,7 @@ def sampleReconstructions(numeric, numeric_noised, NOUN, offset, numberOfBatches
       thatFraction = (float(len([x for x in result if NOUN+" that" in x]))/len(result))
       result_numeric = torch.LongTensor(result_numeric).cuda()
       assert result_numeric.size()[0] == numberOfBatches
-      return result, result_numeric, (nounFraction, thatFraction), thatProbs
+      return result, result_numeric, (nounFraction, thatFraction), thatFraction
 
 
 

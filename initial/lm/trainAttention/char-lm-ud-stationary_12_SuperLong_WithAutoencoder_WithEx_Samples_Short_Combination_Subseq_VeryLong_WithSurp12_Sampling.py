@@ -18,7 +18,7 @@ parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", typ
 parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([27553360, 935649231])) # plain language model without noise
 
 
-parser.add_argument("--batchSize", type=int, default=random.choice([64, 128]))
+parser.add_argument("--batchSize", type=int, default=random.choice([1]))
 parser.add_argument("--word_embedding_size", type=int, default=random.choice([512]))
 parser.add_argument("--hidden_dim_lm", type=int, default=random.choice([1024]))
 parser.add_argument("--hidden_dim_autoencoder", type=int, default=random.choice([512]))
@@ -27,7 +27,7 @@ parser.add_argument("--weight_dropout_in", type=float, default=random.choice([0.
 parser.add_argument("--weight_dropout_out", type=float, default=random.choice([0.05]))
 parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.01]))
 #parser.add_argument("--char_noise_prob", type = float, default=random.choice([0.0]))
-parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.0001, 0.0005])) #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
+parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.000002, 0.00001, 0.00002, 0.00005])) #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
 parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.2])) # 0.0001, 
 parser.add_argument("--myID", type=int, default=random.randint(0,1000000000))
 parser.add_argument("--sequence_length", type=int, default=random.choice([20]))
@@ -35,11 +35,11 @@ parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--deletion_rate", type=float, default=0.5)
 
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0]))
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
 
 
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
-parser.add_argument("--NUMBER_OF_REPLICATES", type=int, default=random.choice([1]))
+parser.add_argument("--NUMBER_OF_REPLICATES", type=int, default=random.choice([12,20]))
 
 parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.2, 0.3]))
 TRAIN_LM = False
@@ -62,9 +62,9 @@ args=parser.parse_args()
 
 ############################
 
-assert args.predictability_weight == 0
+assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.2
+assert args.deletion_rate > 0.1
 assert args.deletion_rate < 0.7
 
 
@@ -75,7 +75,7 @@ assert args.deletion_rate < 0.7
 #############################
 
 assert args.tuning in [0,1]
-#assert args.batchSize == 1
+assert args.batchSize == 1
 print(args.myID)
 import sys
 STDOUT = sys.stdout
@@ -175,7 +175,7 @@ class PlainLanguageModel(torch.nn.Module):
 #     return results
 #
 
-  def forward(self, numeric, train=True, printHere=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=args.NUMBER_OF_REPLICATES*args.batchSize):
+  def forward(self, numeric, train=True, printHere=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=args.NUMBER_OF_REPLICATES*args.batchSize, sampleWord=False, contractSamplingByLastDimension=None):
        if self.hidden is None or True:
            self.hidden = None
            self.beginning = self.zeroBeginning
@@ -188,7 +188,7 @@ class PlainLanguageModel(torch.nn.Module):
 #           self.hidden = (hidden1, hidden2)
 #           self.beginning = torch.where(forRestart.unsqueeze(0) == 1, zeroBeginning, self.beginning)
        print("BEGINNING", "NUMERIC", self.beginning.size(), numeric.size())
-       assert numeric.size()[1] == numberOfBatches
+       assert numeric.size()[1] == numberOfBatches, ("numberOfBatches", numberOfBatches)
        assert numeric.size()[0] == args.sequence_length+1
        self.beginning = numeric[numeric.size()[0]-1].view(1, numberOfBatches)
        input_tensor = Variable(numeric[:-1], requires_grad=False)
@@ -221,6 +221,7 @@ class PlainLanguageModel(torch.nn.Module):
              #print(("NONE", itos_total[numericCPU[0][0]]))
              #for i in range((args.sequence_length)):
              #   print((losses[i][0], itos_total[numericCPU[i+1][0]]))
+          samples = None
        elif returnLastSurprisal:
           logits = self.output(out[-1:]) 
           log_probs = self.logsoftmax(logits)
@@ -228,7 +229,21 @@ class PlainLanguageModel(torch.nn.Module):
 #          print([itos_total[int(x)] for x in target_tensor[-1].cpu()])
  #         quit()
           lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor[-1].view(-1)).view(1,numberOfBatches)
-       return lossTensor, target_tensor.view(-1).size()[0], None, log_probs
+          samples = None
+       elif sampleWord:
+          logits = self.output(out[-1:]) 
+          logits[:, :, stoi_total["OOV"]] = -10000000
+          probs = self.softmax(logits)
+#          print(probs.size())
+          if contractSamplingByLastDimension is not None:
+             probs = probs.view(contractSamplingByLastDimension + (50003,)).mean(dim=1)
+             assert probs.size()[0] == contractSamplingByLastDimension[0]
+          dist = torch.distributions.Categorical(probs=probs)
+          nextWord = dist.sample()
+          samples = [itos_total[int(x)] for x in nextWord.cpu().numpy()]
+          lossTensor = None
+          log_probs = None
+       return lossTensor, target_tensor.view(-1).size()[0], samples, log_probs
    
 
 
@@ -430,7 +445,7 @@ def product(x):
      r *= i
    return r
 
-def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES):
+def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True):
       global hidden
       global beginning
       global beginning_chars
@@ -442,8 +457,8 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       ######################################################
       ######################################################
       # Run Loss Model
-
-      NUMBER_OF_REPLICATES = numeric.size()[1]
+      if expandReplicates:
+         numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
 #      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
 #      numeric = torch.cat([beginning, numeric], dim=0)
       embedded_everything = lm.word_embeddings(numeric)
@@ -515,7 +530,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       autoencoder_log_probs = autoencoder.logsoftmax(autoencoder_logits)
 
       # Prediction Loss 
-      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES)
+      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
 
       ##########################################
       ##########################################
@@ -732,7 +747,7 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 100000 if args.tuning == 1 else 10000000000
+maxUpdates = 200000 if args.tuning == 1 else 10000000000
 
 def showAttention(word):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
@@ -747,7 +762,7 @@ def showAttention(word):
 
 nounsAndVerbs = []
 nounsAndVerbs.append(["the principal",       "the teacher",        "kissed",      "was fired",                     "was quoted in the newspaper", "Was the XXXX quoted in the newspaper?", "Y"])
-nounsAndVerbs.append(["the sculptor",        "the painter",        "admired",    "wasn't talented",   "was completely untrue", "Was the XXXX untrue?", "Y"])
+nounsAndVerbs.append(["the sculptor",        "the painter",        "admired",    "was n't talented",   "was completely untrue", "Was the XXXX untrue?", "Y"])
 nounsAndVerbs.append(["the consultant",      "the artist",         "hired",      "was a fraud",       "shocked everyone", "Did the XXXX shock everyone?", "Y"])
 nounsAndVerbs.append(["the runner",          "the psychiatrist",   "treated",    "was doping",        "was ridiculous", "Was the XXXX ridiculous?", "Y"])
 nounsAndVerbs.append(["the child",           "the medic",          "rescued",    "was unharmed",      "relieved everyone", "Did the XXXX relieve everyone?", "Y"])
@@ -892,7 +907,7 @@ def encodeContextCrop(inp, context):
      numerified = [stoi_total[char] if char in stoi_total else 2 for char in sentence.split(" ")]
      print(len(numerified))
      numerified = numerified[-args.sequence_length-1:]
-     numerified = torch.LongTensor([numerified for _ in range(1)]).t().cuda()
+     numerified = torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
      return numerified
 
 def flatten(x):
@@ -913,18 +928,18 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
       for NOUN in topNouns:
          for sentenceList in nounsAndVerbs:
            print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}"
+           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
            thatFractions = {x : {"V3" : 0, "V2" : 0, "V1" : 0, "EOS" : None} for x in ["g", "u"]}
            surprisalByRegions = {x : {"V3" : 0, "V2" : 0, "V1" : 0, "EOS" : 0} for x in ["g", "u"]}
 
            for condition in ["g","u"]:
             if condition == "g":
-               remainingInput = f"{sentenceList[2]} {sentenceList[3]} {sentenceList[4]} .".split(" ")
-               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V3", sentenceList[2]), ("V2", sentenceList[3]), ("V1", sentenceList[4]), ("EOS", ".")]])
+               remainingInput = f"{sentenceList[3]} {sentenceList[4]} .".split(" ")
+               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V2", sentenceList[3]), ("V1", sentenceList[4]), ("EOS", ".")]])
                assert len(remainingInput) == len(regions)
             else:
-               remainingInput = f"{sentenceList[2]} {sentenceList[4]} .".split(" ")
-               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V3", sentenceList[2]), ("V1", sentenceList[4]), ("EOS", ".")]])
+               remainingInput = f"{sentenceList[4]} .".split(" ")
+               regions = flatten([[region for _ in words.split(" ")] for region, words in [("V1", sentenceList[4]), ("EOS", ".")]])
                assert len(remainingInput) == len(regions)
             for i in range(len(remainingInput)):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context)
@@ -936,9 +951,7 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
                  numeric = numeric.expand(-1, numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
               else:
-                 numeric = numerified
-                 numeric = numeric.expand(-1, numberOfSamples)
-                 numeric, numeric_noised = forward(numeric, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
+                 numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
@@ -952,6 +965,7 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
               totalSurprisal = totalSurprisal.view(numberOfSamples, 24)
               surprisalOfNextWord = totalSurprisal.exp().mean(dim=1).log().mean()
               print("PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in numerified[:,0]]), surprisalOfNextWord)
+              print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,0]]), surprisalOfNextWord)
               print("SURPRISAL", NOUN, sentenceList[0], condition, i, regions[i], remainingInput[i],float( surprisalOfNextWord))
               surprisalByRegions[condition][regions[i]] += float( surprisalOfNextWord)
               if i == 0 or regions[i] != regions[i-1]:
@@ -961,6 +975,8 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
          print("NOUNS SO FAR", topNouns.index(NOUN))
          surprisalsPerNoun[NOUN] = surprisalByRegions
          thatFractionsPerNoun[NOUN] = thatFractions
+    print("SURPRISALS BY NOUN", surprisalsPerNoun)
+    print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
     with open("/u/scr/mhahn/reinforce-logs-both/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "ThatFraction", file=outFile)
@@ -971,7 +987,7 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
     for region in ["V3", "V2", "V1", "EOS"]:
        print(SANITY, "CORR", region, correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x]["g"][region]-surprisalsPerNoun[x]["u"][region] for x in topNouns])), correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x]["g"][region]-thatFractionsPerNoun[x]["u"][region] for x in topNouns])))
     overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["u"][region] - surprisalsPerNoun[noun]["g"][region] for region in ["V2", "V1", "EOS"]]) for noun in topNouns])
-    print(SANITY, "CORR total", correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), overallSurprisalForCompletion))
+    print(SANITY, "CORR total", correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
 
 def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
@@ -1010,7 +1026,7 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                      numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
                  else:
                      assert False
-                 result, resultNumeric, fractions, thatProbs = sampleReconstructions((numeric, None), numeric_noised, NOUN, 2)
+                 result, resultNumeric, fractions, thatProbs = sampleReconstructions(numeric, numeric_noised, NOUN, 2)
                  for condition in [0,1]:
                    if VERBS == 2:
                       if condition == 0:
@@ -1024,15 +1040,15 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
                         appended = ["."]
 
                    appended = torch.LongTensor([stoi[x]+3 for x in appended]).view(1, -1).expand(args.NUMBER_OF_REPLICATES*args.batchSize, -1).cuda()
-                   resultNumeric = torch.cat([resultNumeric, appended], dim=1)
-                   resultNumeric = resultNumeric[:, -(1+args.sequence_length):]
+                   resultNumericHere = torch.cat([resultNumeric, appended], dim=1)
+                   resultNumericHere = resultNumericHere[:, -(1+args.sequence_length):].t().contiguous()
                    
-                   totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False)
+                   totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumericHere, train=False)
                    print("SAMPLES FROM LM")
                    print(samplesFromLM)
       #             print(predictionsPlainLM.size())
                    (nounFraction, thatFraction) = fractions
-                   thatFractions[condition].append(math.log(thatProbs))
+                   thatFractions[condition].append(math.log(thatProbs+1e-5))
 
 
                    if condition == 0:
@@ -1062,7 +1078,78 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
 
-#getTotalSentenceSurprisals(SANITY="Model")
+
+def incrementallySampleCompletions(SANITY="Sanity", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
+    assert SANITY in ["Sanity", "Model"]
+    assert VERBS in [1,2]
+    print(plain_lm) 
+    surprisalsPerNoun = {}
+    thatFractionsPerNoun = {}
+    numberOfSamples = 12
+    with torch.no_grad():
+      for NOUN in topNouns:
+         for sentenceList in nounsAndVerbs:
+           print(sentenceList)
+           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}"
+           thatFractions = {x : {"V3" : 0, "V2" : 0, "V1" : 0, "EOS" : None} for x in ["g", "u"]}
+           surprisalByRegions = {x : {"V3" : 0, "V2" : 0, "V1" : 0, "EOS" : 0} for x in ["g", "u"]}
+
+           numerified = encodeContextCrop("FOO", context)
+           numerified = numerified.expand(-1, numberOfSamples)
+
+           remainingInput = "FOO"
+           for i in range(10):
+              print(i, numerified.size())
+              assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
+              if SANITY == "Sanity":
+                 numeric = numerified
+                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
+              else:
+                 numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples, expandReplicates=False)
+                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
+              numeric = numeric.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
+              numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
+              result, resultNumeric, fractions, thatProbs = sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
+ #             print(resultNumeric.size())
+              resultNumeric = resultNumeric.transpose(0,1).contiguous()
+              nextWord = torch.LongTensor([stoi_total.get(remainingInput, stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
+              resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
+#              print("FED INTO LM", " ".join([itos_total[int(x)] for x in resultNumeric[:,0*24].cpu().numpy()]))
+ #             print("FED INTO LM", " ".join([itos_total[int(x)] for x in resultNumeric[:,1*24].cpu().numpy()]))
+  #            print("FED INTO LM", " ".join([itos_total[int(x)] for x in resultNumeric[:,2*24].cpu().numpy()]))
+   #           print("FED INTO LM", " ".join([itos_total[int(x)] for x in resultNumeric[:,3*24].cpu().numpy()]))
+              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=False, returnLastSurprisal=False, sampleWord=True, numberOfBatches=numberOfSamples*24, contractSamplingByLastDimension = (12, 24))
+              print(numerified.size(), len(samplesFromLM))
+              numerified = torch.cat([numerified[1:-1], torch.LongTensor([stoi_total[x] for x in samplesFromLM]).unsqueeze(0).cuda()], dim=0)
+              numerified = torch.cat([numerified, torch.LongTensor([stoi_total["OOV"] for x in samplesFromLM]).unsqueeze(0).cuda()], dim=0).contiguous()
+    #          print("SAMPLED", " ".join([itos_total[int(x)] for x in numerified[:,0].cpu().numpy()]))
+     #         print("SAMPLED", " ".join([itos_total[int(x)] for x in numerified[:,1].cpu().numpy()]))
+      #        print("SAMPLED", " ".join([itos_total[int(x)] for x in numerified[:,2].cpu().numpy()]))
+       #       print("SAMPLED", " ".join([itos_total[int(x)] for x in numerified[:,3].cpu().numpy()]))
+           for i in range(numerified.size()[1]):
+              print(i, "SAMPLED", " ".join([itos_total[int(x)] for x in numerified[:,i].cpu().numpy()]))
+#           print("SAMPLED", " ".join([itos_total[int(x)] for x in numerified[:,1].cpu().numpy()]))
+ #          print("SAMPLED", " ".join([itos_total[int(x)] for x in numerified[:,2].cpu().numpy()]))
+  #         print("SAMPLED", " ".join([itos_total[int(x)] for x in numerified[:,3].cpu().numpy()]))
+    quit()
+    with open("/u/scr/mhahn/reinforce-logs-both/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_Sampled_"+SANITY, "w") as outFile:
+      print("Noun", "Region", "Condition", "Surprisal", "ThatFraction", file=outFile)
+      for noun in topNouns:
+       for region in ["V3", "V2", "V1", "EOS"]:
+         for condition in ["u", "g"]:
+           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region], file=outFile)
+    for region in ["V3", "V2", "V1", "EOS"]:
+       print(SANITY, "CORR", region, correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x]["g"][region]-surprisalsPerNoun[x]["u"][region] for x in topNouns])), correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x]["g"][region]-thatFractionsPerNoun[x]["u"][region] for x in topNouns])))
+    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["u"][region] - surprisalsPerNoun[noun]["g"][region] for region in ["V2", "V1", "EOS"]]) for noun in topNouns])
+    print(SANITY, "CORR total", correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
+
+
+
+
+incrementallySampleCompletions(SANITY="Sanity", VERBS=1)
+quit()
+
+#getTotalSentenceSurprisals(SANITY="Sanity")
 #quit()
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity")
@@ -1098,10 +1185,10 @@ for epoch in range(1000):
          getTotalSentenceSurprisals(SANITY="Model")
          getTotalSentenceSurprisals(SANITY="Sanity")
 
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
 #  
 
 #         getPerNounReconstructionsSanity()
