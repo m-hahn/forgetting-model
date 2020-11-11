@@ -72,6 +72,20 @@ ggplot(dataLong %>% filter(Region == "V1", deletion_rate == 0.3) %>% group_by(No
 ggplot(dataLong %>% filter(Region == "V1", deletion_rate == 0.3) %>% group_by(Noun, Ratio, Condition) %>% summarise(ThatFraction = mean(ThatFraction)), aes(x=Ratio, y=ThatFraction, group=Condition, color=Condition)) + geom_smooth() + geom_point() + geom_label(aes(label=Noun))
 
 
+
+ggplot(dataLong %>% filter(Region %in% c("V1","EOS"), deletion_rate == 0.3) %>% group_by(Noun, Ratio, Condition) %>% summarise(Surprisal = mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth() + geom_point() + geom_label(aes(label=Noun))
+
+ggplot(dataLong %>% filter(Region %in% c("V2"), deletion_rate == 0.3) %>% group_by(Noun, Ratio, Condition) %>% summarise(Surprisal = mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth() + geom_point() + geom_label(aes(label=Noun))
+
+
+ggplot(dataLong %>% filter(Region %in% c("V2", "V1","EOS"), deletion_rate == 0.3) %>% group_by(Noun, Ratio, Condition, ID) %>% summarise(Surprisal = sum(Surprisal)) %>% group_by(Noun, Ratio, Condition) %>% summarise(Surprisal = mean(Surprisal - (ifelse(Condition == "u", 25.7, 43)))), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth(method='lm') + geom_point() + geom_label(aes(label=Noun))
+
+######################################################
+# This seems like a good version for visualizing it
+ggplot(dataLong %>% filter(Region %in% c("V2", "V1","EOS")) %>% group_by(deletion_rate, Noun, Ratio, Condition, ID) %>% summarise(Surprisal = sum(Surprisal)) %>% group_by(deletion_rate, Noun, Ratio, Condition) %>% summarise(SurprisalLogLikRatio = mean(Surprisal) - mean(ifelse(Condition == "u", 25.7, 43))), aes(x=Ratio, y=SurprisalLogLikRatio, group=Condition, color=Condition)) + geom_smooth(method='lm') + geom_point() + facet_wrap(~deletion_rate, scales="free")
+ggsave("figures/logLikelihoodRatio_NEW_byDeletionRate.pdf")
+#####################################################
+
 #{'V2': -18.765784864784592, 'V1': -25.713731532729923}
 ggplot(dataLong %>% group_by(ID, Noun, Ratio, Condition) %>% summarise(Surprisal = sum(Surprisal)) %>% mutate(Surprisal = Surprisal - 25.7 - ifelse(Condition == "u", 0, 18.7)) %>% group_by(Noun, Ratio, Condition) %>% summarise(Surprisal=mean(Surprisal)), aes(x=Ratio, y=Surprisal, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_point() + geom_label(aes(label=Noun))
 
