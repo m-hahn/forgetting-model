@@ -64,7 +64,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.0
+assert args.deletion_rate == 0.0
 assert args.deletion_rate < 0.8
 
 
@@ -1054,17 +1054,11 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
     print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
     differences = torch.FloatTensor([x[2]-x[1] for x in surprisalsPerNoun])
-    print("surprisalDifferences", differences)
     print("counts = c("+",".join([str(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])+")")
     ratios = torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])
-    thatFractionsPerNoun = {x[0] : x[1] for x in thatFractionsPerNoun}
-    thatFractions = torch.FloatTensor([float(thatFractionsPerNoun[NOUN]) for NOUN in topNouns])
-    print("thatFractionsPerNoun (raw_not_from_softmax)")
-    print(thatFractionsPerNoun)
-    print("log P(that|NOUN):")
     print(ratios)
     print("PLAIN LM Correlation", correlation(ratios, differences), SANITY, VERBS)
-    print("THAT_correlation", correlation(ratios, thatFractions), SANITY, VERBS)
+
     print(differences)
     #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
@@ -1100,7 +1094,7 @@ for epoch in range(1000):
    while updatesCount <= maxUpdates:
       counter += 1
       updatesCount += 1
-      if updatesCount == maxUpdates:
+      if updatesCount == 1:
        with open("/u/scr/mhahn/reinforce-logs-both/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
          sys.stdout = outFile
          print(updatesCount)
@@ -1133,6 +1127,8 @@ for epoch in range(1000):
          showAttention("by")
          showAttention("about")
          sys.stdout = STDOUT
+
+         quit()
 
 #      if updatesCount % 10000 == 0:
 #         optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
