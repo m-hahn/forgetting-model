@@ -736,7 +736,7 @@ def showAttention(word):
 
 nounsAndVerbs = []
 nounsAndVerbs.append(["the principal",       "the teacher",        "kissed",      "was fired",                     "was quoted in the newspaper", "Was the XXXX quoted in the newspaper?", "Y"])
-nounsAndVerbs.append(["the sculptor",        "the painter",        "admired",    "wasn't talented",   "was completely untrue", "Was the XXXX untrue?", "Y"])
+nounsAndVerbs.append(["the sculptor",        "the painter",        "admired",    "was n't talented",   "was completely untrue", "Was the XXXX untrue?", "Y"])
 nounsAndVerbs.append(["the consultant",      "the artist",         "hired",      "was a fraud",       "shocked everyone", "Did the XXXX shock everyone?", "Y"])
 nounsAndVerbs.append(["the runner",          "the psychiatrist",   "treated",    "was doping",        "was ridiculous", "Was the XXXX ridiculous?", "Y"])
 nounsAndVerbs.append(["the child",           "the medic",          "rescued",    "was unharmed",      "relieved everyone", "Did the XXXX relieve everyone?", "Y"])
