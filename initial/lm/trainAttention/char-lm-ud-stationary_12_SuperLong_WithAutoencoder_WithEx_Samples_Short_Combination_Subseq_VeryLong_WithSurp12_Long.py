@@ -64,7 +64,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate == 0.0
+assert args.deletion_rate > 0.0
 assert args.deletion_rate < 0.8
 
 
@@ -732,7 +732,7 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 200000 if args.tuning == 1 else 10000000000
+maxUpdates = 500000 if args.tuning == 1 else 10000000000
 
 def showAttention(word):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
@@ -931,12 +931,11 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
      #         print(i, " ########### ", SANITY, VERBS)
     #          print(numerified.size())
-              if SANITY == "Sanity" or True:
+              if SANITY == "Sanity":
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
-                 numeric_noised = numeric #torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
+                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
               else:
-                 assert False
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
@@ -1006,9 +1005,9 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
               for RUN in range(1): #args.NUMBER_OF_RUNS):
 
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
-                 if SANITY == "Sanity" or True:
-                     numeric_noised = numeric #torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-                 elif SANITY == "Model" and False:
+                 if SANITY == "Sanity":
+                     numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
+                 elif SANITY == "Model":
                      numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
                  else:
                      assert False
@@ -1055,11 +1054,17 @@ def getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2): # Sur
     print("surpUngramm = c("+",".join([str(x[1]) for x in surprisalsPerNoun])+")")
     print("surpGramm = c("+",".join([str(x[2]) for x in surprisalsPerNoun])+")")
     differences = torch.FloatTensor([x[2]-x[1] for x in surprisalsPerNoun])
+    print("surprisalDifferences", differences)
     print("counts = c("+",".join([str(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])+")")
     ratios = torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns])
+    thatFractionsPerNoun = {x[0] : x[1] for x in thatFractionsPerNoun}
+    thatFractions = torch.FloatTensor([float(thatFractionsPerNoun[NOUN]) for NOUN in topNouns])
+    print("thatFractionsPerNoun (raw_not_from_softmax)")
+    print(thatFractionsPerNoun)
+    print("log P(that|NOUN):")
     print(ratios)
     print("PLAIN LM Correlation", correlation(ratios, differences), SANITY, VERBS)
-
+    print("THAT_correlation", correlation(ratios, thatFractions), SANITY, VERBS)
     print(differences)
     #print("thatUngramm = c("+",".join([str(x[1]) for x in thatFractionsPerNoun])+")")
     #print("thatGramm = c("+",".join([str(x[2]) for x in thatFractionsPerNoun])+")")
@@ -1095,18 +1100,18 @@ for epoch in range(1000):
    while updatesCount <= maxUpdates:
       counter += 1
       updatesCount += 1
-      if updatesCount == 1:
+      if updatesCount == maxUpdates:
        with open("/u/scr/mhahn/reinforce-logs-both/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
          sys.stdout = outFile
          print(updatesCount)
          print(args)
          getTotalSentenceSurprisals(SANITY="Model")
-  #       getTotalSentenceSurprisals(SANITY="Sanity")
+         getTotalSentenceSurprisals(SANITY="Sanity")
 
          getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
          getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
- #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
 #  
 
 #         getPerNounReconstructionsSanity()
@@ -1128,8 +1133,6 @@ for epoch in range(1000):
          showAttention("by")
          showAttention("about")
          sys.stdout = STDOUT
-
-         quit()
 
 #      if updatesCount % 10000 == 0:
 #         optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
