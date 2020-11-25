@@ -1106,12 +1106,12 @@ for epoch in range(1000):
          print(updatesCount)
          print(args)
          getTotalSentenceSurprisals(SANITY="Model")
-  #       getTotalSentenceSurprisals(SANITY="Sanity")
+         getTotalSentenceSurprisals(SANITY="Sanity")
 
          getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
- #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
          getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
 #  
 
 #         getPerNounReconstructionsSanity()
