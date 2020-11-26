@@ -2,10 +2,10 @@
 import sys
 ID = sys.argv[1]
 path = "/u/scr/mhahn/reinforce-logs-both/full-logs/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_Sampling_GPT2.py_"+ID
-pathOut = "/u/scr/mhahn/reinforce-logs-both/full-logs/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_Sampling_GPT2_LARGE.py_"+ID
+pathOut = "/u/scr/mhahn/reinforce-logs-both/full-logs/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_Sampling_GPT2_XL.py_"+ID
 
 
-import sampleNextWordFromGPT2_large as sampleNextWordFromGPT2
+import sampleNextWordFromGPT2_XL as sampleNextWordFromGPT2
 
 sampleNextWordFromGPT2.prepareModel()
 
