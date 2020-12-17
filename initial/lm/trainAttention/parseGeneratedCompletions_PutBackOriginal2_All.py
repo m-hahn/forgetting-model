@@ -13,4 +13,4 @@ for f in files:
       processed = os.listdir("/u/scr/mhahn/reinforce-logs-both/full-logs-gpt2-withOrig2/")
       if any(["_"+ID in x for x in processed]):
         continue
-      subprocess.call(["/u/nlp/anaconda/main/anaconda3/envs/py37-mhahn/bin/python", "parseGeneratedCompletions_PutBackOriginal2.py", ID])
+      subprocess.call(["/u/nlp/anaconda/main/anaconda3/envs/py37-mhahn/bin/python", "parseGeneratedCompletions_PutBackOriginal2_ALL.py", ID])
