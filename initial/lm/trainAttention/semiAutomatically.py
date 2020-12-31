@@ -266,7 +266,7 @@ with open("semiautomatically-todo.txt", "a") as outFile2:
 print(totalCount, not_covered)
 
 config = dict([x.split("=") for x in config[10:-1].split(", ")])
-with open("semiautomatically-results.tsv", "a") as outFile:
+with open("semiautomatic/semiautomatically-results.tsv", "a") as outFile:
  for noun in resultsByNoun:
    counts = resultsByNoun[noun]
    print("\t".join([str(x) for x in [ID, config["predictability_weight"], config["deletion_rate"], noun, counts['Complete'], counts['Incomplete'], counts['Unknown']]]), file=outFile)
