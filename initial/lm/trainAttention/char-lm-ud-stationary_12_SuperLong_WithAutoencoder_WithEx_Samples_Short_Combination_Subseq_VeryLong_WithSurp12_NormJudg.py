@@ -877,20 +877,82 @@ topNouns.append("proof")
 topNouns.append("admission")
 topNouns.append("declaration")
 
+topNouns.append("assessment")
+topNouns.append("truth")
+topNouns.append("declaration")
+topNouns.append("complaint")
+topNouns.append("admission")
+topNouns.append("disclosure")
+topNouns.append("confirmation")
+topNouns.append("guess")
+topNouns.append("remark")
+topNouns.append("news")
+topNouns.append("proof")
+topNouns.append("message")
+topNouns.append("announcement")
+topNouns.append("statement")
+topNouns.append("thought")
+topNouns.append("allegation")
+topNouns.append("indication")
+topNouns.append("recognition")
+topNouns.append("speculation")
+topNouns.append("accusation")
+topNouns.append("reminder")
+topNouns.append("rumor")
+topNouns.append("finding")
+topNouns.append("idea")
+topNouns.append("feeling")
+topNouns.append("conjecture")
+topNouns.append("perception")
+topNouns.append("certainty")
+topNouns.append("revelation")
+topNouns.append("understanding")
+topNouns.append("claim")
+topNouns.append("view")
+topNouns.append("observation")
+topNouns.append("conviction")
+topNouns.append("presumption")
+topNouns.append("intuition")
+topNouns.append("opinion")
+topNouns.append("conclusion")
+topNouns.append("notion")
+topNouns.append("suggestion")
+topNouns.append("sense")
+topNouns.append("suspicion")
+topNouns.append("assurance")
+topNouns.append("insinuation")
+topNouns.append("realization")
+topNouns.append("assertion")
+topNouns.append("impression")
+topNouns.append("contention")
+topNouns.append("assumption")
+topNouns.append("belief")
+topNouns.append("fact")
+
+topNouns = list(set(topNouns))
 
 
-with open("../../../../forgetting/fromCorpus_counts.csv", "r") as inFile:
-   counts = [x.split("\t") for x in inFile.read().strip().split("\n")]
-   header = counts[0]
+
+with open("../../../../forgetting/corpus_counts/wikipedia/results/counts4NEW_Processed.tsv", "r") as inFile:
+   counts = [x.replace('"', '').split("\t") for x in inFile.read().strip().split("\n")]
+   header = ["LineNum"] + counts[0]
+   assert len(header) == len(counts[1])
    header = dict(list(zip(header, range(len(header)))))
-   counts = {line[0] : line[1:] for line in counts}
+   counts = {line[header["Noun"]] : line for line in counts[1:]}
 
+
+print(len(topNouns))
+print([x for x in topNouns if x not in counts])
 topNouns = [x for x in topNouns if x in counts]
-topNouns = sorted(list(set(topNouns)), key=lambda x:float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]]))
+
+def thatBias(noun):
+   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
+
+topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
 
 print(topNouns)
 print(len(topNouns))
-
+#quit()
 
 
     
@@ -1157,7 +1219,7 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
       for NOUN in topNouns:
          for sentenceList in nounsAndVerbs:
            print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
+           context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
            thatFractions = {x : defaultdict(float) for x in ["g", "u"]}
            surprisalByRegions = {x : defaultdict(float) for x in ["g", "u"]}
 
@@ -1175,6 +1237,7 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
      #         print(i, " ########### ", SANITY, VERBS)
     #          print(numerified.size())
+              # Run the memory model. We collect 'numberOfSamples' many replicates.
               if SANITY == "Sanity":
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
@@ -1182,15 +1245,19 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
               else:
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
+              # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
+              # Now get samples from the amortized reconstruction posterior
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
  #             print(resultNumeric.size())
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
+              # Evaluate the prior on these samples to estimate next-word surprisal
               totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=False, returnLastSurprisal=True, numberOfBatches=numberOfSamples*24)
 #              print(totalSurprisal.size())
+              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
               totalSurprisal = totalSurprisal.view(numberOfSamples, 24)
               surprisalOfNextWord = totalSurprisal.exp().mean(dim=1).log().mean()
               print("PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in numerified[:,0]]), surprisalOfNextWord)
@@ -1213,10 +1280,11 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
        for condition in ["u", "g"]:
          for region in surprisalsPerNoun[noun][condition]:
            print(noun, region, condition, surprisalsPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region], file=outFile)
+    # For sanity-checking: Prints correlations between surprisal and that-bias
     for region in ["V3_0", "V2_0", "V1_0", "EOS_0"]:
-       print(SANITY, "CORR", region, correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x]["g"][region]-surprisalsPerNoun[x]["u"][region] for x in topNouns])), correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x]["g"][region]-thatFractionsPerNoun[x]["u"][region] for x in topNouns])))
-    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["u"][region] - surprisalsPerNoun[noun]["g"][region] for region in ["V2", "V1", "EOS"]]) for noun in topNouns])
-    print(SANITY, "CORR total", correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
+       print(SANITY, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x]["g"][region]-surprisalsPerNoun[x]["u"][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x]["g"][region]-thatFractionsPerNoun[x]["u"][region] for x in topNouns])))
+    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["u"][region] - surprisalsPerNoun[noun]["g"][region] for region in surprisalsPerNoun[noun]["g"]]) for noun in topNouns])
+    print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
 
 #getTotalSentenceSurprisalsCalibration(SANITY="Model")
@@ -1236,11 +1304,11 @@ def incrementallySampleCompletions(SANITY="Sanity", VERBS=2): # Surprisal for EO
          for sentenceList in nounsAndVerbs:
            print("SAMPLING", topNouns.index(NOUN), nounsAndVerbs.index(sentenceList), file=sys.stderr)
            print(sentenceList)
-           context = "later , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}"
+           context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}"
            lengthOfNewPart = len(f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}".split(" "))
 #           context = f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}"
-           thatFractions = {x : {"V3" : 0, "V2" : 0, "V1" : 0, "EOS" : None} for x in ["g", "u"]}
-           surprisalByRegions = {x : {"V3" : 0, "V2" : 0, "V1" : 0, "EOS" : 0} for x in ["g", "u"]}
+           thatFractions = {x : defaultdict(float) for x in ["g", "u"]}
+           surprisalByRegions = {x : defaultdict(float) for x in ["g", "u"]}
 
            numerified = encodeContextCrop("FOO", context)
            numerified = numerified.expand(-1, numberOfSamples)
@@ -1258,6 +1326,7 @@ def incrementallySampleCompletions(SANITY="Sanity", VERBS=2): # Surprisal for EO
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               numeric = numeric.unsqueeze(2).expand(-1, -1, sampleDim).contiguous().view(-1, numberOfSamples*sampleDim)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, sampleDim).contiguous().view(-1, numberOfSamples*sampleDim)
+              # For each replicate, we draw one sample from the amortized reconstruction posterior
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*sampleDim)
  #             print(resultNumeric.size())
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
@@ -1293,17 +1362,20 @@ startTimeTotal = time.time()
 
 for epoch in range(1000):
    print(epoch)
+
+   # Get training data
    training_data = corpusIteratorWikiWords.training(args.language)
    print("Got data")
    training_chars = prepareDatasetChunks(training_data, train=True)
 
 
-
+   # Set the model up for training
    lm.rnn_drop.train(True)
    startTime = time.time()
    trainChars = 0
    counter = 0
    hidden, beginning = None, None
+   # End optimization when maxUpdates is reached
    if updatesCount > maxUpdates:
      break
    while updatesCount <= maxUpdates:
@@ -1354,17 +1426,23 @@ for epoch in range(1000):
 #         optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
 #         optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
 #
+      # Get a batch from the training set
       try:
          numeric, _ = next(training_chars)
       except StopIteration:
          break
       printHere = (counter % 50 == 0)
+      # Run this through the model: forward pass of the resource-rational objective function
       loss, charCounts = forward(numeric, printHere=printHere, train=True)
+      # Calculate gradients and update parameters
       backward(loss, printHere)
+
 #      if loss.data.cpu().numpy() > 15.0:
 #          lossHasBeenBad += 1
 #      else:
 #          lossHasBeenBad = 0
+
+      # Bad learning rate parameters might make the loss explode. In this case, stop.
       if lossHasBeenBad > 100:
           print("Loss exploding, has been bad for a while")
           print(loss)
@@ -1381,7 +1459,7 @@ for epoch in range(1000):
           print(__file__)
           print(args)
 
-      if (time.time() - totalStartTime)/60 > 4000:
+      if False and (time.time() - totalStartTime)/60 > 4000:
           print("Breaking early to get some result within 72 hours")
           totalStartTime = time.time()
           break
