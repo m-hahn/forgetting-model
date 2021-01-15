@@ -1217,6 +1217,7 @@ def getTotalSentenceSurprisals(SANITY="Sanity", VERBS=2): # Surprisal for EOS af
     numberOfSamples = 12
     with torch.no_grad():
       for NOUN in topNouns:
+         print(NOUN, "Time:", time.time() - startTimePredictions, file=sys.stderr)
          for sentenceList in nounsAndVerbs:
            print(sentenceList)
            context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
@@ -1302,7 +1303,7 @@ def incrementallySampleCompletions(SANITY="Sanity", VERBS=2): # Surprisal for EO
     with torch.no_grad():
       for NOUN in topNouns:
          for sentenceList in nounsAndVerbs:
-           print("SAMPLING", topNouns.index(NOUN), nounsAndVerbs.index(sentenceList), file=sys.stderr)
+           print("SAMPLING", topNouns.index(NOUN), nounsAndVerbs.index(sentenceList), "Time",  time.time() - startTimePredictions, file=sys.stderr)
            print(sentenceList)
            context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}"
            lengthOfNewPart = len(f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}".split(" "))
@@ -1389,6 +1390,8 @@ for epoch in range(1000):
        
        # Record reconstructions and surprisals
        with open("/u/scr/mhahn/reinforce-logs-both/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+         startTimePredictions = time.time()
+
          sys.stdout = outFile
          print(updatesCount)
          print(args)
