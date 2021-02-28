@@ -803,6 +803,24 @@ nounsAndVerbs.append(["the CEO",             "the employee",       "impressed", 
 #nounsAndVerbs = nounsAndVerbs[:1]
 
 topNouns = []
+
+
+
+topNouns.append("arrival")
+topNouns.append("departure")  
+topNouns.append("dismissal")
+topNouns.append("arrest")
+topNouns.append("murder")
+topNouns.append("interview")
+topNouns.append("book")
+topNouns.append("photo")
+topNouns.append("computer")
+topNouns.append("video")
+topNouns.append("job")
+topNouns.append("house")
+
+
+
 topNouns.append("report")
 topNouns.append("story")       
 #topNouns.append("disclosure")
@@ -943,12 +961,13 @@ with open("../../../../forgetting/corpus_counts/wikipedia/results/counts4NEW_Pro
 
 print(len(topNouns))
 print([x for x in topNouns if x not in counts])
-topNouns = [x for x in topNouns if x in counts]
+#topNouns = [x for x in topNouns if x in counts]
 
 def thatBias(noun):
-   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
+    return 1.0
+#   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
 
-topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
+#topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
 
 print(topNouns)
 print(len(topNouns))
@@ -1289,10 +1308,10 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
          for region in surprisalsPerNoun[noun][condition]:
            print(noun, region, condition, surprisalsPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region], file=outFile)
     # For sanity-checking: Prints correlations between surprisal and that-bias
-    for region in ["V2_0"]:
-       print(SANITY, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x]["sing"][region]-surprisalsPerNoun[x]["plur"][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x]["sing"][region]-thatFractionsPerNoun[x]["plur"][region] for x in topNouns])))
+ #   for region in ["V2_0"]:
+#       print(SANITY, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x]["sing"][region]-surprisalsPerNoun[x]["plur"][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x]["sing"][region]-thatFractionsPerNoun[x]["plur"][region] for x in topNouns])))
     overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["plur"][region] - surprisalsPerNoun[noun]["sing"][region] for region in surprisalsPerNoun[noun]["sing"]]) for noun in topNouns])
-    print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
+#    print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
 
 #getTotalSentenceSurprisalsCalibration(SANITY="Model")
