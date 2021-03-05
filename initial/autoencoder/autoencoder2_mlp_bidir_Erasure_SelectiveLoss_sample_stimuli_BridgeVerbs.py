@@ -11,12 +11,14 @@ import sys
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
-parser.add_argument("--load-from", dest="load_from", type=str, default="264073608")
+parser.add_argument("--load-from", dest="load_from", type=str, default=878921872)
+#CAN ALSO TAKE myID=878921872,
+# OTHER MODEL: 247340595
 #parser.add_argument("--save-to", dest="save_to", type=str)
 
 import random
 
-parser.add_argument("--batchSize", type=int, default=random.choice([128]))
+parser.add_argument("--batchSize", type=int, default=random.choice([500]))
 parser.add_argument("--word_embedding_size", type=int, default=random.choice([512]))
 parser.add_argument("--hidden_dim", type=int, default=random.choice([512]))
 parser.add_argument("--layer_num", type=int, default=random.choice([2]))
@@ -73,13 +75,6 @@ itos_total = ["<SOS>", "<EOS>", "OOV"] + itos
 stoi_total = dict([(itos_total[i],i) for i in range(len(itos_total))])
 
 
-with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
-     itos_chars = [x for x in inFile.read().strip().split("\n")]
-stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
-
-
-itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
-
 
 import random
 
@@ -112,7 +107,6 @@ print_loss = torch.nn.NLLLoss(size_average=False, reduce=False, ignore_index=0)
 char_dropout = torch.nn.Dropout2d(p=args.char_dropout_prob)
 
 
-#train_loss_chars = torch.nn.NLLLoss(ignore_index=0, reduction='sum')
 
 
 attention_proj = torch.nn.Linear(args.hidden_dim, args.hidden_dim, bias=False).cuda()
@@ -154,7 +148,10 @@ optim = torch.optim.SGD(parameters(), lr=learning_rate, momentum=0.0) # 0.02, 0.
 #  for name, module in named_modules.items():
  #     module.load_state_dict(checkpoint[name])
 if args.load_from is not None:
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__.replace("_sample_stimuli", "")+"_code_"+str(args.load_from)+".txt")
+  try:
+     checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__.replace("_sample_stimuli", "").replace("_BridgeVerbs", "")+"_code_"+str(args.load_from)+".txt")
+  except FileNotFoundError:
+     checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__.replace("_SelectiveLoss_sample_stimuli", "")+"_code_"+str(args.load_from)+".txt")
   for i in range(len(checkpoint["components"])):
       modules[i].load_state_dict(checkpoint["components"][i])
 
@@ -219,16 +216,20 @@ def forward(numeric, train=True, printHere=True):
           beginning_chars = zeroBeginning_chars
 
 
-      numeric_noised = [[x for x in y if random.random() > args.deletion_rate or itos_total[int(x)] == "."] for y in numeric.cpu().t()]
-#      numeric_noised = [[x for x in y if itos_total[int(x)] not in ["that"]] for y in numeric.cpu().t()]
+#      numeric_noised = [[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
+      numeric_noised = [[x if itos[int(x)-3] != "that" else 0 for x in y] for y in numeric.cpu().t()]
+
 
       numeric_noised = torch.LongTensor([[0 for _ in range(args.sequence_length-len(y))] + y for y in numeric_noised]).cuda().t()
 
       numeric = torch.cat([beginning, numeric], dim=0)
       numeric_noised = torch.cat([beginning, numeric_noised], dim=0)
 
+      numeric_onlyNoisedOnes = torch.where(numeric_noised == 0, numeric, 0*numeric) # target is 0 in those places where no noise has happened
+
       input_tensor = Variable(numeric[:-1], requires_grad=False)
-      target_tensor = Variable(numeric[1:], requires_grad=False)
+      target_tensor = Variable(numeric_onlyNoisedOnes[1:], requires_grad=False)
+
 
       input_tensor_noised = Variable(numeric_noised, requires_grad=False)
 
@@ -297,111 +298,34 @@ def forward(numeric, train=True, printHere=True):
 
           dist = torch.distributions.Categorical(probs=probs)
        
-          nextWord = (dist.sample())
+          nextWord = torch.where(numeric_noised[i] == 0, (dist.sample()), numeric[i:i+1])
           print(nextWord.size())
           nextWordStrings = [itos_total[x] for x in nextWord.cpu().numpy()[0]]
           for j in range(args.batchSize):
              result[j] += " "+nextWordStrings[j]
           embeddedLast = word_embeddings(nextWord)
           print(embeddedLast.size())
+      containsIfWhen = {False : 0, True : 0}
       for r in result:
-         print(r)
-      resultNums = {}
-      resultNums["nounRecovered"] = (float(len([x for x in result if NOUN in x]))/len(result))
-      resultNums["nounThatRecovered"] = (float(len([x for x in result if NOUN+" that" in x]))/len(result))
-      nextWords = []
-      for res in result:
-        try:
-          start = res.index(NOUN)
-          end = res.index(" ", start+len(NOUN)+2)
-          nextWords.append(res[start+len(NOUN)+1:end])
-        except ValueError:
-          _ = 0
-      nextWordsDict = {posDictMax.get(x, x) : 0 for x in nextWords}
-      for x in nextWords:
-        nextWordsDict[posDictMax.get(x, x)] += 1
-      nextWords = sorted(list(nextWordsDict.items()), key=lambda x:-x[1])
-
-      resultNums["NextWords"] = nextWords
-      return resultNums
+         rb = " that " in r 
+         containsIfWhen[rb] += 1
+         print(r+"\t"+str(rb))
+      print(containsIfWhen[True] / (containsIfWhen[True] + containsIfWhen[False]))
+      return result
 
 
-nounsAndVerbs = []
-nounsAndVerbs.append(["the school principal",       "the teacher",        "had an affair with",                     "had been fired",                     "was quoted in the newspaper"])
-nounsAndVerbs.append(["the famous sculptor",        "the painter",        "admired more than anyone",            "wasn't talented",                    "was completely untrue"])
-nounsAndVerbs.append(["the marketing whiz",  "the artist",         "had hired",                  "was a fraud",                        "shocked everyone"])
-nounsAndVerbs.append(["the marathon runner",         "the psychiatrist",       "treated for his illness",                "was actually doping",            "was ridiculous"])
-nounsAndVerbs.append(["the frightened child",           "the medic",          "rescued from the flood",    "was completely unharmed",            "relieved everyone"])
-nounsAndVerbs.append(["the alleged criminal",        "the officer",        "arrested after the murder",                  "was not in fact guilty",             "was bogus"])
-nounsAndVerbs.append(["the college student",         "the professor",      "accused of cheating",                     "was dropping the class",             "made the professor happy"])
-nounsAndVerbs.append(["the suspected mobster",         "the media",          "portrayed in detail",               "was on the run",                     "turned out to be true"])
-nounsAndVerbs.append(["the leading man",           "the starlet",        "fell in love with",                    "would miss the show",                "almost made her cry"])
-nounsAndVerbs.append(["the old preacher",        "the parishioners",   "fired yesterday",                     "stole money from the church",        "proved to be true"])
-nounsAndVerbs.append(["the young violinist",      "the sponsors",       "backed financially",                    "abused drugs",                       "is likely true"])
-nounsAndVerbs.append(["the conservative senator",        "the diplomat",       "opposed in the election",                   "won in the run-off",                   "really made him angry"])
-#nounsAndVerbs = _.shuffle(nounsAndVerbs)
 
-topNouns = []
-topNouns.append("report")
-topNouns.append("story")       
-#topNouns.append("disclosure")
-topNouns.append("proof")
-topNouns.append("confirmation")  
-topNouns.append("information")
-topNouns.append("evidence")
-topNouns.append("reminder")
-topNouns.append("rumor")
-#topNouns.append("thought")
-topNouns.append("suggestion")
-topNouns.append( "revelation")  
-topNouns.append( "belief")
-topNouns.append( "fact")
-topNouns.append( "realization")
-topNouns.append( "suspicion")
-topNouns.append( "certainty")
-topNouns.append( "idea")
-topNouns.append( "admission") 
-topNouns.append( "confirmation")
-topNouns.append( "complaint"    )
-topNouns.append( "certainty"   )
-topNouns.append( "prediction"  )
-topNouns.append( "declaration")
-topNouns.append( "proof"   )
-topNouns.append( "suspicion")    
-topNouns.append( "allegation"   )
-topNouns.append( "revelation"   )
-topNouns.append( "realization")
-topNouns.append( "news")
-topNouns.append( "opinion" )
-topNouns.append( "idea")
-topNouns.append("myth")
-
-with open("../forgetting/fromCorpus_counts.csv", "r") as inFile:
-   counts = [x.split("\t") for x in inFile.read().strip().split("\n")]
-   header = counts[0]
-   header = dict(list(zip(header, range(len(header)))))
-   counts = {line[0] : line[1:] for line in counts}
-
-topNouns = sorted(list(set(topNouns)), key=lambda x:float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]]))
 
 results = []
-for NOUN in topNouns:
-   sentence = ", the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . the "+NOUN+" that the janitor who the doctor admired"
-   numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
+if True:
+   PREFIX = "after she had taken a look at the patient , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
+
+   critical = "who did bill whisper that mary likes ." # 0.316 SCnone
+   sentence= PREFIX + critical
+   numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")][-args.sequence_length:]
    print(len(numerified))
    assert len(numerified) == args.sequence_length
    numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
    result = forward(numerified, train=False)
-   results.append((NOUN, result))
-with open("autoencoder-output/"+__file__+".tsv", "w") as outFile:
-   print("\t".join(["Noun", "NounRecovered", "NounThatRecovered", "True_False", "False_False", "ThatCount", "VerbCount", "PrepCount", "NextWords"]), file=outFile)
-   for r in results:
-      noun = r[0]
-      byPOSCounts = dict(r[1]["NextWords"])
-      verbCount = sum([y for x, y in byPOSCounts.items() if x.startswith("v")])
-      prepCount = byPOSCounts.get("in", 0) - r[1]["nounThatRecovered"] * args.batchSize
-      thatCount = r[1]["nounThatRecovered"] * args.batchSize
-      print("\t".join([str(x) for x in [r[0], r[1]["nounRecovered"], r[1]["nounThatRecovered"], counts[noun][header["True_False"]], counts[noun][header["False_False"]], thatCount, verbCount, prepCount, r[1]["NextWords"]]]), file=outFile)
-
-
+#   print(result)
 

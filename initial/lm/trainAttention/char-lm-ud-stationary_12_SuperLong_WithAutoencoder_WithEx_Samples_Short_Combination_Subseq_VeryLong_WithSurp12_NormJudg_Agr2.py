@@ -1254,8 +1254,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                
             context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} of {embeddedNounPerNumber}"
 
-            remainingInput = f"are good".split(" ")
-            regions = ["V2_0", "V2_1"]
+            remainingInput = f"are".split(" ")
+            regions = ["V2_0"]
             assert len(remainingInput) == len(regions)
             for i in range(len(remainingInput)):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context)

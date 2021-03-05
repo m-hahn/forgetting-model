@@ -11,12 +11,14 @@ import sys
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
-parser.add_argument("--load-from", dest="load_from", type=str, default="264073608") # also 449431785
+parser.add_argument("--load-from", dest="load_from", type=str, default=878921872)
+#CAN ALSO TAKE myID=878921872,
+# OTHER MODEL: 247340595
 #parser.add_argument("--save-to", dest="save_to", type=str)
 
 import random
 
-parser.add_argument("--batchSize", type=int, default=random.choice([128]))
+parser.add_argument("--batchSize", type=int, default=random.choice([500]))
 parser.add_argument("--word_embedding_size", type=int, default=random.choice([512]))
 parser.add_argument("--hidden_dim", type=int, default=random.choice([512]))
 parser.add_argument("--layer_num", type=int, default=random.choice([2]))
@@ -73,13 +75,6 @@ itos_total = ["<SOS>", "<EOS>", "OOV"] + itos
 stoi_total = dict([(itos_total[i],i) for i in range(len(itos_total))])
 
 
-with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
-     itos_chars = [x for x in inFile.read().strip().split("\n")]
-stoi_chars = dict([(itos_chars[i],i) for i in range(len(itos_chars))])
-
-
-itos_chars_total = ["<SOS>", "<EOS>", "OOV"] + itos_chars
-
 
 import random
 
@@ -112,7 +107,6 @@ print_loss = torch.nn.NLLLoss(size_average=False, reduce=False, ignore_index=0)
 char_dropout = torch.nn.Dropout2d(p=args.char_dropout_prob)
 
 
-train_loss_chars = torch.nn.NLLLoss(ignore_index=0, reduction='sum')
 
 
 attention_proj = torch.nn.Linear(args.hidden_dim, args.hidden_dim, bias=False).cuda()
@@ -154,7 +148,10 @@ optim = torch.optim.SGD(parameters(), lr=learning_rate, momentum=0.0) # 0.02, 0.
 #  for name, module in named_modules.items():
  #     module.load_state_dict(checkpoint[name])
 if args.load_from is not None:
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__.replace("_sample", "")+"_code_"+str(args.load_from)+".txt")
+  try:
+     checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__.replace("_sample_stimuli", "").replace("_NoEver", "")+"_code_"+str(args.load_from)+".txt")
+  except FileNotFoundError:
+     checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__.replace("_SelectiveLoss_sample_stimuli", "")+"_code_"+str(args.load_from)+".txt")
   for i in range(len(checkpoint["components"])):
       modules[i].load_state_dict(checkpoint["components"][i])
 
@@ -190,6 +187,27 @@ bernoulli_output = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.
 
 
 
+posDict = {}
+with open("/u/scr/mhahn/FAIR18/english-wiki-word-vocab_POS.txt", "r") as dictIn:
+    for line in dictIn:
+        line = line.strip().split("\t")
+        line[2] = int(line[2])
+        if line[2] < 100:
+           print(len(posDict))
+           break
+        if line[0] not in posDict:
+           posDict[line[0]] = {}
+        if line[1] not in posDict[line[0]]:
+            posDict[line[0]][line[1]] = 0
+        posDict[line[0]][line[1]] += 1
+
+posDictMax = {}
+for word, entry in posDict.items():
+    maxCount = max([entry[x] for x in entry])
+    bestPOS = [x for x in entry if entry[x] == maxCount][0]
+    posDictMax[word] = bestPOS
+        
+
 def forward(numeric, train=True, printHere=True):
       global beginning
       global beginning_chars
@@ -198,16 +216,20 @@ def forward(numeric, train=True, printHere=True):
           beginning_chars = zeroBeginning_chars
 
 
-      numeric_noised = [[x for x in y if random.random() > args.deletion_rate] for y in numeric.cpu().t()]
-#      numeric_noised = [[x for x in y if itos_total[int(x)] not in ["that"]] for y in numeric.cpu().t()]
+#      numeric_noised = [[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
+      numeric_noised = [[x if itos[int(x)-3] != "have" else 0 for x in y] for y in numeric.cpu().t()]
+
 
       numeric_noised = torch.LongTensor([[0 for _ in range(args.sequence_length-len(y))] + y for y in numeric_noised]).cuda().t()
 
       numeric = torch.cat([beginning, numeric], dim=0)
       numeric_noised = torch.cat([beginning, numeric_noised], dim=0)
 
+      numeric_onlyNoisedOnes = torch.where(numeric_noised == 0, numeric, 0*numeric) # target is 0 in those places where no noise has happened
+
       input_tensor = Variable(numeric[:-1], requires_grad=False)
-      target_tensor = Variable(numeric[1:], requires_grad=False)
+      target_tensor = Variable(numeric_onlyNoisedOnes[1:], requires_grad=False)
+
 
       input_tensor_noised = Variable(numeric_noised, requires_grad=False)
 
@@ -276,67 +298,34 @@ def forward(numeric, train=True, printHere=True):
 
           dist = torch.distributions.Categorical(probs=probs)
        
-          nextWord = (dist.sample())
+          nextWord = torch.where(numeric_noised[i] == 0, (dist.sample()), numeric[i:i+1])
           print(nextWord.size())
           nextWordStrings = [itos_total[x] for x in nextWord.cpu().numpy()[0]]
-          for i in range(args.batchSize):
-             result[i] += " "+nextWordStrings[i]
+          for j in range(args.batchSize):
+             result[j] += " "+nextWordStrings[j]
           embeddedLast = word_embeddings(nextWord)
           print(embeddedLast.size())
+      containsIfWhen = {False : 0, True : 0}
       for r in result:
-         print(r)
-      print(float(len([x for x in result if NOUN in x]))/len(result))
+         rb = " that " in r 
+         containsIfWhen[rb] += 1
+         print(r+"\t"+str(rb))
+      print(containsIfWhen[True] / (containsIfWhen[True] + containsIfWhen[False]))
+      return result
 
-      print(float(len([x for x in result if NOUN+" that" in x]))/len(result))
-      quit()
-#      if l == GENERATING_LENGTH-1:
-#         break
-#
-#      numerified_chars = [([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char]) for char in nextWordStrings]
-#      numerified_chars = [x[:15] + [1] for x in numerified_chars]
-#      numerified_chars = [x+([0]*(16-len(x))) for x in numerified_chars]
-#
-#      numerified_chars = torch.LongTensor(numerified_chars).view(1, 100, 1, 16).transpose(0,1).transpose(1,2).cuda()
-#
-#      embedded_chars = numerified_chars.transpose(0,2).transpose(2,1)
-#      embedded_chars = embedded_chars.contiguous().view(16, -1)
-#      _, embedded_chars = char_composition(character_embeddings(embedded_chars), None)
-#      embedded_chars = embedded_chars[0].view(2, 1, 100, args.char_enc_hidden_dim)
-#      embedded_chars = char_composition_output(torch.cat([embedded_chars[0], embedded_chars[1]], dim=2))
-#      embedded = word_embeddings(nextWord)
-#      #print(embedded.size())
-#      #print(embedded_chars.size())
-#      embedded = torch.cat([embedded, embedded_chars], dim=2)
-#      #print(embedded.size())
-#      outHere, hiddenHere = rnn_drop(embedded, hiddenHere)
-##   print(result)
-#   return result, entropy
-#
-#
 
-      
-      loss = train_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1))
 
-      if printHere:
-         lossTensor = print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, args.batchSize)
-         losses = lossTensor.data.cpu().numpy()
-         numericCPU = numeric.cpu().data.numpy()
-         numeric_noisedCPU = numeric_noised.cpu().data.numpy()
 
-         print(("NONE", itos_total[numericCPU[0][0]]))
-         for i in range((args.sequence_length)):
-            print((losses[i][0], itos_total[numericCPU[i+1][0]], itos_total[numeric_noisedCPU[i+1][0]]))
-      return loss, target_tensor.view(-1).size()[0]
+results = []
+if True:
+   PREFIX = "after she had taken a look at the patient , the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . "
 
-NOUN = "story"
-sentence = ", the nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . the "+NOUN+" that the janitor who the doctor admired"
-#sentence = "nurse suggested to treat the patient with an antibiotic, but in the end , this did not happen . she mentioned the "+NOUN+" that the janitor who the doctor admired"
-
-# NOTICEABLE: strong difference between reconstructions in subject and object positions
-
-numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")]
-print(len(numerified))
-assert len(numerified) == args.sequence_length
-numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-forward(numerified, train=False)
+   critical = "the authors that no critics recommended for the assignment have ever received acknowledgment" # 0.316 SCnone
+   sentence= PREFIX + critical
+   numerified = [stoi[char]+3 if char in stoi else 2 for char in sentence.split(" ")][-args.sequence_length:]
+   print(len(numerified))
+   assert len(numerified) == args.sequence_length
+   numerified=torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
+   result = forward(numerified, train=False)
+#   print(result)
 
