@@ -76,7 +76,7 @@ import sys
 print(args, file=sys.stderr)
 
 
-#sys.stdout = open("/u/scr/mhahn/reinforce-logs/full-logs/"+__file__+"_"+str(args.myID), "w")
+sys.stdout = open("/u/scr/mhahn/reinforce-logs/full-logs/"+__file__+"_"+str(args.myID), "w")
 
 print(args)
 
