@@ -12,7 +12,7 @@ import sys
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([280980794]))
+parser.add_argument("--load-from-joint", dest="load_from_joint", type=str, default=random.choice([416023659]))
 # 777726352, doesn't have the right parameter matrix sizes
 
 #(1.020192962941362, 1, False, '595155021', 'None')
@@ -76,7 +76,7 @@ import sys
 print(args, file=sys.stderr)
 
 
-sys.stdout = open("/u/scr/mhahn/reinforce-logs/full-logs/"+__file__+"_"+str(args.myID), "w")
+#sys.stdout = open("/u/scr/mhahn/reinforce-logs/full-logs/"+__file__+"_"+str(args.myID), "w")
 
 print(args)
 
@@ -179,14 +179,20 @@ optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory
 
 #named_modules_autoencoder = {"rnn" : rnn, "output" : output, "word_embeddings" : word_embeddings, "optim" : optim}
 
-if args.load_from_autoencoder is not None:
+if args.load_from_joint is not None:
  # try:
-  print(args.load_from_autoencoder)
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
-#  except FileNotFoundError:
- #    checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidirISTHEREANOTHEROPTION?.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
-  for i in range(len(checkpoint["components"])):
-      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
+  print(args.load_from_joint)
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS_memoryPolicy_both/"+args.language+"_"+"autoencoder2_mlp_bidir_Deletion_Reinforce2_Tuning_Long_Both_Saving_Lagrange.py"+"_code_"+str(args.load_from_joint)+".txt")
+
+#  modules_memory_and_autoencoder = memory.modules_memory + autoencoder.modules_autoencoder
+ # state = {"arguments" : str(args), "words" : itos, "components" : [c.state_dict() for c in modules_memory_and_autoencoder]}
+  #torch.save(state, "/u/scr/mhahn/CODEBOOKS_memoryPolicy_both/"+args.language+"_"+__file__+"_code_"+str(args.myID)+".txt")
+
+  assert itos == checkpoint["words"]
+  
+  modules_memory_and_autoencoder = memory.modules_memory + autoencoder.modules_autoencoder
+  for x, y in zip(modules_memory_and_autoencoder, checkpoint["components"]):
+     x.load_state_dict(y)
 
 from torch.autograd import Variable
 
@@ -454,25 +460,6 @@ def forward(numeric, train=True, printHere=False, onlyProvideMemoryResult=False)
 
       return loss, target_tensor.view(-1).size()[0]
 
-def backward(loss, printHere):
-      optim_autoencoder.zero_grad()
-      optim_memory.zero_grad()
-
-      if dual_weight.grad is not None:
-         dual_weight.grad.data.fill_(0.0)
-      if printHere:
-         print(loss)
-      loss.backward()
-      torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
-      optim_autoencoder.step()
-      optim_memory.step()
-
-#      print(dual_weight.grad)
-      dual_weight.data.add_(args.dual_learning_rate*dual_weight.grad.data)
- #     print("W", dual_weight)
-      dual_weight.data.clamp_(min=0)
-  #    print("W", dual_weight)
-
 lossHasBeenBad = 0
 
 import time
@@ -516,7 +503,6 @@ while updatesCount <= 50000:
          break
       printHere = (counter % 50 == 0)
       loss, charCounts = forward(numeric, printHere=printHere, train=True)
-      backward(loss, printHere)
       if loss.data.cpu().numpy() > 15.0:
           lossHasBeenBad += 1
       else:
@@ -593,15 +579,15 @@ while updatesCount <= 50000:
 #   learning_rate = args.learning_rate * math.pow(args.lr_decay, len(devLosses))
 #   optim = torch.optim.SGD(parameters_memory(), lr=learning_rate, momentum=args.momentum) # 0.02, 0.9
 
-if True:
-  modules_memory_and_autoencoder = memory.modules_memory + autoencoder.modules_autoencoder
-  state = {"arguments" : str(args), "words" : itos, "components" : [c.state_dict() for c in modules_memory_and_autoencoder]}
-  torch.save(state, "/u/scr/mhahn/CODEBOOKS_memoryPolicy_both/"+args.language+"_"+__file__+"_code_"+str(args.myID)+".txt")
-  lastSaved = (epoch, counter)
+#if True:
+#  modules_memory_and_autoencoder = memory.modules_memory + autoencoder.modules_autoencoder
+#  state = {"arguments" : str(args), "words" : itos, "components" : [c.state_dict() for c in modules_memory_and_autoencoder]}
+#  torch.save(state, "/u/scr/mhahn/CODEBOOKS_memoryPolicy_both/"+args.language+"_"+__file__+"_code_"+str(args.myID)+".txt")
+#  lastSaved = (epoch, counter)
 
 
-with open("/u/scr/mhahn/reinforce-logs/results/"+__file__+"_"+str(args.myID), "w") as outFile:
-   print(args, file=outFile)
-   print(runningAverageReward, file=outFile)
-   print(expectedRetentionRate, file=outFile)
-
+#with open("/u/scr/mhahn/reinforce-logs/results/"+__file__+"_"+str(args.myID), "w") as outFile:
+#   print(args, file=outFile)
+#   print(runningAverageReward, file=outFile)
+#   print(expectedRetentionRate, file=outFile)
+#
