@@ -1,7 +1,7 @@
 import os
 
 header = "Noun Region Condition Surprisal ThatFraction".split(" ")
-header += ["ID", "predictability_weight", "deletion_rate", "autoencoder", "lm"]
+header += ["ID", "predictability_weight", "deletion_rate", "autoencoder", "lm", "ScriptName"]
 
 PATH = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs/"
 PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"
@@ -9,7 +9,7 @@ PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"
 with open(f"raw_output/{__file__}.tsv", "w") as outFile:
  print("\t".join(header), file=outFile)
  for f in os.listdir(PATH):
-   if "Short.py" in f:
+   if ".py" in f:
       accept = False
       with open(PATH+f, "r") as inFile:
          iterations = next(inFile).strip()
@@ -29,4 +29,4 @@ with open(f"raw_output/{__file__}.tsv", "w") as outFile:
              data = [x.split(" ") for x in inFile.read().strip().split("\n")]
              data = data[1:]
              for line in data:
-                 print("\t".join(line + [arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], arguments["load_from_autoencoder"], arguments["load_from_plain_lm"]]), file=outFile)
+                 print("\t".join(line + [arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], arguments["load_from_autoencoder"], arguments["load_from_plain_lm"], f[:f.index(".py")]]), file=outFile)
