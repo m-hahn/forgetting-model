@@ -1256,7 +1256,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
               # Now get samples from the amortized reconstruction posterior
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
- #             print(resultNumeric.size())
+              if condition == "SC" and i == 0:
+                 locationThat = context.split(" ")[::-1].index("that")
+                 thatFractions[condition][regions[i]]=float((resultNumeric[-locationThat-2] == stoi_total["that"]).float().mean())
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
@@ -1270,8 +1272,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,0]]), surprisalOfNextWord)
               print("SURPRISAL", NOUN, sentenceList[0], condition, i, regions[i], remainingInput[i],float( surprisalOfNextWord))
               surprisalByRegions[condition][regions[i]] += float( surprisalOfNextWord)
-              if i == 0 or regions[i] != regions[i-1]:
-                  thatFractions[condition][regions[i]]=thatProbs
+#              if i == 0 or regions[i] != regions[i-1]:
          print(surprisalByRegions)
          print(thatFractions)
          print("NOUNS SO FAR", topNouns.index(NOUN))

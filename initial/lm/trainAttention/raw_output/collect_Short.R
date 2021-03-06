@@ -2,7 +2,7 @@ library(tidyr)
 library(dplyr)
 data = read.csv("collect_Short.py.tsv", sep="\t")
 
-data2 = data %>% group_by(ID, Noun, Region, Condition, predictability_weight, deletion_rate) %>% summarise(Surprisal=mean(Surprisal), ThatFraction=mean(ThatFraction)) %>% filter(Region != "V3")
+data2 = data %>% group_by(ScriptName, ID, Noun, Region, Condition, predictability_weight, deletion_rate) %>% summarise(Surprisal=mean(Surprisal), ThatFraction=mean(ThatFraction)) %>% filter(Region != "V3")
 
 write.table(data2, file="averages_Short.tsv", sep="\t")
 
