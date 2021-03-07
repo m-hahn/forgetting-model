@@ -1211,7 +1211,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 
 
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
-    assert SANITY in ["Model"]
+    assert SANITY in ["Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
     print(plain_lm) 
     surprisalsPerNoun = {}
@@ -1248,7 +1248,12 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
+              elif SANITY == "ZeroLoss":
+                 numeric = numerified
+                 numeric = numeric.expand(-1, numberOfSamples)
+                 numeric_noised = numeric
               else:
+                 assert SANITY == "Model"
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
@@ -1258,7 +1263,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
               if condition == "SC" and i == 0:
                  locationThat = context.split(" ")[::-1].index("that")
-                 thatFractions[condition][regions[i]]=float((resultNumeric[-locationThat-2] == stoi_total["that"]).float().mean())
+                 thatFractions[condition][regions[i]]=float((resultNumeric[:, -locationThat-2] == stoi_total["that"]).float().mean())
+#                 print("\n".join(result))
+ #                print(float((resultNumeric[:,-locationThat-2] == stoi_total["that"]).float().mean()))
+                 
+  #               print(locationThat, thatFractions[condition][regions[i]])
+   #              quit()
+
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
@@ -1278,6 +1289,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
          print("NOUNS SO FAR", topNouns.index(NOUN))
          surprisalsPerNoun[NOUN] = surprisalByRegions
          thatFractionsPerNoun[NOUN] = thatFractions
+         print(thatFractions)
+         #quit()
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
@@ -1299,6 +1312,10 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
 
 startTimePredictions = time.time()
+
+#getTotalSentenceSurprisals(SANITY="ZeroLoss")
+#quit()
+
 
 #getTotalSentenceSurprisals()
 #quit()

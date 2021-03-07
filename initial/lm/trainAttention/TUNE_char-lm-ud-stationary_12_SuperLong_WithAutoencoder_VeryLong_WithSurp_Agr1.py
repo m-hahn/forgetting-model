@@ -29,8 +29,8 @@ scripts.append("char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Sample
 for i in range(100): # 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 
 # 0.35, 0.4, 0.45, 0.5, 0.55, 
     # 0.15, 0.2, 0.25, 0.3, 0.35 , 
-   deletion_rate = str(random.choice([0.4, 0.5, 0.6])) #, 0.5, 0.6, 0.7]))     #[0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]))
-   predictability_weight = str(random.choice([0.0, 0.0, 0.5])) #, 0.5, 0.6, 0.7]))     #[0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]))
+   deletion_rate = str(random.choice([0.4, 0.5, 0.55, 0.6, 0.65, 0.7])) #, 0.5, 0.6, 0.7]))     #[0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]))
+   predictability_weight = str(random.choice([0.0, 0.25, 0.5, 0.75, 1])) #, 0.5, 0.6, 0.7]))     #[0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]))
    command = ["/u/nlp/anaconda/main/anaconda3/envs/py37-mhahn/bin/python", random.choice(scripts), "--tuning=1", "--deletion_rate="+deletion_rate, "--predictability_weight="+predictability_weight]
    print(command)
    subprocess.call(command)
