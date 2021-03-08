@@ -12,7 +12,11 @@ with open(f"raw_output/{__file__}.tsv", "w") as outFile:
    if ".py" in f:
       accept = False
       with open(PATH+f, "r") as inFile:
-         iterations = next(inFile).strip()
+         try:
+            iterations = next(inFile).strip()
+         except          UnicodeDecodeError:
+             print(":ERROR UNICDE")
+             continue
          arguments = next(inFile).strip()
          for line in inFile:
              if "THAT" in line:

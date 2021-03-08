@@ -1280,7 +1280,10 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               totalSurprisal = totalSurprisal.view(numberOfSamples, 24)
               surprisalOfNextWord = totalSurprisal.exp().mean(dim=1).log().mean()
               print("PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in numerified[:,0]]), surprisalOfNextWord)
-              print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,0]]), surprisalOfNextWord)
+              # for printing
+              totalSurprisal_cpu = totalSurprisal.view(-1).detach().cpu()
+              for q in range(0, resultNumeric.size()[1],  24):
+                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(totalSurprisal_cpu[q]))
               print("SURPRISAL", NOUN, sentenceList[0], condition, i, regions[i], remainingInput[i],float( surprisalOfNextWord))
               surprisalByRegions[condition][regions[i]] += float( surprisalOfNextWord)
 #              if i == 0 or regions[i] != regions[i-1]:
@@ -1314,6 +1317,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 startTimePredictions = time.time()
 
 #getTotalSentenceSurprisals(SANITY="ZeroLoss")
+#getTotalSentenceSurprisals(SANITY="Sanity")
 #quit()
 
 
