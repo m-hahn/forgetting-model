@@ -820,8 +820,17 @@ topNouns.append("computer")
 topNouns.append("video")
 topNouns.append("job")
 topNouns.append("house")
+# [1] return        beating       betrayal      disappearance hiring
+# [6] kidnapping    rescue        robbery
 
-
+topNouns.append("return")
+topNouns.append("beating")
+topNouns.append("betrayal")
+topNouns.append("disappearance")
+topNouns.append("hiring")
+topNouns.append("kidnapping")
+topNouns.append("rescue")
+topNouns.append("robbery")
 
 topNouns.append("report")
 topNouns.append("story")       
