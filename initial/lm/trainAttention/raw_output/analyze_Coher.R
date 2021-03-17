@@ -13,6 +13,10 @@ library(ggplot2)
 library(lme4)
 
 
+hasNewWords = unique((data %>% filter(Noun == "kidnapping"))$deletion_rate)
+
+data = data %>% filter(deletion_rate %in% hasNewWords)
+
 dataM = data %>% group_by(deletion_rate, Noun) %>% summarise(Surprisal = mean(Surprisal))
 
 dataM2 = data %>% group_by(Noun) %>% summarise(Surprisal = mean(Surprisal))

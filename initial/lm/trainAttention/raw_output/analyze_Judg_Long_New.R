@@ -49,6 +49,9 @@ data$ThatDiff = data$ThatFraction_g-data$ThatFraction_u
 
 dataGrid = dataNormJudg %>% filter(Region %in% c("V2_0", "V2_1", "V1_0","V1_1", "EOS_0")) %>% group_by(deletion_rate, predictability_weight, Noun, RatioSC, Condition, ID) %>% summarise(Surprisal = sum(Surprisal)) %>% mutate(SurprisalLogLikRatio = (Surprisal) - (ifelse(Condition == "u", 25.7, 43)))
 
+dataGridMeans = dataGrid %>% group_by(deletion_rate, predictability_weight, Noun, Condition) %>% summarise(SurprisalLogLikRatio = mean(SurprisalLogLikRatio, na.rm=TRUE))
+write.table(dataGridMeans, file="output/analyze_Judg_Long_New.R.tsv", sep="\t")
+
 tValues = data.frame()
 for(deletion_rate_ in unique(dataNormJudg$deletion_rate)) {
   for(predictability_weight_ in unique(dataNormJudg$predictability_weight)) {
