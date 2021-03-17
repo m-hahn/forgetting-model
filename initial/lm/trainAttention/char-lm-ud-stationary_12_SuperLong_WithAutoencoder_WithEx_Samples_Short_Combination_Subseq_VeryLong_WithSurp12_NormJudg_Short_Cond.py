@@ -1351,7 +1351,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
          for sentenceList in {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible]:
            print(sentenceList)
            context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN}"
-           thatFractions = {x : defaultdict(float) for x in ["SC", "NoSC"]}
+           thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
            surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
 
            for condition in ["SCRC", "SC","NoSC"]:
@@ -1401,7 +1401,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
               if condition == "SC" and i == 0:
                  locationThat = context.split(" ")[::-1].index("that")
-                 thatFractions[condition][regions[i]]=float((resultNumeric[:, -locationThat-2] == stoi_total["that"]).float().mean())
+                 thatFractions[condition+"_"+compatible][regions[i]]=float((resultNumeric[:, -locationThat-2] == stoi_total["that"]).float().mean())
 #                 print("\n".join(result))
  #                print(float((resultNumeric[:,-locationThat-2] == stoi_total["that"]).float().mean()))
                  
