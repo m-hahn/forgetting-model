@@ -1354,7 +1354,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     surprisalsPerNoun = {}
     thatFractionsPerNoun = {}
     numberOfSamples = 12
-    with open(f"/jagupard11/scr0//mhahn/memory/{__file__}_{args.myID}_{SANITY}.txt", "w") as outFile:
+    import gzip
+    with gzip.open(f"/jagupard11/scr0//mhahn/memory/{__file__}_{args.myID}_{SANITY}.txt.gz", "wt") as outFile:
      print(args, file=outFile)
      with torch.no_grad():
       for NOUN in topNouns:
