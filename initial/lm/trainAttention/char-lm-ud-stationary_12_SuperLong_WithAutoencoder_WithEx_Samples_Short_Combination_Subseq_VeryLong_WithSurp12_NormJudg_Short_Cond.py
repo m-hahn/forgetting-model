@@ -1013,8 +1013,9 @@ print([x for x in topNouns if x not in counts])
 #topNouns = [x for x in topNouns if x in counts]
 
 def thatBias(noun):
-    return 1.0
-#   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
+   if noun in counts:
+      return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
+   return -1.0
 
 #topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
 
@@ -1037,6 +1038,7 @@ if args.load_from_plain_lm is not None:
 # Helper Functions
 
 def correlation(x, y):
+   print(x, y)
    variance_x = (x.pow(2)).mean() - x.mean().pow(2)
    variance_y = (y.pow(2)).mean() - y.mean().pow(2)
    return ((x-x.mean())* (y-y.mean())).mean()/(variance_x*variance_y).sqrt()
@@ -1335,7 +1337,11 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 #    print(SANITY, "CORR total", correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
 
-
+def divideDicts(y, z):
+   r = {}
+   for x in y:
+     r[x] = y[x]/z[x]
+   return r
 
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["Model", "Sanity", "ZeroLoss"]
@@ -1344,17 +1350,21 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     surprisalsPerNoun = {}
     thatFractionsPerNoun = {}
     numberOfSamples = 12
+    global topNouns
+#    topNouns = ["fact", "report"]
     with torch.no_grad():
       for NOUN in topNouns:
         print(NOUN, "Time:", time.time() - startTimePredictions, file=sys.stderr)
-        for compatible in ["compatible", "incompatible"]:
-         for sentenceList in {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible]:
-           print(sentenceList)
-           context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN}"
-           thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-           surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-
+        for sentenceID in range(len(nounsAndVerbsCompatible)):
+          print(sentenceID)
+          context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN}"
+          thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+          thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+          surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+          surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+          for compatible in ["compatible", "incompatible"]:
            for condition in ["SCRC", "SC","NoSC"]:
+            sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
             if condition == "NoSC" and compatible == "compatible":
                continue
             if condition == "SC":
@@ -1376,6 +1386,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
             print("INPUT", context, remainingInput)
+            assert len(remainingInput) > 0
             for i in range(len(remainingInput)):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context)
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
@@ -1399,9 +1410,10 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
               # Now get samples from the amortized reconstruction posterior
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
-              if condition == "SC" and i == 0:
+              if "NoSC" not in condition: # and i == 0:
                  locationThat = context.split(" ")[::-1].index("that")
-                 thatFractions[condition+"_"+compatible][regions[i]]=float((resultNumeric[:, -locationThat-2] == stoi_total["that"]).float().mean())
+                 thatFractions[condition+"_"+compatible][regions[i]]+=float((resultNumeric[:, -locationThat-2] == stoi_total["that"]).float().mean())
+                 thatFractionsCount[condition+"_"+compatible][regions[i]]+=1
 #                 print("\n".join(result))
  #                print(float((resultNumeric[:,-locationThat-2] == stoi_total["that"]).float().mean()))
                  
@@ -1424,26 +1436,41 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                   print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(totalSurprisal_cpu[q]))
               print("SURPRISAL", NOUN, sentenceList[0], condition+"_"+compatible, i, regions[i], remainingInput[i],float( surprisalOfNextWord))
               surprisalByRegions[condition+"_"+compatible][regions[i]] += float( surprisalOfNextWord)
+              surprisalCountByRegions[condition+"_"+compatible][regions[i]] += 1
+
+           #   if compatible == "compatible":
+            #    hasSeenCompatible = True
 #              if i == 0 or regions[i] != regions[i-1]:
-         print(surprisalByRegions)
-         print(thatFractions)
-         print("NOUNS SO FAR", topNouns.index(NOUN))
-         surprisalsPerNoun[NOUN] = surprisalByRegions
-         thatFractionsPerNoun[NOUN] = thatFractions
-         print(thatFractions)
-         #quit()
+        print(surprisalByRegions)
+        print(thatFractions)
+        print("NOUNS SO FAR", topNouns.index(NOUN))
+        assert NOUN not in surprisalsPerNoun # I think that in previous versions of these scripts the indentation was wrong, and this was overwitten multiple times
+        print(surprisalByRegions)
+        surprisalsPerNoun[NOUN] = {x : divideDicts(surprisalByRegions[x], surprisalCountByRegions[x]) for x in surprisalByRegions}
+        thatFractionsPerNoun[NOUN] = {x : divideDicts(thatFractions[x], thatFractionsCount[x]) for x in thatFractions}
+        print(thatFractions)
+        #quit()
+        #assert hasSeenCompatible
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "ThatFraction", file=outFile)
       for noun in topNouns:
+       assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
+       assert "SCRC_compatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
+       assert len(surprisalsPerNoun[noun]["SCRC_compatible"]) > 0
        for condition in surprisalsPerNoun[noun]:
+#         assert "V1_0" in thatFractionsPerNoun[noun][condition], list(thatFractionsPerNoun[noun][condition])
+         assert "V1_0" in surprisalsPerNoun[noun][condition], list(surprisalsPerNoun[noun][condition])
          for region in surprisalsPerNoun[noun][condition]:
-           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region], file=outFile)
+           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
     # For sanity-checking: Prints correlations between surprisal and that-bias
- #   for region in ["V3_0", "V2_0", "V1_0", "EOS_0"]:
-#       print(SANITY, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x]["g"][region]-surprisalsPerNoun[x]["u"][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x]["g"][region]-thatFractionsPerNoun[x]["u"][region] for x in topNouns])))
+    for region in ["V2_0", "V2_1", "V1_0"]:
+      for condition in surprisalsPerNoun["fact"]:
+       if region not in surprisalsPerNoun["fact"][condition]:
+          continue
+       print(SANITY, condition, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 )
 #    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["SC"][region] - surprisalsPerNoun[noun]["NoSC"][region] for region in surprisalsPerNoun[noun]["SC"]]) for noun in topNouns])
  #   print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
@@ -1455,9 +1482,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 startTimePredictions = time.time()
 
 #getTotalSentenceSurprisals(SANITY="ZeroLoss")
-#getTotalSentenceSurprisals(SANITY="Sanity")
+getTotalSentenceSurprisals(SANITY="Sanity")
 #getTotalSentenceSurprisals(SANITY="Model")
-#quit()
+quit()
 
 
 #getTotalSentenceSurprisals()

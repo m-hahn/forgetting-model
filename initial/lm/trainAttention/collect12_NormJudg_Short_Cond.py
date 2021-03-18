@@ -3,8 +3,8 @@ import os
 header = "Noun Region Condition Surprisal ThatFraction".split(" ")
 header += ["ID", "predictability_weight", "deletion_rate", "autoencoder", "lm"]
 
-PATH = "/juice/scr/mhahn/reinforce-logs-both/full-logs/"
-PATH2 = "/juice/scr/mhahn/reinforce-logs-both/full-logs-tsv/"
+PATH = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs/"
+PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"
 
 with open(f"raw_output/{__file__}.tsv", "w") as outFile:
  print("\t".join(header), file=outFile)
