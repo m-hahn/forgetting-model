@@ -605,7 +605,8 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       autoencoder_embedded_noised = autoencoder.word_embeddings(input_tensor_noised[:-1])
       autoencoder_out_encoder, _ = autoencoder.rnn_encoder(autoencoder_embedded_noised, None)
       autoencoder_out_decoder, _ = autoencoder.rnn_decoder(autoencoder_embedded, None)
-      assert autoencoder_embedded.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1)
+      assert autoencoder_embedded.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py. Would be good if they were unified.
+      assert autoencoder_embedded_noised.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py.
 
       autoencoder_attention = torch.bmm(autoencoder.attention_proj(autoencoder_out_encoder).transpose(0,1), autoencoder_out_decoder.transpose(0,1).transpose(1,2))
       autoencoder_attention = autoencoder.attention_softmax(autoencoder_attention).transpose(0,1)
