@@ -331,7 +331,7 @@ class Autoencoder:
   #        print(nextWord.size())
           nextWordDistCPU = nextWord.cpu().numpy()[0]
           nextWordStrings = [itos_total[x] for x in nextWordDistCPU]
-          if i >= computeProbabilityStartingFrom:
+          if i >= computeProbabilityStartingFrom: # and i < args.sequence_length: # the second condition is to prevent the last word (which is irrelevant) from counting. TODO But it would really be better to just remove the final word
             for i in range(numberOfBatches):
              result[i] += " "+nextWordStrings[i]
              result_numeric[i].append( nextWordDistCPU[i] )
@@ -1320,7 +1320,8 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
               # Get samples from the reconstruction posterior
-              result, resultNumeric, fractions, thatProbs, _ = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24)
+              result, resultNumeric, fractions, thatProbs, _ = autoencoder.sampleReconstructions(numeric[:-1], numeric_noised[:-1], None, 2, numberOfBatches=numberOfSamples*24) # TODO verify that the :-1 is right
+              assert False , "verify the thing in the previous line"
  #             print(resultNumeric.size())
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()

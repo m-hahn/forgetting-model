@@ -299,7 +299,9 @@ class Autoencoder:
       embeddedLast = embedded[0].unsqueeze(0)
       for i in range(args.sequence_length+1):
           out_decoder, hidden = self.rnn_decoder(embeddedLast, hidden)
-    
+#          assert embeddedLast.size()[0] == args.sequence_length-1, (embeddedLast.size()[0] , args.sequence_length)
+
+
           attention = torch.bmm(self.attention_proj(out_encoder).transpose(0,1), out_decoder.transpose(0,1).transpose(1,2))
           attention = self.attention_softmax(attention).transpose(0,1)
           from_encoder = (out_encoder.unsqueeze(2) * attention.unsqueeze(3)).sum(dim=0).transpose(0,1)
@@ -537,7 +539,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
           hidden = None
           beginning = zeroBeginning
 
-
+      assert numeric.size()[0] == args.sequence_length+1, numeric.size()[0]
       ######################################################
       ######################################################
       # Run Loss Model
@@ -603,6 +605,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       autoencoder_embedded_noised = autoencoder.word_embeddings(input_tensor_noised[:-1])
       autoencoder_out_encoder, _ = autoencoder.rnn_encoder(autoencoder_embedded_noised, None)
       autoencoder_out_decoder, _ = autoencoder.rnn_decoder(autoencoder_embedded, None)
+      assert autoencoder_embedded.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1)
 
       autoencoder_attention = torch.bmm(autoencoder.attention_proj(autoencoder_out_encoder).transpose(0,1), autoencoder_out_decoder.transpose(0,1).transpose(1,2))
       autoencoder_attention = autoencoder.attention_softmax(autoencoder_attention).transpose(0,1)
@@ -1311,6 +1314,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
+              numeric_noised[args.sequence_length] = 0 # A simple hack for dealing with the issue that the last word 
               # Get samples from the reconstruction posterior
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24)
  #             print(resultNumeric.size())
@@ -1408,7 +1412,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
+              numeric_noised[args.sequence_length] = 0 # A simple hack for dealing with the issue that the last word 
               # Now get samples from the amortized reconstruction posterior
+              print("NOISED: ", " ".join([itos_total[int(x)] for x in numeric_noised[:,0].cpu()]))
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
               if "NoSC" not in condition: # and i == 0:
                  locationThat = context.split(" ")[::-1].index("that")
