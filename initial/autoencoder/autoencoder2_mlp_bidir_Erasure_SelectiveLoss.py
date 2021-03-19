@@ -218,6 +218,8 @@ def forward(numeric, train=True, printHere=False):
       # Run both encoder and decoder
       out_encoder, _ = rnn_encoder(embedded_noised, None)
       out_decoder, _ = rnn_decoder(embedded, None)
+      assert embedded.size()[0] == args.sequence_length, embedded.size()
+      assert embedded_noised.size()[0] == args.sequence_length+1, embedded_noised.size()
 
       # Have the decoder attend to the encoder
       attention = torch.bmm(attention_proj(out_encoder).transpose(0,1), out_decoder.transpose(0,1).transpose(1,2))
