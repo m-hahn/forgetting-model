@@ -12,7 +12,7 @@ import sys
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([673269957,38679926]))
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([280980794]))
 # 777726352, doesn't have the right parameter matrix sizes
 
 #(1.020192962941362, 1, False, '595155021', 'None')
@@ -36,7 +36,7 @@ parser.add_argument("--weight_dropout_in", type=float, default=random.choice([0.
 parser.add_argument("--weight_dropout_out", type=float, default=random.choice([0.05]))
 parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.01]))
 #parser.add_argument("--char_noise_prob", type = float, default=random.choice([0.0]))
-parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.1])) # used to be just 0.1, but I want to explore other options
+parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.2, 0.4, 0.6, 1.0]))
 parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.2, 0.4, 0.6, 1.0]))
 parser.add_argument("--myID", type=int, default=random.randint(0,1000000000))
 parser.add_argument("--sequence_length", type=int, default=random.choice([30]))
@@ -51,7 +51,7 @@ parser.add_argument("--deletion_rate", type=float, default=0.2)
 
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
 
-parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.3]))
+parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.2, 0.3]))
 
 
 parser.add_argument("--RATE_WEIGHT", type=float, default=random.choice([5.5, 5.75, 6.0, 6.25, 6.5]))
@@ -76,13 +76,13 @@ import sys
 print(args, file=sys.stderr)
 
 
-sys.stdout = open("/u/scr/mhahn/reinforce-logs/full-logs/"+__file__+"_"+str(args.myID), "w")
+#sys.stdout = open("/u/scr/mhahn/reinforce-logs/full-logs/"+__file__+"_"+str(args.myID), "w")
 
 print(args)
 
 
 
-import corpusIteratorWikiWords_BoundarySymbols as corpusIteratorWikiWords
+import corpusIteratorWikiWords
 
 
 
@@ -155,7 +155,7 @@ def parameters_memory():
        for param in module.parameters():
             yield param
 
-dual_weight = torch.cuda.FloatTensor([3.0])
+dual_weight = torch.cuda.FloatTensor([1.0])
 dual_weight.requires_grad=True
 
 
@@ -182,7 +182,7 @@ optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory
 if args.load_from_autoencoder is not None:
  # try:
   print(args.load_from_autoencoder)
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_BoundarySymbol_NoComma.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
 #  except FileNotFoundError:
  #    checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidirISTHEREANOTHEROPTION?.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
   for i in range(len(checkpoint["components"])):
@@ -211,9 +211,7 @@ def prepareDatasetChunks(data, train=True):
          count += 1
 #         if count % 100000 == 0:
 #             print(count/len(data))
-         if char == ",": # Skip commas
-           continue
-         numerified.append((stoi_total[char] if char in stoi_total else 2))
+         numerified.append((stoi[char]+3 if char in stoi else 2))
 #         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
 
        if len(numerified) > (args.batchSize*args.sequence_length):
@@ -312,7 +310,7 @@ def forward(numeric, train=True, printHere=False, onlyProvideMemoryResult=False)
       memory_filter = memory_filter.squeeze(2)
 
       ####################################################################################
-      numeric_noised = torch.where(torch.logical_or(memory_filter==1 , numeric == 1), numeric, 0*numeric) #[[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
+      numeric_noised = torch.where(memory_filter==1, numeric, 0*numeric) #[[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
 
       
       numeric_noised = [[x for x in y if int(x) != 0] for y in numeric_noised.cpu().t()]
@@ -397,9 +395,10 @@ def forward(numeric, train=True, printHere=False, onlyProvideMemoryResult=False)
       loss += autoencoder_lossTensor.mean()
 
       # Overall Reward
-      negativeRewardsTerm = negativeRewardsTerm1 + dual_weight * (negativeRewardsTerm2-retentionTarget)
-      if printHere:
-         print([float(x) for x in [negativeRewardsTerm.mean(), negativeRewardsTerm1.mean(), dual_weight , negativeRewardsTerm2.mean(), (negativeRewardsTerm2-retentionTarget).mean()]])
+      # based on the resource term
+#      print(dual_weight.size(), negativeRewardsTerm2.size(), memory_filter.size())
+
+      loss += (dual_weight.detach() * negativeRewardsTerm2).mean()
       # for the dual weight
       loss += (dual_weight * (negativeRewardsTerm2-retentionTarget).detach()).mean()
       if printHere:
@@ -411,7 +410,7 @@ def forward(numeric, train=True, printHere=False, onlyProvideMemoryResult=False)
 
       # Reward Minus Baseline
       # Detached surprisal and mean retention
-      rewardMinusBaseline = (negativeRewardsTerm.detach() - baselineValues - (dual_weight * (memory_hidden.mean(dim=0).squeeze(dim=1) - retentionTarget)).detach())
+      rewardMinusBaseline = (autoencoder_lossTensor.detach() - baselineValues)
 
       # Important to detach from the baseline!!! 
       loss += (rewardMinusBaseline.detach() * bernoulli_logprob_perBatch.squeeze(1)).mean()
@@ -446,14 +445,14 @@ def forward(numeric, train=True, printHere=False, onlyProvideMemoryResult=False)
          for i in range((args.sequence_length)):
             print((losses[i][0], itos_total[numericCPU[i+1][0]], memory_hidden_CPU[i+1], itos_total[numeric_noisedCPU[i+1][0]]))
 
-         print("PREDICTION_LOSS", round(float(negativeRewardsTerm1.mean()),3), "\tTERM2", round(float(negativeRewardsTerm2.mean()),3), "\tAVERAGE_RETENTION", float(expectedRetentionRate), "\tDEVIATION FROM BASELINE", float((negativeRewardsTerm.detach()-runningAverageReward).abs().mean()), "\tREWARD", runningAverageReward, "\tDUAL", float(dual_weight))
-         sys.stderr.write(" ".join([str(x) for x in ["\r", "PREDICTION_LOSS", round(float(negativeRewardsTerm1.mean()),3), "\tTERM2", round(float(negativeRewardsTerm2.mean()),3), "\tAVERAGE_RETENTION", float(expectedRetentionRate), "\tDEVIATION FROM BASELINE", float((negativeRewardsTerm.detach()-runningAverageReward).abs().mean()), "\tREWARD", runningAverageReward, "\tDUAL", float(dual_weight), counter]]))
+         print("PREDICTION_LOSS", round(float(negativeRewardsTerm1.mean()),3), "\tTERM2", round(float(negativeRewardsTerm2.mean()),3), "\tAVERAGE_RETENTION", float(expectedRetentionRate), "\tDEVIATION FROM BASELINE", float((negativeRewardsTerm1.detach()-runningAverageReward).abs().mean()), "\tREWARD", runningAverageReward, "\tDUAL", float(dual_weight))
+         sys.stderr.write(" ".join([str(x) for x in ["\r", "PREDICTION_LOSS", round(float(negativeRewardsTerm1.mean()),3), "\tTERM2", round(float(negativeRewardsTerm2.mean()),3), "\tAVERAGE_RETENTION", float(expectedRetentionRate), "\tDEVIATION FROM BASELINE", float((negativeRewardsTerm1.detach()-runningAverageReward).abs().mean()), "\tREWARD", runningAverageReward, "\tDUAL", float(dual_weight), counter]]))
          if counter % 5000 == 0:
             print("", file=sys.stderr)
          sys.stderr.flush()
 
       #runningAveragePredictionLoss = 0.95 * runningAveragePredictionLoss + (1-0.95) * float(negativeRewardsTerm1.mean())
-      runningAverageReward = 0.95 * runningAverageReward + (1-0.95) * float(negativeRewardsTerm.mean())
+      runningAverageReward = 0.95 * runningAverageReward + (1-0.95) * float(negativeRewardsTerm1.mean())
 
       return loss, target_tensor.view(-1).size()[0]
 
@@ -485,9 +484,7 @@ totalStartTime = time.time()
 lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
-epoch = 0
-while updatesCount <= 50000:
-   epoch += 1
+for epoch in range(10000):
    print(epoch)
    training_data = corpusIteratorWikiWords.training(args.language)
    print("Got data")
@@ -504,13 +501,13 @@ while updatesCount <= 50000:
    hidden, beginning = None, None
    if updatesCount >= 50000:
      break
-#   if expectedRetentionRate < 0.15:
- #     print(("retention rate has fallen", expectedRetentionRate), file=sys.stderr)
-  #    break
+   if expectedRetentionRate < 0.15:
+      print(("retention rate has fallen", expectedRetentionRate), file=sys.stderr)
+      break
    while updatesCount <= 50000:
-#      if expectedRetentionRate < 0.15:
- #        print(("retention rate has fallen", expectedRetentionRate), file=sys.stderr)
-  #       break
+      if expectedRetentionRate < 0.15:
+         print(("retention rate has fallen", expectedRetentionRate), file=sys.stderr)
+         break
       counter += 1
       updatesCount += 1
       try:
@@ -520,14 +517,14 @@ while updatesCount <= 50000:
       printHere = (counter % 50 == 0)
       loss, charCounts = forward(numeric, printHere=printHere, train=True)
       backward(loss, printHere)
-      if loss.data.cpu().numpy() > 15.0:
-          lossHasBeenBad += 1
-      else:
-          lossHasBeenBad = 0
-      if lossHasBeenBad > 100:
-          print("Loss exploding, has been bad for a while")
-          print(loss)
-          assert False
+    #  if loss.data.cpu().numpy() > 15.0:
+    #      lossHasBeenBad += 1
+    #  else:
+    #      lossHasBeenBad = 0
+    #  if lossHasBeenBad > 100:
+    #      print("Loss exploding, has been bad for a while")
+    #      print(loss)
+    #      assert False
       trainChars += charCounts 
       if printHere:
           print(("Loss here", loss))
@@ -596,8 +593,8 @@ while updatesCount <= 50000:
 #   learning_rate = args.learning_rate * math.pow(args.lr_decay, len(devLosses))
 #   optim = torch.optim.SGD(parameters_memory(), lr=learning_rate, momentum=args.momentum) # 0.02, 0.9
 
-if True:
-  modules_memory_and_autoencoder = memory.modules_memory + autoencoder.modules_autoencoder
+modules_memory_and_autoencoder = modules_memory + modules_autoencoder
+if False and expectedRetentionRate > 0.15:
   state = {"arguments" : str(args), "words" : itos, "components" : [c.state_dict() for c in modules_memory_and_autoencoder]}
   torch.save(state, "/u/scr/mhahn/CODEBOOKS_memoryPolicy_both/"+args.language+"_"+__file__+"_code_"+str(args.myID)+".txt")
   lastSaved = (epoch, counter)

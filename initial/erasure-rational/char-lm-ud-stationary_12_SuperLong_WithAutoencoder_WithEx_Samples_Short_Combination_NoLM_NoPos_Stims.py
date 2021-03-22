@@ -1,4 +1,3 @@
-#assert False
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -15,7 +14,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
 parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=964163553) # language model taking noised input # Amortized Prediction Posterior
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([647336050, 516252642, 709961927, 727001672, 712478284, 524811876])) # Amortized Reconstruction Posterior
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([647336050, 516252642, 709961927, 727001672])) # Amortized Reconstruction Posterior
 parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([27553360, 935649231])) # plain language model without noise (Prior)
 
 
@@ -24,11 +23,11 @@ parser.add_argument("--myID", type=int, default=random.randint(0,1000000000))
 
 
 # Sequence length
-parser.add_argument("--sequence_length", type=int, default=random.choice([20]))
+parser.add_argument("--sequence_length", type=int, default=random.choice([10]))
 
 # Parameters of the neural network models
-parser.add_argument("--batchSize", type=int, default=random.choice([1]))
-parser.add_argument("--NUMBER_OF_REPLICATES", type=int, default=random.choice([12,20]))
+parser.add_argument("--batchSize", type=int, default=random.choice([128]))
+parser.add_argument("--NUMBER_OF_REPLICATES", type=int, default=random.choice([1]))
 
 ## Layer size
 parser.add_argument("--word_embedding_size", type=int, default=random.choice([512]))
@@ -60,7 +59,7 @@ parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.
 
 # Lambda and Delta Parameters
 parser.add_argument("--deletion_rate", type=float, default=0.5)
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0]))
 
 
 TRAIN_LM = False
@@ -73,6 +72,7 @@ model = "REAL_REAL"
 import math
 
 args=parser.parse_args()
+assert args.predictability_weight == 0.0
 
 ############################
 
@@ -86,7 +86,7 @@ assert args.deletion_rate < 0.8
 #############################
 
 assert args.tuning in [0,1]
-assert args.batchSize == 1
+#assert args.batchSize == 1
 print(args.myID)
 import sys
 STDOUT = sys.stdout
@@ -300,9 +300,7 @@ class Autoencoder:
       embeddedLast = embedded[0].unsqueeze(0)
       for i in range(args.sequence_length+1):
           out_decoder, hidden = self.rnn_decoder(embeddedLast, hidden)
-#          assert embeddedLast.size()[0] == args.sequence_length-1, (embeddedLast.size()[0] , args.sequence_length)
-
-
+    
           attention = torch.bmm(self.attention_proj(out_encoder).transpose(0,1), out_decoder.transpose(0,1).transpose(1,2))
           attention = self.attention_softmax(attention).transpose(0,1)
           from_encoder = (out_encoder.unsqueeze(2) * attention.unsqueeze(3)).sum(dim=0).transpose(0,1)
@@ -347,53 +345,19 @@ class Autoencoder:
 
 autoencoder = Autoencoder()
 
-class LanguageModel:
-   """ Amortized Prediction Posterior """
-   def __init__(self):
-      self.rnn = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_lm, args.layer_num).cuda()
-      self.rnn_drop = self.rnn
-      self.output = torch.nn.Linear(args.hidden_dim_lm, len(itos)+3).cuda()
-      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
-      self.logsoftmax = torch.nn.LogSoftmax(dim=2)
-      self.train_loss = torch.nn.NLLLoss(ignore_index=0)
-      self.print_loss = torch.nn.NLLLoss(size_average=False, reduce=False, ignore_index=0)
-      self.char_dropout = torch.nn.Dropout2d(p=args.char_dropout_prob)
-      self.train_loss_chars = torch.nn.NLLLoss(ignore_index=0, reduction='sum')
-      self.modules_lm = [self.rnn, self.output, self.word_embeddings]
-   def forward(self, input_tensor_noised, target_tensor_full, NUMBER_OF_REPLICATES):
-       lm_embedded = self.word_embeddings(input_tensor_noised)
-       lm_out, lm_hidden = self.rnn_drop(lm_embedded, None)
-       lm_out = lm_out[-1:]
-       lm_logits = self.output(lm_out) 
-       lm_log_probs = self.logsoftmax(lm_logits)
- 
-       # Prediction Loss 
-       lm_lossTensor = self.print_loss(lm_log_probs.view(-1, len(itos)+3), target_tensor_full[-1].view(-1)).view(-1, NUMBER_OF_REPLICATES) # , args.batchSize is 1
-       return lm_lossTensor 
-
-lm = LanguageModel()
-
 #character_embeddings = torch.nn.Embedding(num_embeddings = len(itos_chars_total)+3, embedding_dim=args.char_emb_dim).cuda()
 
 class MemoryModel():
   """ Noise Model """
   def __init__(self):
      self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
      self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
      self.sigmoid = torch.nn.Sigmoid()
      self.relu = torch.nn.ReLU()
-     self.positional_embeddings = torch.nn.Embedding(num_embeddings=args.sequence_length+2, embedding_dim=256).cuda()
-     self.memory_word_pos_inter = torch.nn.Linear(256, 1, bias=False).cuda()
-     self.memory_word_pos_inter.weight.data.fill_(0)
      self.perword_baseline_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
      self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
-     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
-     self.memory_bilinear.weight.data.fill_(0)
-     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
-
-
+     # Collect the modules
+     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.perword_baseline_inner, self.perword_baseline_outer]
 memory = MemoryModel()
 
 def parameters_memory():
@@ -421,12 +385,12 @@ def parameters_autoencoder():
 
 
 
-def parameters_lm():
-   for module in lm.modules_lm:
-       for param in module.parameters():
-            yield param
-
-parameters_lm_cached = [x for x in parameters_lm()]
+#def parameters_lm():
+#   for module in lm.modules_lm:
+#       for param in module.parameters():
+#            yield param
+#
+#parameters_lm_cached = [x for x in parameters_lm()]
 
 
 assert not TRAIN_LM
@@ -445,16 +409,13 @@ if args.load_from_autoencoder is not None:
   for i in range(len(checkpoint["components"])):
       autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
   
-# Amortized Prediction Posterior
-if args.load_from_lm is not None:
-  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(args.load_from_lm)+".txt")
-  for i in range(len(checkpoint["components"])):
-      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
+
+
 
 from torch.autograd import Variable
 
 
+relu = torch.nn.ReLU()
 
 def prepareDatasetChunks(data, train=True):
       numeric = [0]
@@ -470,8 +431,6 @@ def prepareDatasetChunks(data, train=True):
          count += 1
 #         if count % 100000 == 0:
 #             print(count/len(data))
-         if char == ",": # Skip commas
-           continue
          numerified.append((stoi[char]+3 if char in stoi else 2))
 #         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
 
@@ -542,38 +501,24 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
           hidden = None
           beginning = zeroBeginning
 
-      assert numeric.size()[0] == args.sequence_length+1, numeric.size()[0]
+
       ######################################################
       ######################################################
       # Run Loss Model
-      if expandReplicates:
-         numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
-#      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
+      assert NUMBER_OF_REPLICATES == 1 or not expandReplicates
+#      numeric = numeric.expand(-1, args.NUMBER_OF_REPLICATES)
 #      numeric = torch.cat([beginning, numeric], dim=0)
-      embedded_everything = lm.word_embeddings(numeric)
+      embedded_everything = autoencoder.word_embeddings(numeric)
 
-      # Positional embeddings
-      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
-      embedded_positions = memory.positional_embeddings(numeric_positions)
-      numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
       # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
-      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
-
-  #    print(embedded_positions.size(), embedded_everything.size())
- #     print(memory.memory_bilinear(embedded_positions).size())
-#      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
-
-      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
-      memory_hidden = memory.sigmoid(memory_hidden_logit)
+      memory_hidden = memory.sigmoid(memory.memory_mlp_outer(relu(memory.memory_mlp_inner(embedded_everything))))
       if provideAttention:
          return memory_hidden
 
       # Baseline predictions for prediction loss
       baselineValues = 10*memory.sigmoid(memory.perword_baseline_outer(memory.relu(memory.perword_baseline_inner(embedded_everything[-1].detach())))).squeeze(1)
-      assert tuple(baselineValues.size()) == (NUMBER_OF_REPLICATES,)
+      #assert tuple(baselineValues.size()) == (args.batchSize*NUMBER_OF_REPLICATES,)
 
 
       # NOISE MEMORY ACCORDING TO MODEL
@@ -608,8 +553,6 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       autoencoder_embedded_noised = autoencoder.word_embeddings(input_tensor_noised[:-1])
       autoencoder_out_encoder, _ = autoencoder.rnn_encoder(autoencoder_embedded_noised, None)
       autoencoder_out_decoder, _ = autoencoder.rnn_decoder(autoencoder_embedded, None)
-      assert autoencoder_embedded.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py. Would be good if they were unified.
-      assert autoencoder_embedded_noised.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py.
 
       autoencoder_attention = torch.bmm(autoencoder.attention_proj(autoencoder_out_encoder).transpose(0,1), autoencoder_out_decoder.transpose(0,1).transpose(1,2))
       autoencoder_attention = autoencoder.attention_softmax(autoencoder_attention).transpose(0,1)
@@ -623,11 +566,6 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       # Prediction Loss 
       autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
 
-      ##########################################
-      ##########################################
-      # RUN LANGUAGE MODEL (amortized prediction of next word)
-      if args.predictability_weight > 0:
-       lm_lossTensor = lm.forward(input_tensor_noised, target_tensor_full, NUMBER_OF_REPLICATES)
       ##########################################
       ##########################################
 
@@ -687,23 +625,16 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       expectedRetentionRate = factor * expectedRetentionRate + (1-factor) * float(memory_hidden.mean())
       runningAverageBaselineDeviation = factor * runningAverageBaselineDeviation + (1-factor) * float((rewardMinusBaseline).abs().mean())
 
-      if args.predictability_weight > 0:
-       runningAveragePredictionLoss = factor * runningAveragePredictionLoss + (1-factor) * round(float(lm_lossTensor.mean()),3)
       runningAverageReconstructionLoss = factor * runningAverageReconstructionLoss + (1-factor) * round(float(autoencoder_lossTensor.mean()),3)
       runningAverageReward = factor * runningAverageReward + (1-factor) * float(negativeRewardsTerm.mean())
       ############################
 
       if printHere:
-         if args.predictability_weight > 0:
-          lm_losses = lm_lossTensor.data.cpu().numpy()
          autoencoder_losses = autoencoder_lossTensor.data.cpu().numpy()
 
          numericCPU = numeric.cpu().data.numpy()
          numeric_noisedCPU = numeric_noised.cpu().data.numpy()
          memory_hidden_CPU = memory_hidden[:,0,0].cpu().data.numpy()
-         memory_hidden_logit_per_wordtype_cpu = memory_hidden_logit_per_wordtype.cpu().data
-         attention_bilinear_term = attention_bilinear_term.cpu().data
-         numeric_embedded_cpu = numeric_embedded.cpu().data
  #        print(("NONE", itos_total[numericCPU[0][0]]))
 #         for i in range((args.sequence_length+1)):
             #print(autoencoder_losses[i][0] if i < args.sequence_length else "--", "\t", lm_losses[0][0] if args.predictability_weight > 0 and i == args.sequence_length else "---" , "\t", itos_total[numericCPU[i+1][0]],"\t", itos_total[numeric_noisedCPU[i+1][0]],"\t", memory_hidden_CPU[i+1],"\t", float(baselineValues[0]) if i == args.sequence_length else "","\t", float(numeric_embedded_cpu[i+1,0,0]),"\t", float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]),"\t", float(attention_bilinear_term[i+1,0,0]))
@@ -744,11 +675,6 @@ def backward(loss, printHere):
       loss.backward()
       # Gradient clipping
       torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
-      if TRAIN_LM:
-         assert False
-         torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
-
-      # Adapt parameters
       optim_autoencoder.step()
       optim_memory.step()
 
@@ -781,94 +707,27 @@ def showAttention(word):
 
 
 
-nounsAndVerbsIncompatible = []
-nounsAndVerbsIncompatible.append(["the principal",       "the teacher",        "kissed",      "was fired",                     "was quoted in the newspaper", "Was the XXXX quoted in the newspaper?", "Y"])
-nounsAndVerbsIncompatible.append(["the sculptor",        "the painter",        "admired",    "was n't talented",   "was completely untrue", "Was the XXXX untrue?", "Y"])
-nounsAndVerbsIncompatible.append(["the consultant",      "the artist",         "hired",      "was a fraud",       "shocked everyone", "Did the XXXX shock everyone?", "Y"])
-nounsAndVerbsIncompatible.append(["the runner",          "the psychiatrist",   "treated",    "was doping",        "was ridiculous", "Was the XXXX ridiculous?", "Y"])
-nounsAndVerbsIncompatible.append(["the child",           "the medic",          "rescued",    "was unharmed",      "relieved everyone", "Did the XXXX relieve everyone?", "Y"])
-nounsAndVerbsIncompatible.append(["the criminal",        "the officer",        "arrested",   "was guilty",        "was entirely bogus", "Was the XXXX bogus?", "Y"])
-nounsAndVerbsIncompatible.append(["the student",         "the professor",      "hated",      "dropped out",       "made the professor happy", "Did the XXXX make the professor happy?", "Y"])
-nounsAndVerbsIncompatible.append(["the mobster",         "the media",          "portrayed",  "had disappeared",    "turned out to be true", "Did the XXXX turn out to be true?", "Y"])
-nounsAndVerbsIncompatible.append(["the actor",           "the starlet",        "loved",      "was missing",       "made her cry", "Did the XXXX almost make her cry?", "Y"])
-nounsAndVerbsIncompatible.append(["the preacher",        "the parishioners",   "fired",      "stole money",        "proved to be true", "Did the XXXX prove to be true?", "Y"])
-nounsAndVerbsIncompatible.append(["the violinist",       "the sponsors",       "backed",     "abused drugs",                       "is likely true", "Was the XXXX likely true?", "Y"])
-nounsAndVerbsIncompatible.append(["the senator",         "the diplomat",       "opposed",    "was winning",                   "really made him angry", "Did the XXXX make him angry?", "Y"])
-nounsAndVerbsIncompatible.append(["the commander",       "the president",      "appointed",  "was corrupt",         "troubled people", "Did the XXXX trouble people?", "Y"])
-nounsAndVerbsIncompatible.append(["the victim",         "the criminal",       "assaulted",  "were surviving",         "calmed everyone down", "Did the XXXX calm everyone down?", "Y"])
-nounsAndVerbsIncompatible.append(["the politician",      "the banker",         "bribed",     "laundered money",         "came as a shock to his supporters", "Did the XXXX come as a shock?", "Y"])
-nounsAndVerbsIncompatible.append(["the surgeon",         "the patient",        "thanked",    "had no degree",         "was not a surprise", "Was the XXXX unsurprising?", "Y"])
-nounsAndVerbsIncompatible.append(["the extremist",       "the agent",          "caught",     "got an award",         "was disconcerting", "Was the XXXX disconcerting?", "Y"])
-nounsAndVerbsIncompatible.append(["the clerk",           "the customer",       "called",     "was a hero",         "seemed absurd", "Did the XXXX seem absurd?", "Y"])
-nounsAndVerbsIncompatible.append(["the trader",          "the businessman",    "consulted",  "had insider information",         "was confirmed", "Was the XXXX confirmed?", "Y"])
-nounsAndVerbsIncompatible.append(["the CEO",             "the employee",       "impressed",  "was retiring",         "was entirely correct", "Was the XXXX correct?", "Y"])
-
-
-
-
-nounsAndVerbsCompatible = []
-nounsAndVerbsCompatible.append(["the principal",       "the teacher",        "kissed",      "appeared on tv",                     "was quoted in the newspaper", "Was the XXXX quoted in the newspaper?", "Y"])
-nounsAndVerbsCompatible.append(["the sculptor",        "the painter",        "admired",    "surprised the doctor",   "was completely untrue", "Was the XXXX untrue?", "Y"])
-nounsAndVerbsCompatible.append(["the consultant",      "the artist",         "hired",      "was confirmed",       "shocked everyone", "Did the XXXX shock everyone?", "Y"])
-nounsAndVerbsCompatible.append(["the runner",          "the psychiatrist",   "treated",    "was credible",        "was ridiculous", "Was the XXXX ridiculous?", "Y"])
-nounsAndVerbsCompatible.append(["the child",           "the medic",          "rescued",    "made people happy",      "relieved everyone", "Did the XXXX relieve everyone?", "Y"])
-nounsAndVerbsCompatible.append(["the criminal",        "the officer",        "arrested",   "was refuted",        "was entirely bogus", "Was the XXXX bogus?", "Y"])
-nounsAndVerbsCompatible.append(["the student",         "the professor",      "hated",      "shocked his colleagues",       "made the professor happy", "Did the XXXX make the professor happy?", "Y"])
-nounsAndVerbsCompatible.append(["the mobster",         "the media",          "portrayed",  "calmed everyone down",    "turned out to be true", "Did the XXXX turn out to be true?", "Y"])
-nounsAndVerbsCompatible.append(["the actor",           "the starlet",        "loved",      "was quoted in newspapers",       "made her cry", "Did the XXXX almost make her cry?", "Y"])
-nounsAndVerbsCompatible.append(["the preacher",        "the parishioners",   "fired",      "was foolish",        "proved to be true", "Did the XXXX prove to be true?", "Y"])
-nounsAndVerbsCompatible.append(["the violinist",       "the sponsors",       "backed",     "made her cry",                       "is likely true", "Was the XXXX likely true?", "Y"])
-nounsAndVerbsCompatible.append(["the senator",         "the diplomat",       "opposed",    "annoyed him",                   "really made him angry", "Did the XXXX make him angry?", "Y"])
-nounsAndVerbsCompatible.append(["the commander",       "the president",      "appointed",  "was dangerous",         "troubled people", "Did the XXXX trouble people?", "Y"])
-nounsAndVerbsCompatible.append(["the victim",         "the criminal",       "assaulted",  "remained hidden",         "calmed everyone down", "Did the XXXX calm everyone down?", "Y"])
-nounsAndVerbsCompatible.append(["the politician",      "the banker",         "bribed",     "was popular",         "came as a shock to his supporters", "Did the XXXX come as a shock?", "Y"])
-nounsAndVerbsCompatible.append(["the surgeon",         "the patient",        "thanked",    "was widely known",         "was not a surprise", "Was the XXXX unsurprising?", "Y"])
-nounsAndVerbsCompatible.append(["the extremist",       "the agent",          "caught",     "stunned everyone",         "was disconcerting", "Was the XXXX disconcerting?", "Y"])
-nounsAndVerbsCompatible.append(["the clerk",           "the customer",       "called",     "was idiotic",         "seemed absurd", "Did the XXXX seem absurd?", "Y"])
-nounsAndVerbsCompatible.append(["the trader",          "the businessman",    "consulted",  "sounded hopeful",         "was confirmed", "Was the XXXX confirmed?", "Y"])
-nounsAndVerbsCompatible.append(["the CEO",             "the employee",       "impressed",  "hurt him",         "was entirely correct", "Was the XXXX correct?", "Y"])
-
-
-
-
-
-nounsAndVerbsCompatible.append(["the clerk", "the customer", "called", "was sad", "seemed absurd."])
-nounsAndVerbsIncompatible.append(["the clerk", "the customer", "called", "was heroic", "seemed absurd."])
-nounsAndVerbsCompatible.append(["the CEO", "the employee", "impressed", "deserved attention", "was entirely correct."])
-nounsAndVerbsIncompatible.append(["the CEO", "the employee", "impressed", "was retiring", "was entirely correct."])
-nounsAndVerbsCompatible.append(["the driver", "the tourist", "consulted", "was crazy", "seemed hard to believe."])
-nounsAndVerbsIncompatible.append(["the driver", "the tourist", "consulted", "was lying", "seemed hard to believe."])
-nounsAndVerbsCompatible.append(["the bookseller", "the thief", "robbed", "was a total fraud", "shocked his family."])
-nounsAndVerbsIncompatible.append(["the bookseller", "the thief", "robbed", "got a heart attack", "shocked his family."])
-nounsAndVerbsCompatible.append(["the neighbor", "the woman", "distrusted", "startled the child", "was a lie."])
-nounsAndVerbsIncompatible.append(["the neighbor", "the woman", "distrusted", "killed the dog", "was a lie."])
-nounsAndVerbsCompatible.append(["the scientist", "the mayor", "trusted", "couldn't be trusted", "was only a malicious smear."])
-nounsAndVerbsIncompatible.append(["the scientist", "the mayor", "trusted", "had faked data", "was only a malicious smear."])
-nounsAndVerbsCompatible.append(["the lifesaver", "the swimmer", "called", "pleased the children", "impressed the whole city."])
-nounsAndVerbsIncompatible.append(["the lifesaver", "the swimmer", "called", "saved the children", "impressed the whole city."])
-nounsAndVerbsCompatible.append(["the entrepreneur", "the philanthropist", "funded", "exasperated the nurse", "came as a disappointment."])
-nounsAndVerbsIncompatible.append(["the entrepreneur", "the philanthropist", "funded", "wasted the money", "came as a disappointment."])
-nounsAndVerbsCompatible.append(["the trickster", "the woman", "recognized", "was finally acknowledged", "calmed people down."])
-nounsAndVerbsIncompatible.append(["the trickster", "the woman", "recognized", "was finally caught", "calmed people down."])
-nounsAndVerbsCompatible.append(["the student", "the bully", "intimidated", "drove everyone crazy", "devastated his parents."])
-nounsAndVerbsIncompatible.append(["the student", "the bully", "intimidated", "plagiarized his homework", "devastated his parents."])
-nounsAndVerbsCompatible.append(["the carpenter", "the craftsman", "carried", "confused the apprentice", "was acknowledged."])
-nounsAndVerbsIncompatible.append(["the carpenter", "the craftsman", "carried", "hurt the apprentice", "was acknowledged."])
-nounsAndVerbsCompatible.append(["the daughter", "the sister", "found", "frightened the grandmother", "seemed concerning."])
-nounsAndVerbsIncompatible.append(["the daughter", "the sister", "found", "greeted the grandmother", "seemed concerning."])
-nounsAndVerbsCompatible.append(["the tenant", "the foreman", "looked for", "annoyed the shepherd", "proved to be made up."])
-nounsAndVerbsIncompatible.append(["the tenant", "the foreman", "looked for", "questioned the shepherd", "proved to be made up."])
-nounsAndVerbsCompatible.append(["the musician", "the father", "missed", "displeased the artist", "confused the banker."])
-nounsAndVerbsIncompatible.append(["the musician", "the father", "missed", "injured the artist", "confused the banker."])
-nounsAndVerbsCompatible.append(["the pharmacist", "the stranger", "saw", "distracted the customer", "sounded surprising."])
-nounsAndVerbsIncompatible.append(["the pharmacist", "the stranger", "saw", "questioned the customer", "sounded surprising."])
-nounsAndVerbsCompatible.append(["the bureaucrat", "the guard", "shouted at", "disturbed the newscaster", "annoyed the neighbor."])
-nounsAndVerbsIncompatible.append(["the bureaucrat", "the guard", "shouted at", "instructed the newscaster", "annoyed the neighbor."])
-nounsAndVerbsCompatible.append(["the cousin", "the brother", "attacked", "troubled the uncle", "startled the mother."])
-nounsAndVerbsIncompatible.append(["the cousin", "the brother", "attacked", "killed the uncle", "startled the mother."])
-
-assert len(nounsAndVerbsCompatible) == len(nounsAndVerbsIncompatible)
-
+nounsAndVerbs = []
+nounsAndVerbs.append(["the principal",       "the teacher",        "kissed",      "was fired",                     "was quoted in the newspaper", "Was the XXXX quoted in the newspaper?", "Y"])
+nounsAndVerbs.append(["the sculptor",        "the painter",        "admired",    "was n't talented",   "was completely untrue", "Was the XXXX untrue?", "Y"])
+nounsAndVerbs.append(["the consultant",      "the artist",         "hired",      "was a fraud",       "shocked everyone", "Did the XXXX shock everyone?", "Y"])
+nounsAndVerbs.append(["the runner",          "the psychiatrist",   "treated",    "was doping",        "was ridiculous", "Was the XXXX ridiculous?", "Y"])
+nounsAndVerbs.append(["the child",           "the medic",          "rescued",    "was unharmed",      "relieved everyone", "Did the XXXX relieve everyone?", "Y"])
+nounsAndVerbs.append(["the criminal",        "the officer",        "arrested",   "was guilty",        "was entirely bogus", "Was the XXXX bogus?", "Y"])
+nounsAndVerbs.append(["the student",         "the professor",      "hated",      "dropped out",       "made the professor happy", "Did the XXXX make the professor happy?", "Y"])
+nounsAndVerbs.append(["the mobster",         "the media",          "portrayed",  "had disappeared",    "turned out to be true", "Did the XXXX turn out to be true?", "Y"])
+nounsAndVerbs.append(["the actor",           "the starlet",        "loved",      "was missing",       "made her cry", "Did the XXXX almost make her cry?", "Y"])
+nounsAndVerbs.append(["the preacher",        "the parishioners",   "fired",      "stole money",        "proved to be true", "Did the XXXX prove to be true?", "Y"])
+nounsAndVerbs.append(["the violinist",       "the sponsors",       "backed",     "abused drugs",                       "is likely true", "Was the XXXX likely true?", "Y"])
+nounsAndVerbs.append(["the senator",         "the diplomat",       "opposed",    "was winning",                   "really made him angry", "Did the XXXX make him angry?", "Y"])
+nounsAndVerbs.append(["the commander",       "the president",      "appointed",  "was corrupt",         "troubled people", "Did the XXXX trouble people?", "Y"])
+nounsAndVerbs.append(["the victim",         "the criminal",       "assaulted",  "were surviving",         "calmed everyone down", "Did the XXXX calm everyone down?", "Y"])
+nounsAndVerbs.append(["the politician",      "the banker",         "bribed",     "laundered money",         "came as a shock to his supporters", "Did the XXXX come as a shock?", "Y"])
+nounsAndVerbs.append(["the surgeon",         "the patient",        "thanked",    "had no degree",         "was not a surprise", "Was the XXXX unsurprising?", "Y"])
+nounsAndVerbs.append(["the extremist",       "the agent",          "caught",     "got an award",         "was disconcerting", "Was the XXXX disconcerting?", "Y"])
+nounsAndVerbs.append(["the clerk",           "the customer",       "called",     "was a hero",         "seemed absurd", "Did the XXXX seem absurd?", "Y"])
+nounsAndVerbs.append(["the trader",          "the businessman",    "consulted",  "had insider information",         "was confirmed", "Was the XXXX confirmed?", "Y"])
+nounsAndVerbs.append(["the CEO",             "the employee",       "impressed",  "was retiring",         "was entirely correct", "Was the XXXX correct?", "Y"])
 
 
 
@@ -1007,7 +866,7 @@ topNouns = list(set(topNouns))
 
 
 
-with open("../../../../forgetting/corpus_counts/wikipedia/results/counts4NEW_Processed.tsv", "r") as inFile:
+with open("../../../forgetting/corpus_counts/wikipedia/results/counts4NEW_Processed.tsv", "r") as inFile:
    counts = [x.replace('"', '').split("\t") for x in inFile.read().strip().split("\n")]
    header = ["LineNum"] + counts[0]
    assert len(header) == len(counts[1])
@@ -1017,12 +876,13 @@ with open("../../../../forgetting/corpus_counts/wikipedia/results/counts4NEW_Pro
 
 print(len(topNouns))
 print([x for x in topNouns if x not in counts])
-topNouns = [x for x in topNouns if x in counts]
+#topNouns = [x for x in topNouns if x in counts]
 
 def thatBias(noun):
-   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
+    return 1.0
+#   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
 
-topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
+#topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
 
 print(topNouns)
 print(len(topNouns))
@@ -1052,13 +912,13 @@ def rindex(x, y):
    return max([i for i in range(len(x)) if x[i] == y])
 
 
-def encodeContextCrop(inp, context):
+def encodeContextCrop(inp, context, repetitions):
      sentence = context.strip() + " " + inp.strip()
      print("ENCODING", sentence)
      numerified = [stoi_total[char] if char in stoi_total else 2 for char in sentence.split(" ")]
      print(len(numerified))
      numerified = numerified[-args.sequence_length-1:]
-     numerified = torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
+     numerified = torch.LongTensor([numerified for _ in range(repetitions)]).t().cuda()
      return numerified
 
 def flatten(x):
@@ -1070,220 +930,159 @@ def flatten(x):
 
 
 calibrationSentences = []
-#calibrationSentences.append("she is a good runner but a bad swimmer")
-#calibrationSentences.append("she are a good runners but a bad swimmers")
-#calibrationSentences.append("the children ate a bowl of international trade for breakfast")
-#calibrationSentences.append("the children ate a bowl of tasty cereals for breakfast")
-#calibrationSentences.append("they know how to solve the problem")
-#calibrationSentences.append("they knows how to solve the problem")
-#
-## word salad
-#calibrationSentences.append("his say later with to use electrons")
-#calibrationSentences.append("and a enlarged in transformed into")
-#calibrationSentences.append("available a solvated in the cosmetics")
-#calibrationSentences.append("it alkali a basis used metal been")
-#calibrationSentences.append("has result were are pear masters")
-#calibrationSentences.append("for are include course additional barrow")
-#calibrationSentences.append("to school a and apple flavors cremations")
-#
-## acceptable sentences, mostly adapted from COLA, some words exchanged to ensure InVocab
-#calibrationSentences.append("she went there yesterday and saw a movie")
-#calibrationSentences.append("perseus saw the gorgon in his shield")
-#calibrationSentences.append("what did you say ( that ) the poet had written ?")
-#calibrationSentences.append("i saw people playing there on the beach")
-#calibrationSentences.append("i did n't want any cake")
-#calibrationSentences.append("that i should kiss pigs is my fondest dream")
-#calibrationSentences.append("ron failed biology , unfortunately")
-#calibrationSentences.append("the men chuckle")
-#calibrationSentences.append("i expected there to be a problem")
-#calibrationSentences.append("gilgamesh wanted to seduce ishtar , and seduce ishtar he did")
-#calibrationSentences.append("harry collapsed")
-#calibrationSentences.append("i asked who saw what")
-#calibrationSentences.append("he has been happy")
-#calibrationSentences.append("poseidon had run away , before the executioner murdered hera")
-#calibrationSentences.append("merlin is a dangerous sorcerer")
-#calibrationSentences.append("anson saw anson")
-#calibrationSentences.append("i am to eat macaroni")
-#calibrationSentences.append("poseidon had escaped , before the executioner arrived")
-#calibrationSentences.append("owners love truffles")
-#calibrationSentences.append("humans love to eat owners of pigs")
-#calibrationSentences.append("those pigs love truffles")
-#calibrationSentences.append("i 'd planned to have finished by now")
-#calibrationSentences.append("has the potion not worked ?")
-#calibrationSentences.append("what i love is toast and sun dried tomatoes")
-#calibrationSentences.append("mary ran")
-#calibrationSentences.append("he replied that he was happy")
-#calibrationSentences.append("no one could remove the blood from the wall")
-#calibrationSentences.append("julie maintained that the barman was sober")
-#calibrationSentences.append("benjamin gave lee the cloak")
-#calibrationSentences.append("aphrodite wanted hera to persuade athena to leave")
-#calibrationSentences.append("gilgamesh is fighting the dragon")
-#calibrationSentences.append("i claimed she was pregnant")
-#calibrationSentences.append("for jenny , i intended to be present")
-#calibrationSentences.append("gilgamesh missed aphrodite")
-#calibrationSentences.append("she might be pregnant")
-#calibrationSentences.append("anson demonized david at the club")
-#calibrationSentences.append("jason asked whether the potion was ready")
-#calibrationSentences.append("frieda closed the door")
-#calibrationSentences.append("medea might have given jason a poisoned robe ( just treat a poisoned robe as an np")
-#calibrationSentences.append("quickly kiss anson !")
-#calibrationSentences.append("julie felt hot")
-#calibrationSentences.append("agamemnon expected esther to seem to be happy")
-#calibrationSentences.append("that the answer is obvious upset hermes")
-#calibrationSentences.append("homer recited the poem about achilles ?")
-#calibrationSentences.append("no vampire can survive sunrise")
-#calibrationSentences.append("under the bed is the best place to hide")
-#calibrationSentences.append("anson appeared")
-#calibrationSentences.append("there seems to be a problem")
-#calibrationSentences.append("i intoned that she was happy")
-#calibrationSentences.append("medea saw who ?")
-#calibrationSentences.append("no one expected that agamemnon would win")
-#calibrationSentences.append("believing that the world is flat gives one some solace")
-#calibrationSentences.append("kick them !")
-#calibrationSentences.append("medea wondered if the potion was ready")
-#calibrationSentences.append("who all did you meet when you were in derry ?")
-#calibrationSentences.append("who did you hear an oration about ?")
-#calibrationSentences.append("alison ran")
-#calibrationSentences.append("romeo sent letters to juliet")
-#calibrationSentences.append("richard 's gift of the helicopter to the hospital and of the bus to the school")
-#calibrationSentences.append("nathan caused benjamin to see himself in the mirror")
-#calibrationSentences.append("a. madeleine planned to catch the sardines and she did")
-#calibrationSentences.append("i did not understand")
-#calibrationSentences.append("gilgamesh loved ishtar and aphrodite did too")
-#calibrationSentences.append("we believed him to be omnipotent")
-#calibrationSentences.append("david ate mangoes and raffi should too")
-#calibrationSentences.append("julie and fraser ate those delicious pies in julie 's back garden")
-#calibrationSentences.append("the old pigs love truffles")
-#calibrationSentences.append("the boys all should could go")
-#calibrationSentences.append("aphrodite quickly freed the animals")
-#calibrationSentences.append("paul had two affairs")
-#calibrationSentences.append("what alison and david did was soak their feet in a bucket")
-#calibrationSentences.append("anson demonized david almost constantly")
-#calibrationSentences.append("anson 's hen nibbled his ear")
-#calibrationSentences.append("before the executioner arrived , poseidon had escaped")
-#calibrationSentences.append("gilgamesh did n't leave")
-#calibrationSentences.append("genie intoned that she was tired")
-#calibrationSentences.append("look at all these books which book would you like ?")
-#calibrationSentences.append("i do n't remember what i said all ?")
-#calibrationSentences.append("the pig grunts")
-#calibrationSentences.append("people are stupid")
-#calibrationSentences.append("what i arranged was for jenny to be present")
-#calibrationSentences.append("i compared ginger to fred")
-#calibrationSentences.append("which poet wrote which ode ?")
-#calibrationSentences.append("how did julie ask if jenny left ?")
-#calibrationSentences.append("dracula thought him to be the prince of darkness")
-#calibrationSentences.append("i must eat macaroni")
-#calibrationSentences.append("i asked who john would introduce to who")
-#calibrationSentences.append("reading shakespeare satisfied me")
-#calibrationSentences.append("humans love to eat owners")
-#calibrationSentences.append("gilgamesh fears death and achilles does as well")
-#calibrationSentences.append("how did julie say that jenny left ?")
-#calibrationSentences.append("show me letters !")
-#calibrationSentences.append("the readings of shakespeare satisfied me")
-#calibrationSentences.append("anson demonized david every day")
-#calibrationSentences.append("the students demonstrated this morning")
-#calibrationSentences.append("we believed aphrodite to be omnipotent")
-#calibrationSentences.append("emily caused benjamin to see himself in the mirror")
-#calibrationSentences.append("nothing like that would i ever eat again")
-#calibrationSentences.append("where has he put the cake ?")
-#calibrationSentences.append("jason persuaded medea to desert her family")
-#calibrationSentences.append("gilgamesh perhaps should be leaving")
-#calibrationSentences.append("gilgamesh has n't kissed ishtar")
-#calibrationSentences.append("it is easy to slay the gorgon")
-#calibrationSentences.append("i had the strangest feeling that i knew you")
-#calibrationSentences.append("what all did you get for christmas ?")
-#
-## unacceptable sentences from COLA
-#calibrationSentences.append("they drank the pub")
-#calibrationSentences.append("the professor talked us")
-#calibrationSentences.append("we yelled ourselves")
-#calibrationSentences.append("we yelled harry hoarse")
-#calibrationSentences.append("harry coughed himself")
-#calibrationSentences.append("harry coughed us into a fit")
-#calibrationSentences.append("they caused him to become angry by making him")
-#calibrationSentences.append("they caused him to become president by making him")
-#calibrationSentences.append("they made him to exhaustion")
-#calibrationSentences.append("the car honked down the road")
-#calibrationSentences.append("the dog barked out of the room")
-#calibrationSentences.append("the witch went into the forest by vanishing")
-#calibrationSentences.append("the building is tall and tall")
-#calibrationSentences.append("this building is taller and taller")
-#calibrationSentences.append("this building got than that one")
-#calibrationSentences.append("this building is than that one")
-#calibrationSentences.append("bill floated into the cave for hours")
-#calibrationSentences.append("bill pushed harry off the sofa for hours")
-#calibrationSentences.append("bill cried sue to sleep")
-#calibrationSentences.append("the elevator rumbled itself to the ground")
-#calibrationSentences.append("she yelled hoarse")
-#calibrationSentences.append("ted cried to sleep")
-#calibrationSentences.append("the ball wriggled itself loose")
-#calibrationSentences.append("the most you want , the least you eat")
-#calibrationSentences.append("i demand that the more john eat , the more he pay")
-#calibrationSentences.append("i demand that john pays more , the more he eat")
-#calibrationSentences.append("you get angrier , the more we eat , do n't we")
-#calibrationSentences.append("the harder it has rained , how much faster a flow that appears in the river ?")
-#calibrationSentences.append("the harder it rains , how much faster that do you run ?")
-#
+calibrationSentences.append("she is a good runner but a bad swimmer")
+calibrationSentences.append("she are a good runners but a bad swimmers")
+calibrationSentences.append("the children ate a bowl of international trade for breakfast")
+calibrationSentences.append("the children ate a bowl of tasty cereals for breakfast")
+calibrationSentences.append("they know how to solve the problem")
+calibrationSentences.append("they knows how to solve the problem")
 
+# word salad
+calibrationSentences.append("his say later with to use electrons")
+calibrationSentences.append("and a enlarged in transformed into")
+calibrationSentences.append("available a solvated in the cosmetics")
+calibrationSentences.append("it alkali a basis used metal been")
+calibrationSentences.append("has result were are pear masters")
+calibrationSentences.append("for are include course additional barrow")
+calibrationSentences.append("to school a and apple flavors cremations")
 
+# acceptable sentences, mostly adapted from COLA, some words exchanged to ensure InVocab
+calibrationSentences.append("she went there yesterday and saw a movie")
+calibrationSentences.append("perseus saw the gorgon in his shield")
+calibrationSentences.append("what did you say ( that ) the poet had written ?")
+calibrationSentences.append("i saw people playing there on the beach")
+calibrationSentences.append("i did n't want any cake")
+calibrationSentences.append("that i should kiss pigs is my fondest dream")
+calibrationSentences.append("ron failed biology , unfortunately")
+calibrationSentences.append("the men chuckle")
+calibrationSentences.append("i expected there to be a problem")
+calibrationSentences.append("gilgamesh wanted to seduce ishtar , and seduce ishtar he did")
+calibrationSentences.append("harry collapsed")
+calibrationSentences.append("i asked who saw what")
+calibrationSentences.append("he has been happy")
+calibrationSentences.append("poseidon had run away , before the executioner murdered hera")
+calibrationSentences.append("merlin is a dangerous sorcerer")
+calibrationSentences.append("anson saw anson")
+calibrationSentences.append("i am to eat macaroni")
+calibrationSentences.append("poseidon had escaped , before the executioner arrived")
+calibrationSentences.append("owners love truffles")
+calibrationSentences.append("humans love to eat owners of pigs")
+calibrationSentences.append("those pigs love truffles")
+calibrationSentences.append("i 'd planned to have finished by now")
+calibrationSentences.append("has the potion not worked ?")
+calibrationSentences.append("what i love is toast and sun dried tomatoes")
+calibrationSentences.append("mary ran")
+calibrationSentences.append("he replied that he was happy")
+calibrationSentences.append("no one could remove the blood from the wall")
+calibrationSentences.append("julie maintained that the barman was sober")
+calibrationSentences.append("benjamin gave lee the cloak")
+calibrationSentences.append("aphrodite wanted hera to persuade athena to leave")
+calibrationSentences.append("gilgamesh is fighting the dragon")
+calibrationSentences.append("i claimed she was pregnant")
+calibrationSentences.append("for jenny , i intended to be present")
+calibrationSentences.append("gilgamesh missed aphrodite")
+calibrationSentences.append("she might be pregnant")
+calibrationSentences.append("anson demonized david at the club")
+calibrationSentences.append("jason asked whether the potion was ready")
+calibrationSentences.append("frieda closed the door")
+calibrationSentences.append("medea might have given jason a poisoned robe ( just treat a poisoned robe as an np")
+calibrationSentences.append("quickly kiss anson !")
+calibrationSentences.append("julie felt hot")
+calibrationSentences.append("agamemnon expected esther to seem to be happy")
+calibrationSentences.append("that the answer is obvious upset hermes")
+calibrationSentences.append("homer recited the poem about achilles ?")
+calibrationSentences.append("no vampire can survive sunrise")
+calibrationSentences.append("under the bed is the best place to hide")
+calibrationSentences.append("anson appeared")
+calibrationSentences.append("there seems to be a problem")
+calibrationSentences.append("i intoned that she was happy")
+calibrationSentences.append("medea saw who ?")
+calibrationSentences.append("no one expected that agamemnon would win")
+calibrationSentences.append("believing that the world is flat gives one some solace")
+calibrationSentences.append("kick them !")
+calibrationSentences.append("medea wondered if the potion was ready")
+calibrationSentences.append("who all did you meet when you were in derry ?")
+calibrationSentences.append("who did you hear an oration about ?")
+calibrationSentences.append("alison ran")
+calibrationSentences.append("romeo sent letters to juliet")
+calibrationSentences.append("richard 's gift of the helicopter to the hospital and of the bus to the school")
+calibrationSentences.append("nathan caused benjamin to see himself in the mirror")
+calibrationSentences.append("a. madeleine planned to catch the sardines and she did")
+calibrationSentences.append("i did not understand")
+calibrationSentences.append("gilgamesh loved ishtar and aphrodite did too")
+calibrationSentences.append("we believed him to be omnipotent")
+calibrationSentences.append("david ate mangoes and raffi should too")
+calibrationSentences.append("julie and fraser ate those delicious pies in julie 's back garden")
+calibrationSentences.append("the old pigs love truffles")
+calibrationSentences.append("the boys all should could go")
+calibrationSentences.append("aphrodite quickly freed the animals")
+calibrationSentences.append("paul had two affairs")
+calibrationSentences.append("what alison and david did was soak their feet in a bucket")
+calibrationSentences.append("anson demonized david almost constantly")
+calibrationSentences.append("anson 's hen nibbled his ear")
+calibrationSentences.append("before the executioner arrived , poseidon had escaped")
+calibrationSentences.append("gilgamesh did n't leave")
+calibrationSentences.append("genie intoned that she was tired")
+calibrationSentences.append("look at all these books which book would you like ?")
+calibrationSentences.append("i do n't remember what i said all ?")
+calibrationSentences.append("the pig grunts")
+calibrationSentences.append("people are stupid")
+calibrationSentences.append("what i arranged was for jenny to be present")
+calibrationSentences.append("i compared ginger to fred")
+calibrationSentences.append("which poet wrote which ode ?")
+calibrationSentences.append("how did julie ask if jenny left ?")
+calibrationSentences.append("dracula thought him to be the prince of darkness")
+calibrationSentences.append("i must eat macaroni")
+calibrationSentences.append("i asked who john would introduce to who")
+calibrationSentences.append("reading shakespeare satisfied me")
+calibrationSentences.append("humans love to eat owners")
+calibrationSentences.append("gilgamesh fears death and achilles does as well")
+calibrationSentences.append("how did julie say that jenny left ?")
+calibrationSentences.append("show me letters !")
+calibrationSentences.append("the readings of shakespeare satisfied me")
+calibrationSentences.append("anson demonized david every day")
+calibrationSentences.append("the students demonstrated this morning")
+calibrationSentences.append("we believed aphrodite to be omnipotent")
+calibrationSentences.append("emily caused benjamin to see himself in the mirror")
+calibrationSentences.append("nothing like that would i ever eat again")
+calibrationSentences.append("where has he put the cake ?")
+calibrationSentences.append("jason persuaded medea to desert her family")
+calibrationSentences.append("gilgamesh perhaps should be leaving")
+calibrationSentences.append("gilgamesh has n't kissed ishtar")
+calibrationSentences.append("it is easy to slay the gorgon")
+calibrationSentences.append("i had the strangest feeling that i knew you")
+calibrationSentences.append("what all did you get for christmas ?")
 
-calibrationSentences.append("The divorcee has come to love her life ever since she got divorced.") 
-calibrationSentences.append("The mathematician at the banquet baffled the philosopher although she rarely needed anyone else's help.")
-calibrationSentences.append("The showman travels to different cities every month.")
-calibrationSentences.append("The roommate takes out the garbage every week.")
-calibrationSentences.append("The dragon wounded the knight although he was far too crippled to protect the princess.")
-calibrationSentences.append("The office-worker worked through the stack of files on his desk quickly.")
-calibrationSentences.append("The firemen at the scene apprehended the arsonist because there was a great deal of evidence pointing to his guilt.")
-calibrationSentences.append("During the season, the choir holds rehearsals in the church regularly.")
-calibrationSentences.append("The speaker who the historian offended kicked a chair after the talk was over and everyone had left the room.")
-calibrationSentences.append("The milkman punctually delivers the milk at the door every day.")
-calibrationSentences.append("The quarterback dated the cheerleader although this hurt her reputation around school.")
-calibrationSentences.append("The citizens of France eat oysters.")
-calibrationSentences.append("The bully punched the kid after all the kids had to leave to go to class.")
-calibrationSentences.append("After the argument, the husband ignored his wife.")
-calibrationSentences.append("The engineer who the lawyer who was by the elevator scolded blamed the secretary but nobody listened to his complaints.")
-calibrationSentences.append("The librarian put the book onto the shelf.")
-calibrationSentences.append("The photographer processed the film on time.")
-calibrationSentences.append("The spider that the boy who was in the yard captured scared the dog since it was larger than the average spider.")
-calibrationSentences.append("The sportsman goes jogging in the park regularly.")
-calibrationSentences.append("The customer who was on the phone contacted the operator because the new long-distance pricing plan was extremely inconvenient.")
-calibrationSentences.append("The private tutor explained the assignment carefully.")
-calibrationSentences.append("The audience who was at the club booed the singer before the owner of the bar could remove him from the stage.")
-calibrationSentences.append("The defender is constantly scolding the keeper.")
-calibrationSentences.append("The hippies who the police at the concert arrested complained to the officials while the last act was going on stage.")
-calibrationSentences.append("The natives on the island captured the anthropologist because she had information that could help the tribe.")
-calibrationSentences.append("The trainee knew that the task which the director had set for him was impossible to finish within a week.")
-calibrationSentences.append("The administrator who the nurse from the clinic supervised scolded the medic while a patient was brought into the emergency room.")
-calibrationSentences.append("The company was sure that its new product, which its researchers had developed, would soon be sold out.")
-calibrationSentences.append("The astronaut that the journalists who were at the launch worshipped criticized the administrators after he discovered a potential leak in the fuel tank.")
-calibrationSentences.append("The janitor who the doorman who was at the hotel chatted with bothered a guest but the manager decided not to fire him for it.")
-calibrationSentences.append("The technician at the show repaired the robot while people were taking a break for coffee.")
-calibrationSentences.append("The salesman feared that the printer which the customer bought was damaged.")
-calibrationSentences.append("The students studied the surgeon whenever he performed an important operation.")
-calibrationSentences.append("The locksmith can crack the safe easily.")
-calibrationSentences.append("The woman who was in the apartment hired the plumber despite the fact that he couldn't fix the toilet.")
-calibrationSentences.append("Yesterday the swimmer saw only a turtle at the beach.")
-calibrationSentences.append("The surgeon who the detective who was on the case consulted questioned the coroner because the markings on the body were difficult to explain.")
-calibrationSentences.append("The gangster who the detective at the club followed implicated the waitress because the police suspected he had murdered the shopkeeper.")
-calibrationSentences.append("During the party everybody was dancing to rock music.")
-calibrationSentences.append("The fans at the concert loved the guitarist because he played with so much energy.")
-calibrationSentences.append("The intern comforted the patient because he was in great pain.")
-calibrationSentences.append("The casino hired the daredevil because he was confident that everything would go according to plan.")
-calibrationSentences.append("The beggar is often scrounging for cigarettes.")
-calibrationSentences.append("The cartoonist who the readers supported pressured the dean because she thought that censorship was never appropriate.")
-calibrationSentences.append("The prisoner who the guard attacked tackled the warden although he had no intention of trying to escape.")
-calibrationSentences.append("The passer-by threw the cardboard box into the trash-can with great force.")
-calibrationSentences.append("The biker who the police arrested ran a light since he was driving under the influence of alcohol.")
-calibrationSentences.append("The scientists who were in the lab studied the alien while the blood sample was run through the computer.")
-calibrationSentences.append("The student quickly finished his homework assignments.")
-calibrationSentences.append("The environmentalist who the demonstrators at the rally supported calmed the crowd until security came and sent everyone home.")
-calibrationSentences.append("The producer shoots a new movie every year.")
-calibrationSentences.append("The rebels who were in the jungle captured the diplomat after they threatened to kill his family for not complying with their demands.")
-calibrationSentences.append("Dinosaurs ate other reptiles during the stone age.")
-calibrationSentences.append("The manager who the baker loathed spoke to the new pastry chef because he had instituted a new dress code for all employees.")
-calibrationSentences.append("The teacher doubted that the test that had taken him a long time to design would be easy to answer.")
-calibrationSentences.append("The cook who the servant in the kitchen hired offended the butler and then left the mansion early to see a movie at the local theater.")
-
+# unacceptable sentences from COLA
+calibrationSentences.append("they drank the pub")
+calibrationSentences.append("the professor talked us")
+calibrationSentences.append("we yelled ourselves")
+calibrationSentences.append("we yelled harry hoarse")
+calibrationSentences.append("harry coughed himself")
+calibrationSentences.append("harry coughed us into a fit")
+calibrationSentences.append("they caused him to become angry by making him")
+calibrationSentences.append("they caused him to become president by making him")
+calibrationSentences.append("they made him to exhaustion")
+calibrationSentences.append("the car honked down the road")
+calibrationSentences.append("the dog barked out of the room")
+calibrationSentences.append("the witch went into the forest by vanishing")
+calibrationSentences.append("the building is tall and tall")
+calibrationSentences.append("this building is taller and taller")
+calibrationSentences.append("this building got than that one")
+calibrationSentences.append("this building is than that one")
+calibrationSentences.append("bill floated into the cave for hours")
+calibrationSentences.append("bill pushed harry off the sofa for hours")
+calibrationSentences.append("bill cried sue to sleep")
+calibrationSentences.append("the elevator rumbled itself to the ground")
+calibrationSentences.append("she yelled hoarse")
+calibrationSentences.append("ted cried to sleep")
+calibrationSentences.append("the ball wriggled itself loose")
+calibrationSentences.append("the most you want , the least you eat")
+calibrationSentences.append("i demand that the more john eat , the more he pay")
+calibrationSentences.append("i demand that john pays more , the more he eat")
+calibrationSentences.append("you get angrier , the more we eat , do n't we")
+calibrationSentences.append("the harder it has rained , how much faster a flow that appears in the river ?")
+calibrationSentences.append("the harder it rains , how much faster that do you run ?")
 
 #in and is the it
 #time maintain metal commercially the was salt cut as two-year college flavorings solutions
@@ -1305,17 +1104,17 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 
       for sentence in calibrationSentences:
             print(sentence)
-            context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . "
+            context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . "
             remainingInput = sentence.split(" ")
             for i in range(len(remainingInput)):
-              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context)
+              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context, numberOfSamples)
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
               # Run the noise model
-              numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
+              assert False, "may have been broken"
+              numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples, expandReplicates=False)
               numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
-              numeric_noised[args.sequence_length] = 0 # A simple hack for dealing with the issue that the last word 
               # Get samples from the reconstruction posterior
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24)
  #             print(resultNumeric.size())
@@ -1342,58 +1141,38 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 #    print(SANITY, "CORR total", correlation(torch.FloatTensor([(float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]])) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
 
-def divideDicts(y, z):
-   r = {}
-   for x in y:
-     r[x] = y[x]/z[x]
-   return r
+
 
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
-    assert SANITY in ["Model", "Sanity", "ZeroLoss"]
+    assert SANITY in ["Model"]
     assert VERBS in [1,2]
     print(plain_lm) 
     surprisalsPerNoun = {}
     thatFractionsPerNoun = {}
     numberOfSamples = 12
-    global topNouns
-#    topNouns = ["fact", "report"]
     with torch.no_grad():
       for NOUN in topNouns:
-        print(NOUN, "Time:", time.time() - startTimePredictions, file=sys.stderr)
-        thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        for sentenceID in range(len(nounsAndVerbsCompatible)):
-          print(sentenceID)
-          context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + f"the {NOUN}"
-          for compatible in ["compatible", "incompatible"]:
-           for condition in ["SCRC", "SC","NoSC"]:
-            sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
-            if condition == "NoSC" and compatible == "compatible":
-               continue
+         print(NOUN, "Time:", time.time() - startTimePredictions, file=sys.stderr)
+         for sentenceList in nounsAndVerbs:
+           print(sentenceList)
+           context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN}"
+           thatFractions = {x : defaultdict(float) for x in ["SC", "NoSC"]}
+           surprisalByRegions = {x : defaultdict(float) for x in ["SC", "NoSC"]}
+
+           for condition in ["SC","NoSC"]:
             if condition == "SC":
-               context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]}"
-               regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
-               remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
-               regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
-               assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
-            elif condition == "NoSC":
+               context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} {sentenceList[3]}"
+               remainingInput = f"{sentenceList[4]} .".split(" ")[:1]
+               regions = [f"V1_{c}" for c, _ in enumerate(remainingInput)]
+               assert len(remainingInput) == len(regions)
+            else:
                context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN}"
-               regionsToDo = [(sentenceList[4].split(" ")[0], "V1")]
-               remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
-               regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
-               assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
-            elif condition == "SCRC":
-               context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
-               regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
-               remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
-               regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
-               assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
+               remainingInput = f"{sentenceList[4]} .".split(" ")[:1]
+               regions = [f"V1_{c}" for c, _ in enumerate(remainingInput)]
+               assert len(remainingInput) == len(regions)
             print("INPUT", context, remainingInput)
-            assert len(remainingInput) > 0
             for i in range(len(remainingInput)):
-              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context)
+              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context, numberOfSamples)
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
      #         print(i, " ########### ", SANITY, VERBS)
     #          print(numerified.size())
@@ -1402,31 +1181,17 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
-              elif SANITY == "ZeroLoss":
-                 numeric = numerified
-                 numeric = numeric.expand(-1, numberOfSamples)
-                 numeric_noised = numeric
               else:
-                 assert SANITY == "Model"
-                 numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
+ #                print(numerified.size(), numberOfSamples)
+                 numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples, expandReplicates=False)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
-              numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
+#              print(numeric.size())
+              numeric = numeric.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
-              numeric_noised[args.sequence_length] = 0 # A simple hack for dealing with the issue that the last word 
               # Now get samples from the amortized reconstruction posterior
-              print("NOISED: ", " ".join([itos_total[int(x)] for x in numeric_noised[:,0].cpu()]))
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
-              if "NoSC" not in condition: # and i == 0:
-                 locationThat = context.split(" ")[::-1].index("that")+i+2
-                 thatFractions[condition+"_"+compatible][regions[i]]+=float((resultNumeric[:, -locationThat] == stoi_total["that"]).float().mean())
-                 thatFractionsCount[condition+"_"+compatible][regions[i]]+=1
-#                 print("\n".join(result))
- #                print(float((resultNumeric[:,-locationThat-2] == stoi_total["that"]).float().mean()))
-                 
-  #               print(locationThat, thatFractions[condition][regions[i]])
-   #              quit()
-
+ #             print(resultNumeric.size())
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
@@ -1437,50 +1202,30 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               totalSurprisal = totalSurprisal.view(numberOfSamples, 24)
               surprisalOfNextWord = totalSurprisal.exp().mean(dim=1).log().mean()
               print("PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in numerified[:,0]]), surprisalOfNextWord)
-              # for printing
-              totalSurprisal_cpu = totalSurprisal.view(-1).detach().cpu()
-              for q in range(0, resultNumeric.size()[1],  24):
-                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(totalSurprisal_cpu[q]))
-              print("SURPRISAL", NOUN, sentenceList[0], condition+"_"+compatible, i, regions[i], remainingInput[i],float( surprisalOfNextWord))
-              surprisalByRegions[condition+"_"+compatible][regions[i]] += float( surprisalOfNextWord)
-              surprisalCountByRegions[condition+"_"+compatible][regions[i]] += 1
-
-           #   if compatible == "compatible":
-            #    hasSeenCompatible = True
-#              if i == 0 or regions[i] != regions[i-1]:
-        print(surprisalByRegions)
-        print(thatFractions)
-        print("NOUNS SO FAR", topNouns.index(NOUN))
-        assert NOUN not in surprisalsPerNoun # I think that in previous versions of these scripts the indentation was wrong, and this was overwitten multiple times
-        print(surprisalByRegions)
-        surprisalsPerNoun[NOUN] = {x : divideDicts(surprisalByRegions[x], surprisalCountByRegions[x]) for x in surprisalByRegions}
-        thatFractionsPerNoun[NOUN] = {x : divideDicts(thatFractions[x], thatFractionsCount[x]) for x in thatFractions}
-        print(thatFractionsPerNoun[NOUN])
-        #quit()
-        #quit()
-        #assert hasSeenCompatible
+              print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,0]]), surprisalOfNextWord)
+              print("SURPRISAL", NOUN, sentenceList[0], condition, i, regions[i], remainingInput[i],float( surprisalOfNextWord))
+              surprisalByRegions[condition][regions[i]] += float( surprisalOfNextWord)
+              if i == 0 or regions[i] != regions[i-1]:
+                  thatFractions[condition][regions[i]]=thatProbs
+         print(surprisalByRegions)
+         print(thatFractions)
+         print("NOUNS SO FAR", topNouns.index(NOUN))
+         surprisalsPerNoun[NOUN] = surprisalByRegions
+         thatFractionsPerNoun[NOUN] = thatFractions
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "ThatFraction", file=outFile)
       for noun in topNouns:
-       assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
-       assert "SCRC_compatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
-       assert len(surprisalsPerNoun[noun]["SCRC_compatible"]) > 0
-       for condition in surprisalsPerNoun[noun]:
-#         assert "V1_0" in thatFractionsPerNoun[noun][condition], list(thatFractionsPerNoun[noun][condition])
-         assert "V1_0" in surprisalsPerNoun[noun][condition], list(surprisalsPerNoun[noun][condition])
+       for condition in ["SC", "NoSC"]:
          for region in surprisalsPerNoun[noun][condition]:
-           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
+           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region], file=outFile)
     # For sanity-checking: Prints correlations between surprisal and that-bias
-    for region in ["V2_0", "V2_1", "V1_0"]:
-      for condition in surprisalsPerNoun["fact"]:
-       if region not in surprisalsPerNoun["fact"][condition]:
-          continue
-       print(SANITY, condition, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 )
-#    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["SC"][region] - surprisalsPerNoun[noun]["NoSC"][region] for region in surprisalsPerNoun[noun]["SC"]]) for noun in topNouns])
- #   print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
+ #   for region in ["V3_0", "V2_0", "V1_0", "EOS_0"]:
+#       print(SANITY, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x]["g"][region]-surprisalsPerNoun[x]["u"][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x]["g"][region]-thatFractionsPerNoun[x]["u"][region] for x in topNouns])))
+    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["SC"][region] - surprisalsPerNoun[noun]["NoSC"][region] for region in surprisalsPerNoun[noun]["SC"]]) for noun in topNouns])
+    print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
 
 #getTotalSentenceSurprisalsCalibration(SANITY="Model")
@@ -1489,12 +1234,6 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
 startTimePredictions = time.time()
 
-#getTotalSentenceSurprisals(SANITY="ZeroLoss")
-#getTotalSentenceSurprisals(SANITY="Sanity")
-#getTotalSentenceSurprisals(SANITY="Model")
-#quit()
-
-
 #getTotalSentenceSurprisals()
 #quit()
 
@@ -1502,8 +1241,6 @@ startTimePredictions = time.time()
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
 #quit()
 
-startTimeTotal = time.time()
-startTimePredictions = time.time()
 #getTotalSentenceSurprisals(SANITY="Sanity")
 #quit()
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
@@ -1524,7 +1261,7 @@ for epoch in range(1000):
 
 
    # Set the model up for training
-   lm.rnn_drop.train(True)
+   #lm.rnn_drop.train(True)
    startTime = time.time()
    trainChars = 0
    counter = 0
@@ -1539,7 +1276,7 @@ for epoch in range(1000):
       if updatesCount == maxUpdates:
 
        # Record calibration for the acceptability judgments
-       getTotalSentenceSurprisalsCalibration(SANITY="Model")
+#       getTotalSentenceSurprisalsCalibration(SANITY="Model")
        
        # Record reconstructions and surprisals
        with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:

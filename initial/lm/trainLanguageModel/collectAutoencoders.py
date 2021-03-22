@@ -16,7 +16,7 @@ for f in files:
      last_loss = devLosses[-1]
      hasEnded = len(devLosses) > 1 and devLosses[-2] < devLosses[-1]
      myID = args["myID"]
-     results.append((last_loss, num_iter, hasEnded, myID, load_from))
+     results.append((last_loss, num_iter, hasEnded, myID, load_from, args["sequence_length"]))
 for r in sorted(results, reverse=True):
   print(r)
 
