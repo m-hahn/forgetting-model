@@ -9,7 +9,7 @@ PATH2 = "/juice/scr/mhahn/reinforce-logs-both/full-logs-tsv/"
 with open(f"raw_output/{__file__}.tsv", "w") as outFile:
  print("\t".join(header), file=outFile)
  for f in os.listdir(PATH):
-   if "12_NormJudg_Shift.py" in f:
+   if "12_NormJudg_Shift_NoComma_Bugfix.py" in f:
       accept = False
       with open(PATH+f, "r") as inFile:
          iterations = next(inFile).strip()

@@ -470,6 +470,8 @@ def prepareDatasetChunks(data, train=True):
          count += 1
 #         if count % 100000 == 0:
 #             print(count/len(data))
+         if char == ",": # Skip commas
+           continue
          numerified.append((stoi[char]+3 if char in stoi else 2))
 #         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
 
@@ -1015,14 +1017,12 @@ with open("../../../../forgetting/corpus_counts/wikipedia/results/counts4NEW_Pro
 
 print(len(topNouns))
 print([x for x in topNouns if x not in counts])
-#topNouns = [x for x in topNouns if x in counts]
+topNouns = [x for x in topNouns if x in counts]
 
 def thatBias(noun):
-   if noun in counts:
-      return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
-   return -1.0
+   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
 
-#topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
+topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
 
 print(topNouns)
 print(len(topNouns))
@@ -1043,7 +1043,6 @@ if args.load_from_plain_lm is not None:
 # Helper Functions
 
 def correlation(x, y):
-#   print(x, y)
    variance_x = (x.pow(2)).mean() - x.mean().pow(2)
    variance_y = (y.pow(2)).mean() - y.mean().pow(2)
    return ((x-x.mean())* (y-y.mean())).mean()/(variance_x*variance_y).sqrt()
@@ -1306,7 +1305,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 
       for sentence in calibrationSentences:
             print(sentence)
-            context = "later , the nurse suggested they treat the patient with an antibiotic , but in the end , this did not happen . "
+            context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . "
             remainingInput = sentence.split(" ")
             for i in range(len(remainingInput)):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), context)
@@ -1367,7 +1366,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         for sentenceID in range(len(nounsAndVerbsCompatible)):
           print(sentenceID)
-          context = "later , the nurse suggested they treat the patient with an antibiotic , but in the end , this did not happen . " + f"the {NOUN}"
+          context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + f"the {NOUN}"
           for compatible in ["compatible", "incompatible"]:
            for condition in ["SCRC", "SC","NoSC"]:
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
@@ -1490,9 +1489,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 startTimePredictions = time.time()
 
 #getTotalSentenceSurprisals(SANITY="ZeroLoss")
-getTotalSentenceSurprisals(SANITY="Sanity")
+#getTotalSentenceSurprisals(SANITY="Sanity")
 #getTotalSentenceSurprisals(SANITY="Model")
-quit()
+#quit()
 
 
 #getTotalSentenceSurprisals()
@@ -1502,6 +1501,8 @@ quit()
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
 #quit()
 
+startTimeTotal = time.time()
+startTimePredictions = time.time()
 #getTotalSentenceSurprisals(SANITY="Sanity")
 #quit()
 #getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
