@@ -1,10 +1,10 @@
-#assert False
+assert False
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
 # And (for the plain LM): ../autoencoder/autoencoder2_mlp_bidir_AND_languagemodel_sample.py
 print("Character aware!")
-
+import os
 # Character-aware version of the `Tabula Rasa' language model
 # char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop.py
 # Adopted for English and German
@@ -892,8 +892,8 @@ nounsAndVerbsIncompatible.append(["the president", "the farmer", "admired", "app
 nounsAndVerbsCompatible.append(["the president", "the farmer", "admired", "impressed the commander", "was entirely bogus."])
 nounsAndVerbsIncompatible.append(["the victim", "the swimmer", "rescued", "sued the criminal", "appeared on TV."])
 nounsAndVerbsCompatible.append(["the victim", "the swimmer", "rescued", "surprised the criminal", "appeared on TV."])
-nounsAndVerbsIncompatible.append(["the guest", "the cousin", "invited", "visited the uncle calmed", "everyone down."])
-nounsAndVerbsCompatible.append(["the guest", "the cousin", "invited", "pleased the uncle calmed", "everyone down."])
+nounsAndVerbsIncompatible.append(["the guest", "the cousin", "invited", "visited the uncle", "calmed everyone down."])
+nounsAndVerbsCompatible.append(["the guest", "the cousin", "invited", "pleased the uncle", "calmed everyone down."])
 nounsAndVerbsIncompatible.append(["the psychiatrist", "the nurse", "assisted", "diagnosed the patient", "impressed the whole city."])
 nounsAndVerbsCompatible.append(["the psychiatrist", "the nurse", "assisted", "flattered the patient", "impressed the whole city."])
 nounsAndVerbsIncompatible.append(["the driver", "the guide", "called", "drove the tourist", "was absolutely true."])
@@ -1615,7 +1615,7 @@ for epoch in range(1000):
          startTimePredictions = time.time()
 
          sys.stdout = outFile
-         print(updatesCount)
+         print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
          print(args)
          getTotalSentenceSurprisals(SANITY="Model")
   #       getTotalSentenceSurprisals(SANITY="Sanity")
@@ -1679,6 +1679,7 @@ for epoch in range(1000):
           print(devLosses)
           print("Words per sec "+str(trainChars/(time.time()-startTime)))
           print(args.learning_rate_memory, args.learning_rate_autoencoder)
+          print("Slurm", os.environ["SLURM_JOB_ID"])
           print(lastSaved)
           print(__file__)
           print(args)
