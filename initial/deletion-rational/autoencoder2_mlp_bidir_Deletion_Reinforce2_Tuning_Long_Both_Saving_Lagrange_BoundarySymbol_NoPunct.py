@@ -274,7 +274,7 @@ def product(x):
      r *= i
    return r
 
-PUNCTUATION = torch.LongTensor([stoi_total[x] for x in [".", "OOV", '"', "(", ")", "'", '"', ":", ",", "'s", "[", "]"]]).cuda()
+PUNCTUATION = torch.LongTensor([stoi_total[x] for x in [".", "OOV", '"', "(", ")", "'", '"', ":", ",", "'s", "[", "]", "<EOS>"]]).cuda()
 
 def forward(numeric, train=True, printHere=False, onlyProvideMemoryResult=False):
       global beginning
@@ -314,7 +314,7 @@ def forward(numeric, train=True, printHere=False, onlyProvideMemoryResult=False)
 
       memory_filter = memory_filter.squeeze(2)
 
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
+      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(13, 1, 1)).long().sum(dim=0)).bool())
         
       ####################################################################################
       numeric_noised = torch.where(torch.logical_or(punctuation, memory_filter==1), numeric, 0*numeric) #[[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
