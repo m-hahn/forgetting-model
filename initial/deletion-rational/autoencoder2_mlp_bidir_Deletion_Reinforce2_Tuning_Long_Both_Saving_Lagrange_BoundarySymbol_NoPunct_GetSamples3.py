@@ -597,7 +597,7 @@ for line in data:
 #      print(originalSentenceParsed.dependencies)
  #     print(originalSentenceParsed.text)
       nsubjs = [x for x in originalSentenceParsed.dependencies if x[1] in ["nsubj", "nsubj:pass"]]
-      objs = sorted([x for x in originalSentenceParsed.dependencies if x[1] == "obj"], key=lambda x:int(x[2].id))
+      objs = sorted([x for x in originalSentenceParsed.dependencies if x[1] in ["iobj", "obj"]], key=lambda x:int(x[2].id))
       obls = [x for x in originalSentenceParsed.dependencies if x[1] == "obl"]
 #      print(nsubjs)
  #     print(objs)
@@ -621,6 +621,94 @@ for line in data:
            elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obl",):
              answer = "nonliteral"
            elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("nmod",): # made the quilt of her granddaughter
+             answer = "nonliteral"
+           elif tuple(dependencyOfObject1) == ("iobj",) and tuple(dependencyOfObject2) == ("obj",):
+             answer = "literal"
+           elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obj",):
+             answer = "literal"
+           else:
+             answer = "unknown"
+           print(dependencyOfSubject, dependencyOfObject1, dependencyOfObject2, answer)
+           annotations[sentences_list[i]] = answer
+#           quit()
+      elif condition.startswith("DO_implausible"):
+        assert len(nsubjs) == 1
+        assert len(objs) == 2
+        assert len(obls) == 0
+        subject = nsubjs[0][2].lemma
+        verb = nsubjs[0][0].lemma
+        object1 = objs[0][2].lemma
+        object2 = objs[1][2].lemma
+        for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
+           dependencyOfObject2 = [x.deprel for x in processed.sentences[i].words if x.lemma == object2]
+           if len(dependencyOfObject1) == 0 or len(dependencyOfObject2) == 0:
+             answer = "unknown"
+           elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obl",):
+             answer = "nonliteral"
+           elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("nmod",): # made the quilt of her granddaughter
+             answer = "nonliteral"
+           elif tuple(dependencyOfObject1) == ("iobj",) and tuple(dependencyOfObject2) == ("obj",):
+             answer = "literal"
+           elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obj",):
+             answer = "literal"
+           else:
+             answer = "unknown"
+           print(dependencyOfSubject, dependencyOfObject1, dependencyOfObject2, answer)
+           annotations[sentences_list[i]] = answer
+#           quit()
+      elif condition.startswith("PO_plausible"): # the uncle sold the truck to the father
+        assert len(nsubjs) == 1, sentence
+        assert len(objs) == 1, sentence
+        assert len(obls) == 1, sentence
+        subject = nsubjs[0][2].lemma
+        verb = nsubjs[0][0].lemma
+        oblique = obls[0][2].lemma
+        for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           if tuple(dependencyOfOblique) == ("obj",):
+             answer = "nonliteral"
+           elif tuple(dependencyOfOblique) == ("obl",):
+             answer = "literal"
+           else:
+             answer = "unknown"
+           print(dependencyOfSubject, dependencyOfOblique, dependencyOfObject2, answer)
+           annotations[sentences_list[i]] = answer
+      elif condition.startswith("Preposition_implausible"): # the father gave the son the car
+        assert len(nsubjs) == 1, sentence
+        assert len(objs) == 0, sentence
+        assert len(obls) == 1, sentence
+        subject = nsubjs[0][2].lemma
+        verb = nsubjs[0][0].lemma
+        oblique = obls[0][2].lemma
+        for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           if tuple(dependencyOfOblique) == ("obj",):
+             answer = "nonliteral"
+           elif tuple(dependencyOfOblique) == ("obl",):
+             answer = "literal"
+           else:
+             answer = "unknown"
+           print(dependencyOfSubject, dependencyOfOblique, dependencyOfObject2, answer)
+           annotations[sentences_list[i]] = answer
+      elif condition.startswith("DO_plausible"): # the father gave the son the car
+        assert len(nsubjs) == 1, sentence
+        assert len(objs) == 2, sentence
+        assert len(obls) == 0, sentence
+        subject = nsubjs[0][2].lemma
+        verb = nsubjs[0][0].lemma
+        object1 = objs[0][2].lemma
+        object2 = objs[1][2].lemma
+        for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
+           dependencyOfObject2 = [x.deprel for x in processed.sentences[i].words if x.lemma == object2]
+           if tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obl",):
+             answer = "nonliteral"
+           elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("nmod",):
              answer = "nonliteral"
            elif tuple(dependencyOfObject1) == ("iobj",) and tuple(dependencyOfObject2) == ("obj",):
              answer = "literal"
@@ -674,6 +762,25 @@ for line in data:
 #           quit()
 
       elif condition == "active_v2":
+        assert len(nsubjs) == 1
+        assert len(objs) == 1
+        subject = nsubjs[0][2].lemma
+        verb = nsubjs[0][0].lemma
+        object1 = objs[0][2].lemma
+        for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
+           if tuple(dependencyOfSubject) == ("nsubj",) and tuple(dependencyOfObject1) == ("obj",):
+             answer = "literal"
+           if tuple(dependencyOfSubject) == ("nsubj:pass",) and tuple(dependencyOfObject1) == ("obl",):
+             answer = "nonliteral"
+           else:
+             answer = "unknown"
+           print(dependencyOfSubject, dependencyOfObject1, dependencyOfObject2, answer)
+           annotations[sentences_list[i]] = answer
+           print(sentences_list[i])
+#              elif condition == "active_v2":
+      elif condition == "active_plausible":
         assert len(nsubjs) == 1
         assert len(objs) == 1
         subject = nsubjs[0][2].lemma
