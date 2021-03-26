@@ -543,9 +543,17 @@ def encodeContextCrop(inp, context, replicates):
      return numerified
 
 
-
-if True:
-      context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen <EOS> the ball was kicked by the girl <EOS> after this something else happened instead and she went away but nobody noticed anything about it"
+with open("/u/scr/mhahn/stimuli-scr/gibson2013/E11_all_implaus_raw_data_2013.csv", "r") as inFile:
+   data = [x.split(",") for x in inFile.read().strip().split("\n")]
+header = data[0]
+header = dict(list(zip(header, range(len(header)))))
+data = data[1:]
+for line in data:
+      sentence = line[header['"Input.trial_"']].strip('"').strip(".").replace("'s ", " 's ").lower()
+      condition = line[header['"Condition"']].strip('"')
+      if "filler" in condition:
+        continue
+      context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen <EOS> "+sentence+ " <EOS> after this something else happened instead and she went away but nobody noticed anything about it"
       numerified = encodeContextCrop(context, "", replicates=24)
       assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
       # Run the noise model
@@ -583,5 +591,7 @@ if True:
       print("....")
       for i in range(10):
             print(" ".join([itos_total[int(numeric_noised_original[j,i])] for j in range(numeric_noised.size()[0])]))
+      print(sentence, "\t", condition)
+      print("=============")
 print("ARGUMENTS FROM TRAINING", checkpoint["arguments"]) 
 
