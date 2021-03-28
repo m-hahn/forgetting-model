@@ -1632,6 +1632,12 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               assert float(amortizedPosterior.max()) <= 1e-5
               log_importance_weights = unnormalizedLogTruePosterior - amortizedPosterior
               log_importance_weights_maxima, _ = log_importance_weights.max(dim=1, keepdim=True)
+              assert False, "the importance weights seem wacky"
+              print(log_importance_weights[0])
+              for j in range(24): # TODO the importance weights seem wacky
+                 print(j, "@@", result[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
+              print(" ".join([itos_total[int(x)] for x in numeric_noised[:, 0].detach().cpu()]))
+#              quit()
 #              print(log_importance_weights_maxima)
               log_importance_weighted_probs_unnormalized = torch.log(torch.exp(log_importance_weights - log_importance_weights_maxima - surprisals_nextWord).sum(dim=1)) + log_importance_weights_maxima.squeeze(1)
               log_importance_weights_sum = torch.log(torch.exp(log_importance_weights - log_importance_weights_maxima).sum(dim=1)) + log_importance_weights_maxima.squeeze(1)
@@ -1753,7 +1759,7 @@ for epoch in range(1000):
       if updatesCount == maxUpdates:
 
        # Record calibration for the acceptability judgments
-       getTotalSentenceSurprisalsCalibration(SANITY="Model")
+       #getTotalSentenceSurprisalsCalibration(SANITY="Model")
        
        # Record reconstructions and surprisals
        with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
@@ -1762,6 +1768,19 @@ for epoch in range(1000):
          sys.stdout = outFile
          print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
          print(args)
+         print("=========================")
+         showAttention("the")
+         showAttention("was")
+         showAttention("that")
+         showAttention("fact")
+         showAttention("information")
+         showAttention("report")
+         showAttention("belief")
+         showAttention("finding")
+         showAttention("prediction")
+         showAttention("of")
+         showAttention("by")
+         showAttention("about")
          getTotalSentenceSurprisals(SANITY="Model")
   #       getTotalSentenceSurprisals(SANITY="Sanity")
 
