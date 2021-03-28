@@ -552,17 +552,32 @@ from collections import defaultdict
 results = {}
 
 
+def normalize_dict(d):
+   t = sum(y for _, y in d.items())
+   return {x : y/t for x, y in d.items()}
+
 with open("/u/scr/mhahn/stimuli-scr/gibson2013/E11_all_implaus_raw_data_2013.csv", "r") as inFile:
    data = [x.split(",") for x in inFile.read().strip().split("\n")]
 header = data[0]
 header = dict(list(zip(header, range(len(header)))))
 data = data[1:]
+processedSentences = set()
 for line in data:
       sentence = line[header['"Input.trial_"']].strip('"').strip(".").replace("'s ", " 's ").lower()
+      if sentence in processedSentences:
+        continue
+      processedSentences.add(sentence)
+      print(len(processedSentences), file=sys.stderr)
       condition = line[header['"Condition"']].strip('"')
       if "filler" in condition:
         continue
-      context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen <EOS> "+sentence+ " <EOS> after this something else happened instead and she went away but nobody noticed anything about it"
+      sentence_proc = sentence
+      OOVs = []
+      for x in sentence_proc.split(" "):
+        if x not in stoi_total:
+          print("OOV", x, file=sys.stderr)
+          OOVs.append(x)
+      context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen <EOS> "+sentence_proc+ " <EOS> after this something else happened instead and she went away but nobody noticed anything about it"
       numerified = encodeContextCrop(context, "", replicates=24)
       assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
       # Run the noise model
@@ -592,6 +607,13 @@ for line in data:
             except ValueError:
                 print("ERROR", decoded)
                 continue
+            decoded = decoded.strip().split(" ")
+            OOVs_Ind = [j for j in range(len(decoded)) if decoded[j] == "OOV"]
+            if len(OOVs_Ind) == len(OOVs) and len(OOVs) > 0:
+                for q, j in enumerate(OOVs_Ind):
+                  decoded[j] = OOVs[q]
+#                assert False, (decoded, (" ".join([itos_total[int(resultNumeric[j,i])] for j in range(resultNumeric.size()[0])])))
+            decoded = " ".join(decoded)
             sentences[decoded]+=1
 #            print(decoded)
       sentences_list = list(sentences)
@@ -615,26 +637,28 @@ for line in data:
            assert len(objs) == 2
            assert len(obls) == 0
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        object1 = objs[0][2].lemma
-        object2 = objs[1][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        object1 = objs[0][2].text
+        object2 = objs[1][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
-           dependencyOfObject2 = [x.deprel for x in processed.sentences[i].words if x.lemma == object2]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.text == object1]
+           dependencyOfObject2 = [x.deprel for x in processed.sentences[i].words if x.text == object2]
            if len(dependencyOfObject1) == 0 or len(dependencyOfObject2) == 0:
              answer = "unknown"
            elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obl",):
              answer = "nonliteral"
            elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("nmod",): # made the quilt of her granddaughter
              answer = "nonliteral"
-           elif tuple(dependencyOfObject1) == ("iobj",) and tuple(dependencyOfObject2) == ("obj",):
+           elif tuple(dependencyOfObject1) in [("obj",), ("iobj",)] and tuple(dependencyOfObject2) == ("obj",):
              answer = "literal"
-           elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obj",):
-             answer = "literal"
+           elif tuple(dependencyOfObject2) == ("conj",):
+             answer = "other_conj"
+           elif tuple(dependencyOfObject1) == ("compound",):
+             answer = "other_compound"
            else:
              answer = "unknown"
         #   print(dependencyOfSubject, dependencyOfObject1, dependencyOfObject2, answer)
@@ -648,14 +672,14 @@ for line in data:
         except AssertionError:
           print("Parsing Error!!!", sentence)
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        object1 = objs[0][2].lemma
-        object2 = objs[1][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        object1 = objs[0][2].text
+        object2 = objs[1][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
-           dependencyOfObject2 = [x.deprel for x in processed.sentences[i].words if x.lemma == object2]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.text == object1]
+           dependencyOfObject2 = [x.deprel for x in processed.sentences[i].words if x.text == object2]
            if len(dependencyOfObject1) == 0 or len(dependencyOfObject2) == 0:
              answer = "unknown"
            elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obl",):
@@ -666,6 +690,10 @@ for line in data:
              answer = "literal"
            elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obj",):
              answer = "literal"
+           elif tuple(dependencyOfObject1) == ("nsubj",) and tuple(dependencyOfObject2) == ("obj",):
+             answer = "other"
+           elif tuple(dependencyOfObject1) == ("compound",):
+             answer = "other_compound"
            else:
              answer = "unknown"
 #           print(dependencyOfSubject, dependencyOfObject1, dependencyOfObject2, answer)
@@ -677,18 +705,21 @@ for line in data:
           assert len(objs) == 1, sentence
           assert len(obls) == 1, sentence
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        oblique = obls[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        object1 = objs[0][2].text
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
-           if tuple(dependencyOfOblique) == ("obj",):
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.text == object1]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
+           if tuple(dependencyOfObject1) in [("iobj",), ("obj",)] and  tuple(dependencyOfOblique) == ("obj",):
              answer = "nonliteral"
-           elif tuple(dependencyOfOblique) == ("obl",):
+           elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfOblique) == ("obl",):
              answer = "literal"
+           elif tuple(dependencyOfOblique) == ("conj",):
+             answer = "other_conj"
            else:
              answer = "unknown"
 #           print(dependencyOfSubject, dependencyOfOblique, dependencyOfObject2, answer)
@@ -699,14 +730,14 @@ for line in data:
           assert len(objs) == 0, sentence
           assert len(obls) == 1, sentence
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        oblique = obls[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the check was written on the defendant 's name
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfOblique) in [("nsubj:pass",), ("nsubj",)]:
              answer = "nonliteral"
            elif tuple(dependencyOfOblique) == ("obl",):
@@ -721,14 +752,14 @@ for line in data:
            assert len(objs) == 0, sentence
            assert len(obls) == 1, sentence
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        oblique = obls[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfOblique) == ("obj",):
              answer = "nonliteral"
            elif tuple(dependencyOfOblique) == ("obl",):
@@ -743,14 +774,14 @@ for line in data:
            assert len(objs) == 0, sentence
            assert len(obls) == 1, sentence
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        oblique = obls[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfOblique) == ("obj",):
              answer = "nonliteral"
            elif tuple(dependencyOfOblique) == ("obl",):
@@ -765,16 +796,16 @@ for line in data:
           assert len(objs) == 2, sentence
           assert len(obls) == 0, sentence
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        object1 = objs[0][2].lemma
-        object2 = objs[1][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        object1 = objs[0][2].text
+        object2 = objs[1][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
-           dependencyOfObject2 = [x.deprel for x in processed.sentences[i].words if x.lemma == object2]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.text == object1]
+           dependencyOfObject2 = [x.deprel for x in processed.sentences[i].words if x.text == object2]
            if tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obl",):
              answer = "nonliteral"
            elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("nmod",):
@@ -783,6 +814,10 @@ for line in data:
              answer = "literal"
            elif tuple(dependencyOfObject1) == ("obj",) and tuple(dependencyOfObject2) == ("obj",):
              answer = "literal"
+           elif tuple(dependencyOfObject1) == ("compound",):
+             answer = "other_compound"
+           elif tuple(dependencyOfObject2) == ("conj",):
+             answer = "other_conj"
            else:
              answer = "unknown"
 #           print(dependencyOfSubject, dependencyOfObject1, dependencyOfObject2, answer)
@@ -793,13 +828,13 @@ for line in data:
           assert len(nsubjs)+len(objs) == 1, ([x[1] for x in originalSentenceParsed.dependencies], sentence)
           assert len(obls) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = (nsubjs+objs)[0][2].lemma
-        oblique = obls[0][2].lemma
+        subject = (nsubjs+objs)[0][2].text
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfSubject) in [("obj",), ("nsubj",), ("nsubj:pass",)] and tuple(dependencyOfOblique) == ("obl",):
              answer = "literal"
            elif tuple(dependencyOfSubject) == ("obl",) and tuple(dependencyOfOblique) in [("obj",), ("nsubj",)]:
@@ -814,14 +849,14 @@ for line in data:
            assert len(nsubjs) == 1, ([x[1] for x in originalSentenceParsed.dependencies], sentence)
            assert len(obls) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        oblique = obls[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfSubject) in [("nsubj",), ("nsubj:pass",)] and tuple(dependencyOfOblique) == ("obl",):
              answer = "literal"
            elif tuple(dependencyOfSubject) == ("obl",) and tuple(dependencyOfOblique) == ("nsubj",):
@@ -836,18 +871,22 @@ for line in data:
            assert len(nsubjs) == 1, [x[1] for x in originalSentenceParsed.dependencies]
            assert len(obls) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        object1 = objs[0][2].lemma
-        oblique = obls[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        object1 = objs[0][2].text
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.text == object1]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfSubject) in [("nsubj",), ("nsubj:pass",)] and tuple(dependencyOfOblique) == ("obl",) and tuple(dependencyOfObject1) in [("iobj",), ("obj",)]:
              answer = "literal"
+           elif tuple(dependencyOfObject1) == ("compound",):
+             answer = "other_compound"
+           elif tuple(dependencyOfOblique) == ("conj",):
+             answer = "other_conj"
            elif tuple(dependencyOfOblique) == ("obj",):
              answer = "nonliteral"
            else:
@@ -862,17 +901,17 @@ for line in data:
           assert len(nsubjs) == 1, [x[1] for x in originalSentenceParsed.dependencies]
           assert len(obls) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        oblique = obls[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfSubject) in [("nsubj",), ("nsubj:pass",)] and tuple(dependencyOfOblique) == ("obl",):
              answer = "literal"
-           elif tuple(dependencyOfSubject) == ("obl",) and tuple(dependencyOfOblique) == ("nsubj",):
+           elif tuple(dependencyOfSubject) == ("nsubj",) and tuple(dependencyOfOblique) == ("obj",):
              answer = "nonliteral"
            else:
              answer = "unknown"
@@ -886,13 +925,13 @@ for line in data:
           assert len(nsubjs) + len(objs) == 1, [x[1] for x in originalSentenceParsed.dependencies]
           assert len(obls) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = (nsubjs+objs)[0][2].lemma # In locative inversion sentences, the parser labels the second NP as object
-        oblique = obls[0][2].lemma
+        subject = (nsubjs+objs)[0][2].text # In locative inversion sentences, the parser labels the second NP as object
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfSubject) in [("obj",), ("nsubj",), ("nsubj:pass",)] and tuple(dependencyOfOblique) == ("obl",):
              answer = "literal"
            elif tuple(dependencyOfSubject) == ("obl",) and tuple(dependencyOfOblique) in [("obj",), ("nsubj",)]:
@@ -909,14 +948,14 @@ for line in data:
           assert len(nsubjs) == 1
           assert len(objs) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        object1 = objs[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        object1 = objs[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.text == object1]
            if tuple(dependencyOfSubject) == ("nsubj",) and tuple(dependencyOfObject1) == ("obj",):
              answer = "literal"
            elif tuple(dependencyOfObject1) == ("obl",):
@@ -935,20 +974,24 @@ for line in data:
           assert len(nsubjs) == 1
           assert len(objs) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        object1 = objs[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        object1 = objs[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.text == object1]
            if tuple(dependencyOfSubject) == ("nsubj",) and tuple(dependencyOfObject1) == ("obj",):
              answer = "literal"
            elif tuple(dependencyOfObject1) == ("obl",):
              answer = "nonliteral"
            elif tuple(dependencyOfObject1) == ("obj",):
              answer = "literal"
+           elif tuple(dependencyOfObject1) == ("conj",):
+             answer = "other_conj"
+           elif tuple(dependencyOfObject1) == ("nmod",):
+             answer = "other_nmod"
            else:
              answer = "unknown"
 #           print(dependencyOfSubject, dependencyOfObject1, dependencyOfObject2, answer)
@@ -961,14 +1004,14 @@ for line in data:
           assert len(nsubjs) == 1
           assert len(objs) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        object1 = objs[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        object1 = objs[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.text == object1]
            if tuple(dependencyOfSubject) == ("nsubj",) and tuple(dependencyOfObject1) == ("obj",):
              answer = "literal"
            elif tuple(dependencyOfSubject) == ("nsubj:pass",) and tuple(dependencyOfObject1) == ("obl",):
@@ -984,14 +1027,14 @@ for line in data:
           assert len(nsubjs) == 1
           assert len(obls) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        oblique = obls[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        oblique = obls[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.lemma == oblique]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfSubject) == ("nsubj:pass",) and tuple(dependencyOfOblique) == ("obl",):
              answer = "literal"
            elif tuple(dependencyOfSubject) == ("nsubj",) and tuple(dependencyOfOblique) == ("obj",):
@@ -1004,14 +1047,14 @@ for line in data:
           assert len(nsubjs) == 1
           assert len(objs) == 1
         except AssertionError:
-          print("PARSING ERROR", [(x.lemma, x.deprel) for x in processed.sentences[-1].words])
+          print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = nsubjs[0][2].lemma
-        verb = nsubjs[0][0].lemma
-        object1 = objs[0][2].lemma
+        subject = nsubjs[0][2].text
+        verb = nsubjs[0][0].text
+        object1 = objs[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
-           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.lemma == subject]
-           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.lemma == object1]
+           dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
+           dependencyOfObject1 = [x.deprel for x in processed.sentences[i].words if x.text == object1]
            if tuple(dependencyOfSubject) == ("nsubj",) and tuple(dependencyOfObject1) == ("obj",):
              answer = "literal"
            elif tuple(dependencyOfSubject) == ("nsubj:pass",) and tuple(dependencyOfObject1) == ("obl",):
@@ -1028,18 +1071,37 @@ for line in data:
       question = line[header['"Input.question_1_"']].strip('"')
       sentences = sorted(list(sentences.items()), key=lambda x:x[1])
       for x, y in sentences:
+        if y > 10:
           print(x, "\t", y, "\t", annotations.get(x, "?"), "\t", sentence, "\t", condition, "\t", question)
 #          assert len(annotations.get(x, "?")) == 3, annotations[x]
-          if condition not in results:
-             results[condition] = defaultdict(int)
-          results[condition][annotations[x][0]]+=y
+        if condition not in results:
+           results[condition] = defaultdict(int)
+        results[condition][annotations[x][0]]+=y
       print("....")
       for i in range(10):
             print(" ".join([itos_total[int(numeric_noised_original[j,i])] for j in range(numeric_noised.size()[0])]))
       print(sentence, "\t", condition)
       for x in (sorted(list(results.items()))):
-        print(x)
+        print(x[0], normalize_dict(x[1]))
       print("=============")
+   #   break
 #      quit()
+
+def flatten(d):
+   print(d)
+   r = []
+   for x in d:
+     for y in x:
+        r.append(y)
+   return r
 print("ARGUMENTS FROM TRAINING", checkpoint["arguments"]) 
+with open(f"/u/scr/mhahn/noisy-channel-logs/deletion-gibson/{__file__}_{args.load_from_joint}", "w") as outFile:
+      columnNames = sorted(list(set(flatten([list(y) for _, y in results.items()]))))
+      HEADER = ["Condition"] + columnNames
+      print("\t".join(HEADER), file=outFile)
+      for x, _ in (sorted(list(results.items()))):
+         outline = [x]
+         for c in columnNames:
+           outline.append(results[x].get(c,0))
+         print("\t".join([str(z) for z in outline]), file=outFile)
 
