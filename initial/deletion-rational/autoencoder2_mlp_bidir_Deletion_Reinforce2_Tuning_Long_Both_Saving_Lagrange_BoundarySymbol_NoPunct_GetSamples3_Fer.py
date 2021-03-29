@@ -707,7 +707,7 @@ for set_ in data:
         except AssertionError:
           print("PARSING ERROR", [(x.text, x.deprel) for x in processed.sentences[-1].words])
           continue
-        subject = obls[0][2].text
+        subject = nsubjs[0][2].text
         for i in range(len(sentences_list)): # the grandma made a quilt her granddaughter
            dependencyOfSubject = [x.deprel for x in processed.sentences[i].words if x.text == subject]
            if tuple(dependencyOfSubject) == ("nsubj",):
@@ -719,15 +719,14 @@ for set_ in data:
            annotations[sentences_list[i]] = (answer, dependencyOfSubject)
       else:
          assert False, (originalSentenceParsed.text, condition, originalSentenceParsed.dependencies)
-      question = line[header['"Input.question_1_"']].strip('"')
       sentences = sorted(list(sentences.items()), key=lambda x:x[1])
       for x, y in sentences:
         if y > 10:
-          print(x, "\t", y, "\t", annotations.get(x, "?"), "\t", sentence, "\t", condition, "\t", question)
+          print(x, "\t", y, "\t", annotations.get(x, "?"), "\t", sentence, "\t", condition)
 #          assert len(annotations.get(x, "?")) == 3, annotations[x]
-        if condition not in results:
-           results[condition] = defaultdict(int)
-        results[condition][annotations[x][0]]+=y
+        if str(set_)+"_"+condition not in results:
+           results[str(set_)+"_"+condition] = defaultdict(int)
+        results[str(set_)+"_"+condition][annotations[x][0]]+=y
       print("....")
       for i in range(10):
             print(" ".join([itos_total[int(numeric_noised_original[j,i])] for j in range(numeric_noised.size()[0])]))

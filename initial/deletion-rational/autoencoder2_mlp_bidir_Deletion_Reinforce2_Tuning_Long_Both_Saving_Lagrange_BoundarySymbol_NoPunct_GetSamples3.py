@@ -837,7 +837,7 @@ for line in data:
            dependencyOfOblique = [x.deprel for x in processed.sentences[i].words if x.text == oblique]
            if tuple(dependencyOfSubject) in [("obj",), ("nsubj",), ("nsubj:pass",)] and tuple(dependencyOfOblique) == ("obl",):
              answer = "literal"
-           elif tuple(dependencyOfSubject) == ("obl",) and tuple(dependencyOfOblique) in [("obj",), ("nsubj",)]:
+           elif tuple(dependencyOfSubject) == ("obl",) and tuple(dependencyOfOblique) in [("obj",), ("nsubj",), ("nsubj:pass",)]:
              answer = "nonliteral"
            else:
              answer = "unknown"
