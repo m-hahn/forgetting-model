@@ -1545,12 +1545,14 @@ def extraSentences(Condition, NoisedSentence, Noun, SentenceFrame):
    for sentence in sentences:
      conflict = False
      for i in range(len(sentence)):
-        if sentence[i] != NoisedSentence[i] and NoisedSentence[i] != "<SOS>":
+        if sentence[i] != NoisedSentence[i] and NoisedSentence[i] not in ["<SOS>", "OOV"]:
            conflict = True
      #      print(i, sentence[i], sentence, NoisedSentence)
            break
      if not conflict:
         result.append(sentence)
+   if len(result) == 0:
+      print("SURPRISING @@@@@", sentences, NoisedSentence)
    return  result                                                                    
 #nounsAndVerbsIncompatible.append(["the senator", "the diplomat", "supported", "defeated the opponent", "deserved attention ."])           
    
