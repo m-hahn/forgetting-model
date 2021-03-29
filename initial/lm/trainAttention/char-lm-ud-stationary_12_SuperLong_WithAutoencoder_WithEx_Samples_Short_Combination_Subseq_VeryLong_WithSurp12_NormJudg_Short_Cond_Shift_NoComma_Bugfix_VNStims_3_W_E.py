@@ -1656,7 +1656,6 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric[:,:,:24].contiguous().view(-1, numberOfSamples*24), numeric_noised[:,:,:24].contiguous().view(-1, numberOfSamples*24), NOUN, 2, numberOfBatches=numberOfSamples*24, fillInBefore=pointWhereToStart)
               # get THAT fractions
               if "NoSC" not in condition: # and i == 0:
-                 resultNumericPrevious = resultNumeric
                  locationThat = context.split(" ")[::-1].index("that")+i+2
                  thatFractions[condition+"_"+compatible][regions[i]]+=float((resultNumeric[:, -locationThat] == stoi_total["that"]).float().mean())
                  thatFractionsCount[condition+"_"+compatible][regions[i]]+=1
@@ -1677,6 +1676,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
 
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*(24+max_num_proposals))]).unsqueeze(0).cuda()
+              resultNumericPrevious = resultNumeric
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
               totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*(24+max_num_proposals))
@@ -1704,9 +1704,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               assert float(amortizedPosterior.max()) <= 1e-5
               log_importance_weights = unnormalizedLogTruePosterior - amortizedPosterior
               log_importance_weights_maxima, _ = log_importance_weights.max(dim=1, keepdim=True)
-              print(log_importance_weights[0])
+              #print(log_importance_weights[0])
               result_and_proposals = result[:24] + [" ".join([itos_total[x] for x in proposals_selected[0][q]]) for q in range(max_num_proposals)]
-              for j in range(24+max_num_proposals): # TODO the importance weights seem wacky
+              for j in range(24+max_num_proposals): 
                  if j % 3 != 0:
                     continue
                  print(j, "@@", result_and_proposals[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
@@ -1734,7 +1734,11 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 #                 print((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).size(), log_importance_weights.size(), log_importance_weights_sum.size())
  #                print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)))
   #               print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)).sum(dim=1))
-                 thatFractionsReweighted[condition+"_"+compatible][regions[i]]+=float((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
+#                 print(resultNumericPrevious[ -locationThat].size())
+ #                print((resultNumericPrevious[ -locationThat] == stoi_total["that"]).float().size())
+  #               print(log_importance_weights.size(), log_importance_weights_sum.unsqueeze(1).size(), torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)).size())
+                 thatFractionsReweighted[condition+"_"+compatible][regions[i]]+=float((((resultNumericPrevious[-locationThat] == stoi_total["that"]).float().view(-1, (24+max_num_proposals)) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
+    #             print("================= that", float((((resultNumericPrevious[-locationThat] == stoi_total["that"]).float().view(-1, (24+max_num_proposals)) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean()))
    #              print((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
     #             print(((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().mean()))
      #            quit()
