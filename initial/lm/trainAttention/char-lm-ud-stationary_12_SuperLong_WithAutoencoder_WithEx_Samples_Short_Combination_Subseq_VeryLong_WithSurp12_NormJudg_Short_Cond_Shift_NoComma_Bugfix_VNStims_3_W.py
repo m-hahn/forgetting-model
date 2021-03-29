@@ -297,8 +297,8 @@ class Autoencoder:
       result  = ["" for _ in range(numberOfBatches)]
       result_numeric = [[] for _ in range(numberOfBatches)]
       embeddedLast = embedded[0].unsqueeze(0)
-      amortizedPosterior = torch.zeros(numberOfBatches).cuda()
-      zeroLogProb = torch.zeros(numberOfBatches).cuda()
+      amortizedPosterior = torch.zeros(numberOfBatches, device='cuda')
+      zeroLogProb = torch.zeros(numberOfBatches, device='cuda')
       for i in range(args.sequence_length+1):
           out_decoder, hidden = self.rnn_decoder(embeddedLast, hidden)
 #          assert embeddedLast.size()[0] == args.sequence_length-1, (embeddedLast.size()[0] , args.sequence_length)
@@ -861,7 +861,7 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 100000 if args.tuning == 1 else 10000000000
+maxUpdates = 200000 if args.tuning == 1 else 10000000000
 
 def showAttention(word):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
