@@ -1,3 +1,9 @@
+assert False
+
+
+def ExtraSentences(Condition, Sentence):
+   # the NOUN that/of/by/about/from the diplomat who/of/by/about/from the senator VERB VERB the NOUN VERB
+
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -861,7 +867,7 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 100000 if args.tuning == 1 else 10000000000
+maxUpdates = 200000 if args.tuning == 1 else 10000000000
 
 def showAttention(word):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
@@ -1522,7 +1528,6 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     surprisalsPerNoun = {}
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}
-    thatFractionsReweightedPerNoun = {}
     numberOfSamples = 12
     global topNouns
 #    topNouns = ["fact", "report"]
@@ -1530,7 +1535,6 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
       for NOUN in topNouns:
         print(NOUN, "Time:", time.time() - startTimePredictions, file=sys.stderr)
         thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         surprisalReweightedByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
@@ -1595,7 +1599,6 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24, fillInBefore=pointWhereToStart)
               # get THAT fractions
               if "NoSC" not in condition: # and i == 0:
-                 resultNumericPrevious = resultNumeric
                  locationThat = context.split(" ")[::-1].index("that")+i+2
                  thatFractions[condition+"_"+compatible][regions[i]]+=float((resultNumeric[:, -locationThat] == stoi_total["that"]).float().mean())
                  thatFractionsCount[condition+"_"+compatible][regions[i]]+=1
@@ -1637,7 +1640,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               assert float(amortizedPosterior.max()) <= 1e-5
               log_importance_weights = unnormalizedLogTruePosterior - amortizedPosterior
               log_importance_weights_maxima, _ = log_importance_weights.max(dim=1, keepdim=True)
-#              assert False, "the importance weights seem wacky"
+              assert False, "the importance weights seem wacky"
               print(log_importance_weights[0])
               for j in range(24): # TODO the importance weights seem wacky
                  print(j, "@@", result[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
@@ -1660,18 +1663,6 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               nextWordSurprisal_cpu = surprisals_nextWord.view(-1).detach().cpu()
 #              reweightedSurprisal_cpu = reweightedSurprisals.detach().cpu()
 #              print(nextWordSurprisal_cpu.size())
-
-              if "NoSC" not in condition: # and i == 0:
-#                 print((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).size(), log_importance_weights.size(), log_importance_weights_sum.size())
- #                print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)))
-  #               print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)).sum(dim=1))
-                 thatFractionsReweighted[condition+"_"+compatible][regions[i]]+=float((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
-   #              print((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
-    #             print(((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().mean()))
-     #            quit()
-
-
-
               for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
                   print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//24]))
               print("SURPRISAL", NOUN, sentenceList[0], condition+"_"+compatible, i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
@@ -1691,7 +1682,6 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         print(surprisalByRegions)
         surprisalsReweightedPerNoun[NOUN] = {x : divideDicts(surprisalReweightedByRegions[x], surprisalCountByRegions[x]) for x in surprisalReweightedByRegions}
         surprisalsPerNoun[NOUN] = {x : divideDicts(surprisalByRegions[x], surprisalCountByRegions[x]) for x in surprisalByRegions}
-        thatFractionsReweightedPerNoun[NOUN] = {x : divideDicts(thatFractionsReweighted[x], thatFractionsCount[x]) for x in thatFractionsReweighted}
         thatFractionsPerNoun[NOUN] = {x : divideDicts(thatFractions[x], thatFractionsCount[x]) for x in thatFractions}
         print(thatFractionsPerNoun[NOUN])
         #quit()
@@ -1701,7 +1691,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-      print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
+      print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", file=outFile)
       for noun in topNouns:
        assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
        assert "SCRC_compatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
@@ -1710,13 +1700,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 #         assert "V1_0" in thatFractionsPerNoun[noun][condition], list(thatFractionsPerNoun[noun][condition])
          assert "V1_0" in surprisalsPerNoun[noun][condition], list(surprisalsPerNoun[noun][condition])
          for region in surprisalsPerNoun[noun][condition]:
-           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], surprisalsReweightedPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", thatFractionsReweightedPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
+           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], surprisalsReweightedPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
     # For sanity-checking: Prints correlations between surprisal and that-bias
     for region in ["V2_0", "V2_1", "V1_0"]:
       for condition in surprisalsPerNoun["fact"]:
        if region not in surprisalsPerNoun["fact"][condition]:
           continue
-       print(SANITY, condition, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsReweightedPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 , correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsReweightedPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 )
+       print(SANITY, condition, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsReweightedPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 )
 #    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["SC"][region] - surprisalsPerNoun[noun]["NoSC"][region] for region in surprisalsPerNoun[noun]["SC"]]) for noun in topNouns])
  #   print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
