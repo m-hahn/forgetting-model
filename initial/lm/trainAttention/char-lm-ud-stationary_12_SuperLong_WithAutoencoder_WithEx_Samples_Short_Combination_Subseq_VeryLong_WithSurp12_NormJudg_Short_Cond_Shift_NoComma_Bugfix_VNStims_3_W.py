@@ -329,7 +329,9 @@ class Autoencoder:
             sampledFromDist = dist.sample()
             logProbForSampledFromDist = dist.log_prob(sampledFromDist).squeeze(0)
  #           print(logProbForSampledFromDist.size(), numeric_noised[i].size(), zeroLogProb.size())
-            amortizedPosterior += torch.where(numeric_noised[i] == 0, logProbForSampledFromDist, zeroLogProb)
+            assert numeric_noised.size()[0] == args.sequence_length+1
+            if i < args.sequence_length: # IMPORTANT make sure the last word -- which is (due to a weird design choice) cut off -- doesn't contribute to the posterior
+               amortizedPosterior += torch.where(numeric_noised[i] == 0, logProbForSampledFromDist, zeroLogProb)
 
             nextWord = torch.where(numeric_noised[i] == 0, sampledFromDist, numeric[i:i+1])
   #        print(nextWord.size())
