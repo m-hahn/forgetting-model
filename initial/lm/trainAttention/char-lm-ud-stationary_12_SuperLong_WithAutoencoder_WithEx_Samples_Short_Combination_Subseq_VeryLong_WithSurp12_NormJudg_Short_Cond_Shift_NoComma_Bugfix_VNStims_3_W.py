@@ -807,9 +807,12 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
 
       punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
 
+      # Disregard likelihood computation on punctuation
       bernoulli_logprob = torch.where(punctuation, 0*bernoulli_logprob, bernoulli_logprob)
+      # Penalize forgotten punctuation
+      bernoulli_logprob = torch.where(torch.logical_and(punctuation, memory_filter==0), 0*bernoulli_logprob-10.0, bernoulli_logprob)
 
-      bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
+#      bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
 
      # Run the following lines as a sanity check
 #      print(numeric.size(), numeric_noised.size())
@@ -1640,6 +1643,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 #              assert False, "the importance weights seem wacky"
               print(log_importance_weights[0])
               for j in range(24): # TODO the importance weights seem wacky
+                 if j % 3 != 0:
+                    continue
                  print(j, "@@", result[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
               print(" ".join([itos_total[int(x)] for x in numeric_noised[:, 0].detach().cpu()]))
 #              quit()

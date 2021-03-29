@@ -807,9 +807,12 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
 
       punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
 
+      # Disregard likelihood computation on punctuation
       bernoulli_logprob = torch.where(punctuation, 0*bernoulli_logprob, bernoulli_logprob)
+      # Penalize forgotten punctuation
+      bernoulli_logprob = torch.where(torch.logical_and(punctuation, memory_filter==0), 0*bernoulli_logprob-10.0, bernoulli_logprob)
 
-      bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
+#      bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
 
      # Run the following lines as a sanity check
 #      print(numeric.size(), numeric_noised.size())
@@ -1688,9 +1691,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               # where numberOfSamples is how many samples we take from the noise model, and 24 is how many samples are drawn from the amortized posterior for each noised sample
               amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
               amortizedPosterior = torch.cat([amortizedPosterior+math.log(24/(24+max_num_proposals)), torch.zeros(numberOfSamples, max_num_proposals,device='cuda')+math.log(1/(24+max_num_proposals))], dim=1)
-              print(amortizedPosterior)
-              print(amortizedPosterior.max(dim=1))
-              print(amortizedPosterior.max(dim=0))
+#              print(amortizedPosterior)
+ #             print(amortizedPosterior.max(dim=1))
+  #            print(amortizedPosterior.max(dim=0))
               likelihood = likelihood.view(numberOfSamples, (24+max_num_proposals))
     #          print(surprisals_past.size(), surprisals_nextWord.size(), amortizedPosterior.size(), likelihood.size())
    #           print(amortizedPosterior.mean(), likelihood.mean(), surprisals_past.mean(), surprisals_nextWord.mean())
@@ -1704,6 +1707,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               print(log_importance_weights[0])
               result_and_proposals = result[:24] + [" ".join([itos_total[x] for x in proposals_selected[0][q]]) for q in range(max_num_proposals)]
               for j in range(24+max_num_proposals): # TODO the importance weights seem wacky
+                 if j % 3 != 0:
+                    continue
                  print(j, "@@", result_and_proposals[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
               print(" ".join([itos_total[int(x)] for x in numeric_noised[:, 0].detach().cpu()]))
 #              quit()
@@ -1792,8 +1797,8 @@ startTimePredictions = time.time()
 
 #getTotalSentenceSurprisals(SANITY="ZeroLoss")
 #getTotalSentenceSurprisals(SANITY="Sanity")
-getTotalSentenceSurprisals(SANITY="Model")
-quit()
+#getTotalSentenceSurprisals(SANITY="Model")
+#quit()
 
 
 #getTotalSentenceSurprisals()
