@@ -572,14 +572,17 @@ for set_ in data:
   verb = item[2]
   patient = item[4]
   for condition in ["active", "subject_cleft", "passive", "object_cleft"]:
+    for order in [1,2]:
+      noun1 = agent if order == 1 else patient
+      noun2 = agent if order == 2 else patient
       if condition == "active":
-         sentence = f"the {agent} {verb} the {patient}"
+         sentence = f"the {noun1} {verb} the {noun2}"
       elif condition == "subject_cleft":
-        sentence = f"it was the {agent} who {verb} the {patient}"
+        sentence = f"it was the {noun1} who {verb} the {noun2}"
       elif condition == "passive":
-        sentence = f"the {patient} was {verb} by the {agent}"
+        sentence = f"the {noun2} was {verb} by the {noun1}"
       elif condition == "object_cleft":
-        sentence = f"it was the {patient} the {agent} {verb}"
+        sentence = f"it was the {noun2} the {noun1} {verb}"
       sentence_proc = sentence
       print(sentence)
       OOVs = []
@@ -722,11 +725,11 @@ for set_ in data:
       sentences = sorted(list(sentences.items()), key=lambda x:x[1])
       for x, y in sentences:
         if y > 10:
-          print(x, "\t", y, "\t", annotations.get(x, "?"), "\t", sentence, "\t", condition)
+          print(x, "\t", y, "\t", annotations.get(x, "?"), "\t", sentence, "\t", condition, "\t", order)
 #          assert len(annotations.get(x, "?")) == 3, annotations[x]
-        if str(set_)+"_"+condition not in results:
-           results[str(set_)+"_"+condition] = defaultdict(int)
-        results[str(set_)+"_"+condition][annotations[x][0]]+=y
+        if str(set_)+"_"+condition+"_"+str(order) not in results:
+           results[str(set_)+"_"+condition+"_"+str(order)] = defaultdict(int)
+        results[str(set_)+"_"+condition+"_"+str(order)][annotations[x][0]]+=y
       print("....")
       for i in range(10):
             print(" ".join([itos_total[int(numeric_noised_original[j,i])] for j in range(numeric_noised.size()[0])]))
