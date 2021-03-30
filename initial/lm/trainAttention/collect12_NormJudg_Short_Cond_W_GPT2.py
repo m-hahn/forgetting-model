@@ -12,7 +12,7 @@ with open(f"raw_output/{__file__}.tsv", "w") as outFile:
    shib = "12_NormJudg_Short_Cond_Shift_NoComma_Bugfix"
    if shib in f:
       suffix = "script_"+f[f.index(shib)+len(shib):f.index(".py")]
-      if "_W" not in suffix or "GPT2" in suffix:
+      if "_W" not in suffix or "GPT2" not in suffix:
         continue
       print(suffix)
       accept = False

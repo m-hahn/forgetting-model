@@ -1541,7 +1541,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         surprisalReweightedByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        for sentenceID in range(20): #[0]: #range(len(nounsAndVerbsCompatible)):
+        for sentenceID in range(len(nounsAndVerbsCompatible)):
           print(sentenceID)
           context = None
           for compatible in ["compatible", "incompatible"]:
