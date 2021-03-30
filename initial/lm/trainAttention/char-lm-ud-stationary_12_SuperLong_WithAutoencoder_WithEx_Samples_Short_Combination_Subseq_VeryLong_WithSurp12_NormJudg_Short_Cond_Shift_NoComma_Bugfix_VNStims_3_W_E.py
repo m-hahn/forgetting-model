@@ -1173,7 +1173,8 @@ topNouns.append("assumption")
 topNouns.append("belief")
 topNouns.append("fact")
 
-topNouns = list(set(topNouns))
+print("OOV", [x for x in topNouns if x not in stoi_total])
+topNouns = [x for x in list(set(topNouns)) if x in stoi_total]
 
 
 
