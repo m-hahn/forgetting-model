@@ -42,6 +42,13 @@ plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(predictability_weig
 plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(ThatFraction=mean(ThatFraction)), aes(x=Ratio, y=ThatFraction, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun)) + facet_grid(predictability_weight~deletion_rate)
 
 
-plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun)) + facet_grid(predictability_weight~deletion_rate)
+plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun)) + facet_grid(predictability_weight+Script ~deletion_rate)
+
+library(brms)
+#summary(brm(SurprisalReweighted ~ Ratio + Condition + (1+Condition|Noun) + (1+Ratio+Condition|ID), data=data))
+#                         Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS
+#Intercept                    8.74      0.10     8.53     8.93 1.00     1252
+#Ratio                       -0.17      0.03    -0.22    -0.11 1.00     1580
+#ConditionSC_incompatible    -0.12      0.03    -0.18    -0.06 1.00     3077
 
 
