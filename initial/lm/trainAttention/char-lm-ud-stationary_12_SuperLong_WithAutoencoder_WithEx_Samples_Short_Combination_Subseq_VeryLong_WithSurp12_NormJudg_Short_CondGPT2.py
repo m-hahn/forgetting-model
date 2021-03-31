@@ -1424,6 +1424,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                    print("\t".join([str(w) for w in [condition, compatible, i, NOUN, sentenceIndex, regions[i], q, result[24*q+r], float(likelihoods[q]), float(amortizedPosterior[24*q+r]), remainingInput[i]]]), file=outFile)
                    assert result[24*q+r].strip().startswith(".")
 #              quit()
+              # get THAT fractions
               if condition == "SC" and i == 0:
                  locationThat = context.split(" ")[::-1].index("that")
                  thatFractions[condition+"_"+compatible][regions[i]]=float((resultNumeric[:, -locationThat-2] == stoi_total["that"]).float().mean())

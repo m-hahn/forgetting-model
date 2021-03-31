@@ -1,10 +1,10 @@
-#assert False
+assert False
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
 # And (for the plain LM): ../autoencoder/autoencoder2_mlp_bidir_AND_languagemodel_sample.py
 print("Character aware!")
-
+import os
 # Character-aware version of the `Tabula Rasa' language model
 # char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop.py
 # Adopted for English and German
@@ -1373,19 +1373,19 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             if condition == "NoSC" and compatible == "compatible":
                continue
             if condition == "SC":
-               context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]}"
+               context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + f"the {NOUN} that {sentenceList[0]}"
                regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
             elif condition == "NoSC":
-               context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN}"
+               context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + f"the {NOUN}"
                regionsToDo = [(sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
             elif condition == "SCRC":
-               context = "later , the nurse suggested they treat the patient with an antibiotic, but in the end , this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
+               context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
                regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
@@ -1418,8 +1418,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               print("NOISED: ", " ".join([itos_total[int(x)] for x in numeric_noised[:,0].cpu()]))
               result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24)
               if "NoSC" not in condition: # and i == 0:
-                 locationThat = context.split(" ")[::-1].index("that")
-                 thatFractions[condition+"_"+compatible][regions[i]]+=float((resultNumeric[:, -locationThat-2] == stoi_total["that"]).float().mean())
+                 locationThat = context.split(" ")[::-1].index("that")+i+2
+                 thatFractions[condition+"_"+compatible][regions[i]]+=float((resultNumeric[:, -locationThat] == stoi_total["that"]).float().mean())
                  thatFractionsCount[condition+"_"+compatible][regions[i]]+=1
 #                 print("\n".join(result))
  #                print(float((resultNumeric[:,-locationThat-2] == stoi_total["that"]).float().mean()))
@@ -1455,7 +1455,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         print(surprisalByRegions)
         surprisalsPerNoun[NOUN] = {x : divideDicts(surprisalByRegions[x], surprisalCountByRegions[x]) for x in surprisalByRegions}
         thatFractionsPerNoun[NOUN] = {x : divideDicts(thatFractions[x], thatFractionsCount[x]) for x in thatFractions}
-        print(thatFractions)
+        print(thatFractionsPerNoun[NOUN])
+        #quit()
         #quit()
         #assert hasSeenCompatible
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
@@ -1545,7 +1546,7 @@ for epoch in range(1000):
          startTimePredictions = time.time()
 
          sys.stdout = outFile
-         print(updatesCount)
+         print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
          print(args)
          getTotalSentenceSurprisals(SANITY="Model")
   #       getTotalSentenceSurprisals(SANITY="Sanity")
@@ -1609,6 +1610,7 @@ for epoch in range(1000):
           print(devLosses)
           print("Words per sec "+str(trainChars/(time.time()-startTime)))
           print(args.learning_rate_memory, args.learning_rate_autoencoder)
+          print("Slurm", os.environ["SLURM_JOB_ID"])
           print(lastSaved)
           print(__file__)
           print(args)

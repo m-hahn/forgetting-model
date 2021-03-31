@@ -1,9 +1,10 @@
+assert False
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
 # And (for the plain LM): ../autoencoder/autoencoder2_mlp_bidir_AND_languagemodel_sample.py
 print("Character aware!")
-
+import os
 # Character-aware version of the `Tabula Rasa' language model
 # char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop.py
 # Adopted for English and German
@@ -1421,7 +1422,7 @@ for epoch in range(1000):
          startTimePredictions = time.time()
 
          sys.stdout = outFile
-         print(updatesCount)
+         print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
          print(args)
 #         incrementallySampleCompletions(SANITY="Model", VERBS=1)
          getTotalSentenceSurprisals(SANITY="Model")
@@ -1486,6 +1487,7 @@ for epoch in range(1000):
           print(devLosses)
           print("Words per sec "+str(trainChars/(time.time()-startTime)))
           print(args.learning_rate_memory, args.learning_rate_autoencoder)
+          print("Slurm", os.environ["SLURM_JOB_ID"])
           print(lastSaved)
           print(__file__)
           print(args)
