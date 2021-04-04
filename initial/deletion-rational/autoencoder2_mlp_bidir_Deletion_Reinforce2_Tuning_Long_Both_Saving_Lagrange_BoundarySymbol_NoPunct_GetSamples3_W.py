@@ -687,6 +687,8 @@ with torch.no_grad():
                   decoded[j] = OOVs[q]
 #                assert False, (decoded, (" ".join([itos_total[int(resultNumeric[j,i])] for j in range(resultNumeric.size()[0])])))
             decoded = " ".join(decoded)
+            if "na" in str(importanceWeights[i]):
+                continue
             sentences[decoded]+=importanceWeights[i]
 #            print(decoded)
       sentences_list = list(sentences)
