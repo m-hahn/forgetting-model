@@ -159,7 +159,7 @@ class Autoencoder:
       amortizedPosterior = torch.zeros(numberOfBatches, device='cuda')
       zeroLogProb = torch.zeros(numberOfBatches, device='cuda')
       hasSampledSOSOnce = torch.zeros(numberOfBatches, device='cuda').bool()
-      hasSampledSOSTwice = torch.zeros(numberOfBatches, device='cuda').bool()
+#      hasSampledSOSTwice = torch.zeros(numberOfBatches, device='cuda').bool()
       for i in range(args.sequence_length+1):
           out_decoder, hidden = self.rnn_decoder(embeddedLast, hidden)
     
@@ -181,10 +181,10 @@ class Autoencoder:
           logProbForSampledFromDist = dist.log_prob(nextWord).squeeze(0)
 
 #          print(hasSampledSOSTwice.size(), hasSampledSOSTwice.size(), logProbForSampledFromDist.size(), zeroLogProb.size())
-          amortizedPosterior += torch.where(torch.logical_and(hasSampledSOSOnce, torch.logical_not(hasSampledSOSTwice)), logProbForSampledFromDist, zeroLogProb)
-
-          hasSampledSOSTwice = torch.logical_and(hasSampledSOSOnce, nextWord.squeeze(0) == stoi_total["<SOS>"])
-          hasSampledSOSOnce = torch.logical_or(hasSampledSOSOnce, nextWord.squeeze(0) == stoi_total["<SOS>"])
+          amortizedPosterior += torch.where(hasSampledSOSOnce, logProbForSampledFromDist, zeroLogProb)
+#          print(i, itos_total[int(nextWord[0,0])], hasSampledSOSOnce[0], float(amortizedPosterior[0]))
+#          hasSampledSOSTwice = torch.logical_and(hasSampledSOSOnce, nextWord.squeeze(0) == stoi_total["<EOS>"])
+          hasSampledSOSOnce = torch.logical_xor(hasSampledSOSOnce, nextWord.squeeze(0) == stoi_total["<EOS>"])
   #        print(nextWord.size())
           nextWordDistCPU = nextWord.cpu().numpy()[0]
           nextWordStrings = [itos_total[x] for x in nextWordDistCPU]
