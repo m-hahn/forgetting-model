@@ -156,6 +156,10 @@ class Autoencoder:
       result  = ["" for _ in range(numberOfBatches)]
       result_numeric = [[] for _ in range(numberOfBatches)]
       embeddedLast = embedded[0].unsqueeze(0)
+      amortizedPosterior = torch.zeros(numberOfBatches, device='cuda')
+      zeroLogProb = torch.zeros(numberOfBatches, device='cuda')
+      hasSampledSOSOnce = torch.zeros(numberOfBatches, device='cuda').bool()
+      hasSampledSOSTwice = torch.zeros(numberOfBatches, device='cuda').bool()
       for i in range(args.sequence_length+1):
           out_decoder, hidden = self.rnn_decoder(embeddedLast, hidden)
     
@@ -174,6 +178,13 @@ class Autoencoder:
        
 #          nextWord = (dist.sample())
           nextWord = dist.sample()
+          logProbForSampledFromDist = dist.log_prob(nextWord).squeeze(0)
+
+#          print(hasSampledSOSTwice.size(), hasSampledSOSTwice.size(), logProbForSampledFromDist.size(), zeroLogProb.size())
+          amortizedPosterior += torch.where(torch.logical_and(hasSampledSOSOnce, torch.logical_not(hasSampledSOSTwice)), logProbForSampledFromDist, zeroLogProb)
+
+          hasSampledSOSTwice = torch.logical_and(hasSampledSOSOnce, nextWord.squeeze(0) == stoi_total["<SOS>"])
+          hasSampledSOSOnce = torch.logical_or(hasSampledSOSOnce, nextWord.squeeze(0) == stoi_total["<SOS>"])
   #        print(nextWord.size())
           nextWordDistCPU = nextWord.cpu().numpy()[0]
           nextWordStrings = [itos_total[x] for x in nextWordDistCPU]
@@ -186,7 +197,7 @@ class Autoencoder:
          print("RECONSTRUCTION", r)
       result_numeric = torch.LongTensor(result_numeric).cuda()
       assert result_numeric.size()[0] == numberOfBatches
-      return result, result_numeric, None, None
+      return result, result_numeric, None, None, amortizedPosterior
 
  
 autoencoder = Autoencoder()
@@ -354,13 +365,20 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
 
       memory_hidden = memory.sigmoid(memory.memory_mlp_outer(relu(memory.memory_mlp_inner(embedded_everything))))
-     
+
+      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(13, 1, 1)).long().sum(dim=0)).bool())
+
+
+      if onlyProvideKeepProbabilities:
+#         print(punctuation.size(), memory_hidden.size())
+         return torch.where(punctuation.unsqueeze(2), 0*memory_hidden+1, memory_hidden)
+
+
+
       # Baseline predictions for prediction loss
       baselineValues = 10*memory.sigmoid(memory.perword_baseline_outer(memory.relu(memory.perword_baseline_inner(embedded_everything[-1].detach())))).squeeze(1)
 #      assert tuple(baselineValues.size()) == (NUMBER_OF_REPLICATES,)
 
-      if onlyProvideKeepProbabilities:
-         return memory_hidden
 
       memory_filter = torch.bernoulli(input=memory_hidden)
 
@@ -375,7 +393,6 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       memory_filter = memory_filter.squeeze(2)
 
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(13, 1, 1)).long().sum(dim=0)).bool())
         
       ####################################################################################
       numeric_noised = torch.where(torch.logical_or(punctuation, memory_filter==1), numeric, 0*numeric) #[[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
@@ -593,7 +610,7 @@ with torch.no_grad():
       numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
       # Get samples from the reconstruction posterior
 
-      result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24)
+      result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24)
       
       resultNumeric = resultNumeric.transpose(0,1).contiguous()
       resultNumeric_gpu = resultNumeric
@@ -618,57 +635,58 @@ with torch.no_grad():
            sampled_results.append([])
            continue
          sampled_results.append(sample)
-         print(noised)
-         print(sample)
-         p_table = torch.zeros(len(sample), len(noised))
+#         print(noised)
+ #        print(sample)
+         p_table = torch.zeros(len(sample)+1, len(noised)+1)
          p_table[0,0] = 1
-         print(result[i])
-         print(keep_probabilities[:,i])
+  #       print(result[i])
+   #      print(keep_probabilities[:,i])
          #quit()
-         for r in range(1, len(sample)):
-            for s in range(min(r+1, len(noised))):
-               if sample[r] == noised[s]:
-                 p_table[r,s] += p_table[r-1, s-1] * float(keep_probabilities[offset + r + 2,i]) * (1 if sample[r] == noised[s] else 0)
-               print(itos_total[sample[r]], float(keep_probabilities[offset + r + 2,i]))
-               p_table[r,s] += p_table[r-1, s] * (1-float(keep_probabilities[offset + r + 2,i]))
-         print(p_table)
+         for r in range(1, len(sample)+1):
+            for s in range(min(r+1, len(noised)+1)):
+               if s > 0 and sample[r-1] == noised[s-1]:
+                 p_table[r,s] += p_table[r-1, s-1] * float(keep_probabilities[offset + r + 1,i]) 
+    #           print(itos_total[sample[r]], float(keep_probabilities[offset + r + 2,i]))
+               p_table[r,s] += p_table[r-1, s] * (1-float(keep_probabilities[offset + r + 1,i]))
+   #            print(r, s, [itos_total[x] for x in sample[:r]], [itos_total[x] for x in noised[:s]], p_table[r,s], itos_total[sample[r-1]], float(keep_probabilities[offset + r + 1,i]), keep_probabilities.size(), offset, r)
+     #    print(p_table)
          likelihood[i] = float(p_table[-1, -1])
-
+  #       print(keep_probabilities[offset+2:,i])
+ #        print(likelihood[i], " ".join([itos_total[x] for x in sample]), "@@@@", " ".join([itos_total[x] for x in noised]))
+#      quit()
       resultNumeric_cpu = resultNumeric.detach().cpu()                                                                                                                                              
       batch = [" ".join([itos_total[x] for x in sampled_results[s]]) for s in range(resultNumeric.size()[1])]                                 
       totalSurprisal = scoreWithGPT2.scoreSentences(batch)                                                                                                                                          
       surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)                                                                                     
 
-      print(surprisals_past.size())
-      print(likelihood.size())
+      surprisals_past = -surprisals_past.view(numberOfSamples, 24)
+      likelihood = likelihood.view(numberOfSamples, 24)
+      amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
+      #print(likelihood.size())
+      #print(amortizedPosterior.size())
+      #print(torch.max(surprisals_past, dim=1))
+      #print(likelihood)
+      surprisals_past = surprisals_past - torch.max(surprisals_past, dim=1)[0].unsqueeze(1)
+      amortizedPosterior = amortizedPosterior - torch.max(amortizedPosterior, dim=1)[0].unsqueeze(1)
+      importanceWeights_unnormalized = torch.exp(surprisals_past - amortizedPosterior).detach().cpu() * likelihood
+      importanceWeights_sums = importanceWeights_unnormalized.sum(dim=1).unsqueeze(1)
+      importanceWeights = importanceWeights_unnormalized / importanceWeights_sums
+      importanceWeights = importanceWeights.view(576).numpy().tolist()
+
+#      quit()
 
 
-      quit()
-
-
-      print(resultNumeric.size())
+      #print(resultNumeric.size())
       sentences = defaultdict(int)
-      for i in range(574):
-            decoded = (" ".join([itos_total[int(resultNumeric[j,i])] for j in range(resultNumeric.size()[0])]))
-            try:
-              decoded = decoded[decoded.index("<EOS>")+6:]
-            except ValueError:
-                print("ERROR", decoded)
-                continue
-#            print(decoded)
-            try:
-              decoded = decoded[:decoded.index("<EOS>")]
-            except ValueError:
-                print("ERROR", decoded)
-                continue
-            decoded = decoded.strip().split(" ")
+      for i in range(576):
+            decoded = [itos_total[x] for x in sampled_results[i]]
             OOVs_Ind = [j for j in range(len(decoded)) if decoded[j] == "OOV"]
             if len(OOVs_Ind) == len(OOVs) and len(OOVs) > 0:
                 for q, j in enumerate(OOVs_Ind):
                   decoded[j] = OOVs[q]
 #                assert False, (decoded, (" ".join([itos_total[int(resultNumeric[j,i])] for j in range(resultNumeric.size()[0])])))
             decoded = " ".join(decoded)
-            sentences[decoded]+=1
+            sentences[decoded]+=importanceWeights[i]
 #            print(decoded)
       sentences_list = list(sentences)
       toparse = [x for x in sentences_list + [sentence]]
@@ -1125,7 +1143,7 @@ with torch.no_grad():
       question = line[header['"Input.question_1_"']].strip('"')
       sentences = sorted(list(sentences.items()), key=lambda x:x[1])
       for x, y in sentences:
-        if y > 10:
+        if y > 0.1:
           print(x, "\t", y, "\t", annotations.get(x, "?"), "\t", sentence, "\t", condition, "\t", question)
 #          assert len(annotations.get(x, "?")) == 3, annotations[x]
         if condition not in results:

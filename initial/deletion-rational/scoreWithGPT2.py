@@ -39,7 +39,7 @@ def scoreSentences(batch):
  #      print(tokenizer.decode(262))
 #       print(tokenizer.bos_token_id, tokenizer.eos_token_id) they all evaoluate to 50256, the ID of <|endoftext|>
   #     quit()
-       print([(x.size()) for x in tensors])
+       #print([(x.size()) for x in tensors])
        maxLength = max([x.size()[1] for x in tensors])+1
        print("MAX LENGTH", maxLength)
        for i in range(len(tensors)):
@@ -56,12 +56,12 @@ def scoreSentences(batch):
          words = [[]]
          for q in range(1, maxLength):
             word = tokenizer.decode(int(tensors[batchElem][q]))
-            if word == '<|endoftext|>':
-                break
          #   print(word)
             if word.startswith(" ") or q == 0:
                 words.append([])
             words[-1].append((word, float(surprisals[batchElem][q-1])))
+            if word == '<|endoftext|>':
+                break
         #    print(q, "#"+word+"#", surprisals[batchElem][q-1])
 #         print(words, batch[batchElem])
  #        quit()
@@ -69,7 +69,7 @@ def scoreSentences(batch):
 #         print(words)
          surprisalsPast = sum([sum(x[1] for x in y) for y in words])
          surprisalsCollected.append({"past" : surprisalsPast})
-       quit()
+#       quit()
        return surprisalsCollected
 #         print("\t".join([batch[batchElem], str( sum([sum(x[1] for x in y) for y in words[:-1]])), str(sum(x[1] for x in words[-1]))]))
  #      quit()  
