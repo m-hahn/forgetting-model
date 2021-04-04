@@ -670,7 +670,7 @@ with torch.no_grad():
       surprisals_past = surprisals_past - torch.max(surprisals_past, dim=1)[0].unsqueeze(1)
       amortizedPosterior = amortizedPosterior - torch.max(amortizedPosterior, dim=1)[0].unsqueeze(1)
       importanceWeights_unnormalized = torch.exp(surprisals_past - amortizedPosterior).detach().cpu() * likelihood
-      importanceWeights_sums = importanceWeights_unnormalized.sum(dim=1).unsqueeze(1)
+      importanceWeights_sums = importanceWeights_unnormalized.sum(dim=1).unsqueeze(1)+1e-12
       importanceWeights = importanceWeights_unnormalized / importanceWeights_sums
       importanceWeights = importanceWeights.view(numberOfSamples*24).numpy().tolist()
 
