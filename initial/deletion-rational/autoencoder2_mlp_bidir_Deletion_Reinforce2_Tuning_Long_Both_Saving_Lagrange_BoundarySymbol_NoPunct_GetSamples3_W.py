@@ -598,16 +598,17 @@ with torch.no_grad():
           print("OOV", x, file=sys.stderr)
           OOVs.append(x)
       context = "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen <EOS> "+sentence_proc+ " <EOS> after this something else happened instead and she went away but nobody noticed anything about it"
-      numerified = encodeContextCrop(context, "", replicates=24)
+      numberOfSamples = 12
+      numerified = encodeContextCrop(context, "", replicates=numberOfSamples)
       assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
       # Run the noise model
-      numberOfSamples = 24
       numeric, numeric_noised = forward((numerified, None), train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True)
       print(numeric.size(), numeric_noised.size(), numerified.size())
 
       numeric = numeric.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
       numeric_noised_original = numeric_noised
       numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
+      print("numeric_noised_original", numeric_noised_original.size(), numeric_noised.size())
       # Get samples from the reconstruction posterior
 
       _, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24)
@@ -671,14 +672,14 @@ with torch.no_grad():
       importanceWeights_unnormalized = torch.exp(surprisals_past - amortizedPosterior).detach().cpu() * likelihood
       importanceWeights_sums = importanceWeights_unnormalized.sum(dim=1).unsqueeze(1)
       importanceWeights = importanceWeights_unnormalized / importanceWeights_sums
-      importanceWeights = importanceWeights.view(576).numpy().tolist()
+      importanceWeights = importanceWeights.view(numberOfSamples*24).numpy().tolist()
 
 #      quit()
 
 
       #print(resultNumeric.size())
       sentences = defaultdict(int)
-      for i in range(576):
+      for i in range(numberOfSamples*24):
             decoded = [itos_total[x] for x in sampled_results[i]]
             OOVs_Ind = [j for j in range(len(decoded)) if decoded[j] == "OOV"]
             if len(OOVs_Ind) == len(OOVs) and len(OOVs) > 0:
@@ -1150,6 +1151,7 @@ with torch.no_grad():
            results[condition] = defaultdict(int)
         results[condition][annotations[x][0]]+=y
       print("....")
+      print("numeric_noised_original", numeric_noised_original.size(), numeric_noised.size())
       for i in range(10):
             print(" ".join([itos_total[int(numeric_noised_original[j,i])] for j in range(numeric_noised.size()[0])]))
       print(sentence, "\t", condition)
