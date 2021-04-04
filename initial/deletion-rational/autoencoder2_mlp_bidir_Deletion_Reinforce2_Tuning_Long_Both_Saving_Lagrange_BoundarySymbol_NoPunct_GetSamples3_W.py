@@ -610,7 +610,7 @@ with torch.no_grad():
       numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
       # Get samples from the reconstruction posterior
 
-      result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24)
+      _, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24)
       
       resultNumeric = resultNumeric.transpose(0,1).contiguous()
       resultNumeric_gpu = resultNumeric

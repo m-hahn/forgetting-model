@@ -32,7 +32,14 @@ print("Finished loading GPT2")
 
 #with open("/jagupard27/scr0/mhahn/memory/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_CondGPT2.py_749792590_Model.txt_SURP", "w") as outFile:
 #  for w in range(20):
-def scoreSentences(batch):
+def scoreSentences(batch_):
+       fromStringToPosition = {}
+       batch = []
+       for s in batch_:
+          if s not in fromStringToPosition:
+              fromStringToPosition[s] = len(batch)
+              batch.append(s)
+
        tensors = [tokenizer.encode(" "+text.strip()+".", return_tensors='pt') for text in batch] # below using bos, so should be no need for adding "<|endoftext|> "+
    #    print(tensors)
 #       print(tokenizer.decode(50256))
@@ -70,7 +77,11 @@ def scoreSentences(batch):
          surprisalsPast = sum([sum(x[1] for x in y) for y in words])
          surprisalsCollected.append({"past" : surprisalsPast})
 #       quit()
-       return surprisalsCollected
+       #print(fromStringToPosition)
+       surprisalsCollected_ = []
+       for s in batch_:
+          surprisalsCollected_.append(surprisalsCollected[fromStringToPosition[s]])
+       return surprisalsCollected_
 #         print("\t".join([batch[batchElem], str( sum([sum(x[1] for x in y) for y in words[:-1]])), str(sum(x[1] for x in words[-1]))]))
  #      quit()  
 #         GPT2surprisals[batch[batchElem]] = ( sum([sum(x[1] for x in y) for y in words[:-1]]), sum(x[1] for x in words[-1]))
