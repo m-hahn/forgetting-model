@@ -456,13 +456,15 @@ if args.load_from_autoencoder is not None:
   checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
   for i in range(len(checkpoint["components"])):
       autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
-  
+  del checkpoint
+ 
 # Amortized Prediction Posterior
 if args.load_from_lm is not None:
   lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
   checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(args.load_from_lm)+".txt")
   for i in range(len(checkpoint["components"])):
       lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
+  del checkpoint
 
 from torch.autograd import Variable
 
@@ -1201,13 +1203,14 @@ print(len(topNouns))
 
     
     
-plain_lm = PlainLanguageModel()
-plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
+#plain_lm = PlainLanguageModel()
+#plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
 
-if args.load_from_plain_lm is not None:
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
-  for i in range(len(checkpoint["components"])):
-      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
+#if args.load_from_plain_lm is not None:
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
 
 
 # Helper Functions
@@ -1521,7 +1524,7 @@ def divideDicts(y, z):
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
-    print(plain_lm) 
+#    print(plain_lm) 
     surprisalsPerNoun = {}
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}

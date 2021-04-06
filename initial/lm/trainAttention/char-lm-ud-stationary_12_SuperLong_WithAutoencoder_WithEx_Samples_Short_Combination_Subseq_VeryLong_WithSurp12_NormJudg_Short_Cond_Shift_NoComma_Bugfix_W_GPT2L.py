@@ -1135,14 +1135,14 @@ print(len(topNouns))
 
     
     
-plain_lm = PlainLanguageModel()
-plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
+#plain_lm = PlainLanguageModel()
+#plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
 
-if args.load_from_plain_lm is not None:
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
-  for i in range(len(checkpoint["components"])):
-      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
+#if args.load_from_plain_lm is not None:
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
 
 
 # Helper Functions
@@ -1456,7 +1456,7 @@ def divideDicts(y, z):
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
-    print(plain_lm) 
+#    print(plain_lm) 
     surprisalsPerNoun = {}
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}
@@ -1468,19 +1468,19 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     with torch.no_grad():
       TRIALS_COUNT = 0
       TOTAL_TRIALS = len(topNouns) * 20 * 2 * 1
-      for NOUN in topNouns:
-        print(NOUN, "Time:", time.time() - startTimePredictions, file=sys.stderr)
+      for nounIndex, NOUN in enumerate(topNouns):
+        print(NOUN, "Time:", time.time() - startTimePredictions, nounIndex/len(topNouns), file=sys.stderr)
         thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         surprisalReweightedByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        for sentenceID in range(len(nounsAndVerbsCompatible)):
+        for sentenceID in range(min(20,len(nounsAndVerbsCompatible))):
           print(sentenceID)
           context = None
           for compatible in ["compatible", "incompatible"]:
-           for condition in ["SCRC", "SC","NoSC"]:
+           for condition in ["SC"]: #"SCRC", "SC","NoSC"]:
             TRIALS_COUNT += 1
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
@@ -1510,8 +1510,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             print("INPUT", context, remainingInput)
             assert len(remainingInput) > 0
             for i in range(len(remainingInput)):
-  #            if regions[i].startswith("V2"):
- #               continue
+              if regions[i].startswith("V2"):
+                continue
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = args.sequence_length - len(context.split(" ")) - i - 1
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
