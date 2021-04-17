@@ -34,6 +34,11 @@ model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C +(1+compat
 byItemSlopes = coef(model)$Item
 byItemSlopes$Item = rownames(byItemSlopes)
 
+
+# Interesting (but the evidence isn't strong, might be accidental):
+cor.test(byItemSlopes[["(Intercept)"]], byItemSlopes$compatible.C)
+
+# These slopes are very similar with predictability_weight==0.5
 #                              (Intercept) compatible.C True_Minus_False.C                          Item
 #o_child_medic                   10.768493  -3.89992285         -0.1648946                 o_child_medic  was unharmed
 #o_senator_diplomat               8.241476  -3.16607292         -0.1648946            o_senator_diplomat  was winning
@@ -266,5 +271,11 @@ model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C +(1+compat
 
 data$Script.C = ifelse(data$Script == "script__J_3_W_GPT2M", -0.5, 0.5)
 
+data$deletion_rate.C = data$deletion_rate-mean(data$deletion_rate, na.rm=TRUE)
+
+model = (lmer(SurprisalReweighted ~ deletion_rate.C*compatible.C + Script.C*compatible.C + True_Minus_False.C+ (1|ID) + (1+compatible.C|Item), data=data %>% filter(Region == "V1_0", predictability_weight==0.5)))
+
+byItemSlopes = coef(model)$Item
+byItemSlopes$Item = rownames(byItemSlopes)
 
 
