@@ -29,8 +29,134 @@ data$compatible.C = (data$Condition == "SC_co")-0.5
 
 summary(lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", deletion_rate==0.3, predictability_weight==0)))
 
-summary(lmer(SurprisalReweighted ~ deletion_rate + compatible.C + True_Minus_False.C + (1|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", predictability_weight==1)))
+model = (lmer(SurprisalReweighted ~ deletion_rate + compatible.C + True_Minus_False.C + (1+compatible.C|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", predictability_weight==1)))
 
+model = (lmer(SurprisalReweighted ~ predictability_weight + deletion_rate + compatible.C + True_Minus_False.C + (1+compatible.C|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0")))
+
+summary(lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", predictability_weight==1) %>% group_by(Noun, compatible.C, True_Minus_False.C, Item) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted))))
+
+
+model = (lmer(SurprisalReweighted ~ predictability_weight + deletion_rate + compatible.C + True_Minus_False.C + (1+compatible.C|ID) + (1+compatible.C|Item), data=data %>% filter(Region == "V1_0")))
+
+
+byItemSlopes = coef(model)$Item
+byItemSlopes$Item = rownames(byItemSlopes)
+byItemSlopes[order(byItemSlopes$compatible.C),]
+
+
+#> byItemSlopes[order(byItemSlopes$compatible.C),]                                                                                            
+#                              (Intercept) predictability_weight deletion_rate compatible.C True_Minus_False.C                          Item
+#o_child_medic                   7.4318434             -1.069783      8.131016  -3.20739170         -0.1758554                 o_child_medic
+#o_senator_diplomat              4.8994153             -1.069783      8.131016  -3.18698116         -0.1758554            o_senator_diplomat
+#o_mobster_media                 4.1932516             -1.069783      8.131016  -2.42209852         -0.1758554               o_mobster_media
+#o_victim_criminal               8.6898748             -1.069783      8.131016  -2.17947177         -0.1758554             o_victim_criminal
+#o_student_bully                 7.9275158             -1.069783      8.131016  -1.89616001         -0.1758554               o_student_bully
+#v_psychiatrist_nurse            5.6874614             -1.069783      8.131016  -1.56520274         -0.1758554          v_psychiatrist_nurse
+#o_lifesaver_swimmer             7.9101302             -1.069783      8.131016  -1.49021589         -0.1758554           o_lifesaver_swimmer
+#v_guest_thug                    8.2118196             -1.069783      8.131016  -1.48537021         -0.1758554                  v_guest_thug
+#o_CEO_employee                  1.9447643             -1.069783      8.131016  -1.30279823         -0.1758554                o_CEO_employee
+#v_victim_swimmer                6.7159427             -1.069783      8.131016  -1.26434984         -0.1758554              v_victim_swimmer
+#v_teacher_principal             0.7832282             -1.069783      8.131016  -0.96076600         -0.1758554           v_teacher_principal
+#v_sponsor_musician              7.9813119             -1.069783      8.131016  -0.95908404         -0.1758554            v_sponsor_musician
+#o_bureaucrat_guard             10.1710971             -1.069783      8.131016  -0.85949145         -0.1758554            o_bureaucrat_guard
+#v_medic_survivor                4.9993047             -1.069783      8.131016  -0.85518928         -0.1758554              v_medic_survivor
+#o_surgeon_patient               2.4059452             -1.069783      8.131016  -0.78521757         -0.1758554             o_surgeon_patient
+#v_driver_guide                  3.4735911             -1.069783      8.131016  -0.68676289         -0.1758554                v_driver_guide
+#v_janitor_organizer             2.3548375             -1.069783      8.131016  -0.63490585         -0.1758554           v_janitor_organizer
+#o_sculptor_painter              3.2599189             -1.069783      8.131016  -0.62205515         -0.1758554            o_sculptor_painter
+#v_investor_scientist            7.4722328             -1.069783      8.131016  -0.60643089         -0.1758554          v_investor_scientist
+#v_doctor_colleague              4.4566625             -1.069783      8.131016  -0.54478152         -0.1758554            v_doctor_colleague
+#v_thief_detective               4.9405932             -1.069783      8.131016  -0.48976081         -0.1758554             v_thief_detective
+#o_pharmacist_stranger           6.6452869             -1.069783      8.131016  -0.46649846         -0.1758554         o_pharmacist_stranger
+#o_cousin_bror                   7.5825574             -1.069783      8.131016  -0.43043542         -0.1758554                 o_cousin_bror
+#o_daughter_sister               5.6936303             -1.069783      8.131016  -0.30288336         -0.1758554             o_daughter_sister
+#o_commander_president           8.3226388             -1.069783      8.131016  -0.29558488         -0.1758554         o_commander_president
+#v_pediatrician_receptionist     6.8678478             -1.069783      8.131016  -0.27311863         -0.1758554   v_pediatrician_receptionist
+#o_musician_far                  6.2599674             -1.069783      8.131016  -0.21466778         -0.1758554                o_musician_far
+#o_actor_starlet                 4.4613360             -1.069783      8.131016  -0.20599745         -0.1758554               o_actor_starlet
+#v_actor_fans                    5.7156175             -1.069783      8.131016  -0.11907038         -0.1758554                  v_actor_fans
+#v_president_farmer              4.3350909             -1.069783      8.131016  -0.11284931         -0.1758554            v_president_farmer
+#v_customer_vendor               2.0140520             -1.069783      8.131016  -0.08439834         -0.1758554             v_customer_vendor
+#o_tenant_foreman                7.6368918             -1.069783      8.131016   0.07788745         -0.1758554              o_tenant_foreman
+#v_plaintiff_jury                4.1507159             -1.069783      8.131016   0.17515407         -0.1758554              v_plaintiff_jury
+#v_criminal_stranger             4.6489168             -1.069783      8.131016   0.25419893         -0.1758554           v_criminal_stranger
+#v_firefighter_neighbor          6.0258317             -1.069783      8.131016   0.30957481         -0.1758554        v_firefighter_neighbor
+#o_extremist_agent               2.1334148             -1.069783      8.131016   0.34295117         -0.1758554             o_extremist_agent
+#v_fisherman_gardener            2.4621326             -1.069783      8.131016   0.37617751         -0.1758554          v_fisherman_gardener
+#v_plumber_apprentice            1.6586674             -1.069783      8.131016   0.49112117         -0.1758554          v_plumber_apprentice
+#v_bully_children                1.1935835             -1.069783      8.131016   0.60191783         -0.1758554              v_bully_children
+#o_student_professor             3.4573072             -1.069783      8.131016   0.60531945         -0.1758554           o_student_professor
+#v_guest_cousin                  3.6737238             -1.069783      8.131016   0.63851850         -0.1758554                v_guest_cousin
+#v_judge_attorney                0.5360451             -1.069783      8.131016   0.70388971         -0.1758554              v_judge_attorney
+#v_vendor_salesman               6.5744689             -1.069783      8.131016   0.72010601         -0.1758554             v_vendor_salesman
+#o_driver_tourist                6.1229162             -1.069783      8.131016   0.76131710         -0.1758554              o_driver_tourist
+#v_manager_boss                  6.7336547             -1.069783      8.131016   0.76873938         -0.1758554                v_manager_boss
+#v_lifeguard_soldier             9.3321709             -1.069783      8.131016   0.78086825         -0.1758554           v_lifeguard_soldier
+#o_consultant_artist             7.3432777             -1.069783      8.131016   0.79827348         -0.1758554           o_consultant_artist
+#v_captain_crew                  3.1820146             -1.069783      8.131016   0.84955351         -0.1758554                v_captain_crew
+#v_fiancé_author                 3.5447566             -1.069783      8.131016   0.87871249         -0.1758554               v_fiancé_author
+#v_banker_analyst                5.8870418             -1.069783      8.131016   0.92507940         -0.1758554              v_banker_analyst
+#o_principal_teacher             2.5421321             -1.069783      8.131016   1.00835969         -0.1758554           o_principal_teacher
+#o_scientist_mayor               1.9104177             -1.069783      8.131016   1.08710326         -0.1758554             o_scientist_mayor
+#o_neighbor_woman                0.7105074             -1.069783      8.131016   1.10618938         -0.1758554              o_neighbor_woman
+#o_bookseller_thief              6.1366239             -1.069783      8.131016   1.22605821         -0.1758554            o_bookseller_thief
+#o_entrepreneur_philanthropist   4.3852640             -1.069783      8.131016   1.23242511         -0.1758554 o_entrepreneur_philanthropist
+#o_runner_psychiatrist           3.2139144             -1.069783      8.131016   1.55997332         -0.1758554         o_runner_psychiatrist
+#o_trickster_woman               9.1696962             -1.069783      8.131016   1.72648661         -0.1758554             o_trickster_woman
+#o_clerk_customer                8.0349529             -1.069783      8.131016   1.74485865         -0.1758554              o_clerk_customer
+#v_businessman_sponsor           4.1200810             -1.069783      8.131016   1.76230711         -0.1758554         v_businessman_sponsor
+#o_carpenter_craftsman           2.3730616             -1.069783      8.131016   1.76627631         -0.1758554         o_carpenter_craftsman
+#v_senator_diplomat              6.8134852             -1.069783      8.131016   1.79939330         -0.1758554            v_senator_diplomat
+#o_violinist_sponsors            2.3170906             -1.069783      8.131016   1.84205586         -0.1758554          o_violinist_sponsors
+#o_politician_banker             5.1382865             -1.069783      8.131016   1.85389681         -0.1758554           o_politician_banker
+#o_preacher_parishioners         6.4162186             -1.069783      8.131016   2.25625818         -0.1758554       o_preacher_parishioners
+#v_agent_fbi                     2.8422874             -1.069783      8.131016   2.52469306         -0.1758554                   v_agent_fbi
+#o_trader_businessman            1.6695241             -1.069783      8.131016   3.05425309         -0.1758554          o_trader_businessman
+#o_criminal_officer              3.4731695             -1.069783      8.131016   3.26119981         -0.1758554            o_criminal_officer
+
+
+byIDSlopes = coef(model)$ID
+byIDSlopes$ID = rownames(byIDSlopes)
+byIDSlopes[order(byIDSlopes$compatible.C),]
+
+
+#> byIDSlopes[order(byIDSlopes$compatible.C),]     
+#          (Intercept) predictability_weight deletion_rate compatible.C True_Minus_False.C        ID
+#493283383    3.422375             -1.069783      8.131016 -0.038928946         -0.1758554 493283383
+#584015835    4.182614             -1.069783      8.131016 -0.037595456         -0.1758554 584015835
+#922774826    5.041638             -1.069783      8.131016 -0.012694818         -0.1758554 922774826
+#99767452     4.895182             -1.069783      8.131016 -0.005788567         -0.1758554  99767452
+#961536309    5.059172             -1.069783      8.131016  0.008153394         -0.1758554 961536309
+#553302187    4.616161             -1.069783      8.131016  0.012184127         -0.1758554 553302187
+#193988359    4.630897             -1.069783      8.131016  0.059016278         -0.1758554 193988359
+#345336356    4.707851             -1.069783      8.131016  0.069778601         -0.1758554 345336356
+#191511088    4.877481             -1.069783      8.131016  0.114371368         -0.1758554 191511088
+#992213137    4.823875             -1.069783      8.131016  0.123880359         -0.1758554 992213137
+#675784233    4.414690             -1.069783      8.131016  0.124437922         -0.1758554 675784233
+#464657019    4.991215             -1.069783      8.131016  0.133107835         -0.1758554 464657019
+#94907627     4.970169             -1.069783      8.131016  0.145892245         -0.1758554  94907627
+#444273729    4.083726             -1.069783      8.131016  0.149230489         -0.1758554 444273729
+#79010925     5.793023             -1.069783      8.131016  0.156401155         -0.1758554  79010925
+#767406753    4.745672             -1.069783      8.131016  0.172478313         -0.1758554 767406753
+#278167740    5.511846             -1.069783      8.131016  0.182801120         -0.1758554 278167740
+#116146778    4.570194             -1.069783      8.131016  0.195945208         -0.1758554 116146778
+#282352930    4.850553             -1.069783      8.131016  0.205365500         -0.1758554 282352930
+#637269688    4.741264             -1.069783      8.131016  0.210219717         -0.1758554 637269688
+#591357781    4.594979             -1.069783      8.131016  0.210298996         -0.1758554 591357781
+#954662806    5.228781             -1.069783      8.131016  0.211052906         -0.1758554 954662806
+#708115795    5.516360             -1.069783      8.131016  0.217600266         -0.1758554 708115795
+#936548541    4.858380             -1.069783      8.131016  0.224033626         -0.1758554 936548541
+#465577363    5.359163             -1.069783      8.131016  0.229594459         -0.1758554 465577363
+#95795388     5.790406             -1.069783      8.131016  0.231922422         -0.1758554  95795388
+#179088476    5.236838             -1.069783      8.131016  0.235244000         -0.1758554 179088476
+#681474707    5.969039             -1.069783      8.131016  0.249414018         -0.1758554 681474707
+#908049000    5.110056             -1.069783      8.131016  0.265561308         -0.1758554 908049000
+#498236788    4.879595             -1.069783      8.131016  0.266751106         -0.1758554 498236788
+#991579562    5.325402             -1.069783      8.131016  0.275085402         -0.1758554 991579562
+#250967824    5.098741             -1.069783      8.131016  0.298764890         -0.1758554 250967824
+#73230605     5.517735             -1.069783      8.131016  0.309486367         -0.1758554  73230605
+#788091576    5.486403             -1.069783      8.131016  0.313975632         -0.1758554 788091576
+#174187200    4.203831             -1.069783      8.131016  0.427892275         -0.1758554 174187200
 
 
 
