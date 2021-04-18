@@ -26,6 +26,16 @@ unique((data %>% filter(is.na(True_Minus_False.C)))$Noun)
 # [1] conjecture  guess       insinuation intuition   observation
 
 data$compatible.C = (data$Condition == "SC_co")-0.5
+
+summary(lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", deletion_rate==0.3, predictability_weight==0)))
+
+summary(lmer(SurprisalReweighted ~ deletion_rate + compatible.C + True_Minus_False.C + (1|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", predictability_weight==1)))
+
+
+
+
+crash()
+
 summary(lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1|ID) + (1|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", deletion_rate==0.3, predictability_weight==0)))
 
 
