@@ -33,6 +33,7 @@ print("Finished loading GPT2")
 #with open("/jagupard27/scr0/mhahn/memory/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_CondGPT2.py_749792590_Model.txt_SURP", "w") as outFile:
 #  for w in range(20):
 def scoreSentences(batch):
+       print(batch[0])
        tensors = [tokenizer.encode(" "+text, return_tensors='pt') for text in batch] # below using bos, so should be no need for adding "<|endoftext|> "+
    #    print(tensors)
 #       print(tokenizer.decode(50256))
@@ -52,8 +53,12 @@ def scoreSentences(batch):
        for batchElem in range(len(batch)):
          #print(tensors[batchElem])
          words = [[]]
-         for q in range(1, maxLength):
+         if batchElem == 0:
+           print(tensors[batchElem])
+         for q in range(1, maxLength+1):
             word = tokenizer.decode(int(tensors[batchElem][q]))
+            if batchElem == 0:
+               print(q, int(tensors[batchElem][q]), word, maxLength)
             if word == '<|endoftext|>':
                 break
          #   print(word)
@@ -66,6 +71,8 @@ def scoreSentences(batch):
          # find where last word starts and separately get the surprisals
          surprisalsPast = sum([sum(x[1] for x in y) for y in words[:-1]])
          surprisalsFirstFutureWord = sum(x[1] for x in words[-1])
+         if batchElem == 0:
+            print(words)
          surprisalsCollected.append({"past" : surprisalsPast, "next" : surprisalsFirstFutureWord})
        return surprisalsCollected
 #         print("\t".join([batch[batchElem], str( sum([sum(x[1] for x in y) for y in words[:-1]])), str(sum(x[1] for x in words[-1]))]))

@@ -1,12 +1,12 @@
 import os
 
-header = "Noun Item Region Condition Surprisal SurprisalReweighted ThatFraction ThatFractionReweighted".split(" ")
+header = "Noun Region Condition Surprisal SurprisalReweighted ThatFraction ThatFractionReweighted".split(" ")
 header += ["Script", "ID", "predictability_weight", "deletion_rate", "autoencoder", "lm"]
 
 PATH = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs/"
-PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"
+PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"
 
-with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
+with open(f"raw_output/{__file__}.tsv", "w") as outFile:
  print("\t".join(header), file=outFile)
  for f in os.listdir(PATH):
    shib = "12_NormJudg_Short_Cond_Shift_NoComma_Bugfix"
@@ -32,7 +32,7 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
           deletion_rate = arguments["deletion_rate"]
           try:
            with open(PATH2+f+"_Model", "r") as inFile:
-             data = [x.split("\t") for x in inFile.read().strip().split("\n")]
+             data = [x.split(" ") for x in inFile.read().strip().split("\n")]
              data = data[1:]
              for line in data:
                  print("\t".join(line + [suffix, arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], arguments["load_from_autoencoder"], arguments["load_from_plain_lm"]]), file=outFile)
