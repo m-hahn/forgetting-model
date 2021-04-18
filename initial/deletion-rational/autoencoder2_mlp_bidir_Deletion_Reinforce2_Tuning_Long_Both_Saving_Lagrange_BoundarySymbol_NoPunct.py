@@ -13,7 +13,7 @@ import sys
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([38679926]))
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([38679926, 35395782]))
 # 777726352, doesn't have the right parameter matrix sizes
 
 #(1.020192962941362, 1, False, '595155021', 'None')
