@@ -1276,9 +1276,7 @@ print(len(topNouns))
 #quit()
 
 
-# This is to ensure the tsv files are useful even when the script is stopped prematurely
-random.shuffle(topNouns)
-
+    
     
 #plain_lm = PlainLanguageModel()
 #plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
@@ -1606,10 +1604,10 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
-    numberOfSamples = 12
+    numberOfSamples = 3
     import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
-#    topNouns = ["fact", "report"]
+    #topNouns = ["report"]
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
      print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat"]), file=outFile)
      with torch.no_grad():
@@ -1632,6 +1630,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
             assert len(sentenceList) >= 5, sentenceList
+#            if "lifesaver" not in " ".join(sentenceList):
+ #              continue
             if condition == "NoSC" and compatible == "compatible":
                continue
             if condition == "SC":
@@ -1657,7 +1657,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             print("INPUT", context, remainingInput)
             assert len(remainingInput) > 0
             for i in range(len(remainingInput)):
-              if regions[i].startswith("V2"):
+              if regions[i] not in ["V2_0", "V1_0"]:
                 continue
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = args.sequence_length - len(context.split(" ")) - i - 1
@@ -1795,6 +1795,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               print("\t".join([str(w) for w in [NOUN, (sentenceList[-1]+"_"+sentenceList[0]+"_"+sentenceList[1]).replace("the","").replace(" ", ""), regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere), surprisalsWithThat, surprisalsWithoutThat]]), file=outFile)
 #                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
 
+#              quit()
 
            #   if compatible == "compatible":
             #    hasSeenCompatible = True
@@ -1830,8 +1831,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
            print(noun, region, condition, surprisalsPerNoun[noun][condition][region], surprisalsReweightedPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", thatFractionsReweightedPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
     # For sanity-checking: Prints correlations between surprisal and that-bias
     for region in ["V2_0", "V2_1", "V1_0"]:
-      for condition in surprisalsPerNoun["fact"]:
-       if region not in surprisalsPerNoun["fact"][condition]:
+      for condition in surprisalsPerNoun["report"]:
+       if region not in surprisalsPerNoun["report"][condition]:
           continue
        print(SANITY, condition, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsReweightedPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 , correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsReweightedPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 )
        surprisals = torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])
@@ -1846,10 +1847,14 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
 startTimePredictions = time.time()
 
-#getTotalSentenceSurprisals(SANITY="ZeroLoss")
-#getTotalSentenceSurprisals(SANITY="Sanity")
+with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+  startTimePredictions = time.time()
+
+  sys.stdout = outFile
+  #getTotalSentenceSurprisals(SANITY="ZeroLoss")
+  getTotalSentenceSurprisals(SANITY="Sanity")
 #getTotalSentenceSurprisals(SANITY="Model")
-#quit()
+quit()
 
 
 #getTotalSentenceSurprisals()
