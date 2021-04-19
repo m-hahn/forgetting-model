@@ -25,7 +25,77 @@ data = data %>% mutate(True_Minus_False.C = True_False_False-False_False_False-m
 unique((data %>% filter(is.na(True_Minus_False.C)))$Noun)
 # [1] conjecture  guess       insinuation intuition   observation
 
-data$compatible.C = (data$Condition == "SC_co")-0.5
+data$compatible.C = (grepl("_co", data$Condition)-0.5)
+data$HasRC.C = (grepl("SCRC", data$Condition)-0.5)
+data$HasSC.C = (0.5-grepl("NoSC", data$Condition))
+crash()
+
+summary(lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", deletion_rate==0.55)))
+
+
+model = (lmer(SurprisalReweighted ~ HasRC.C + compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", deletion_rate==0.35, HasSC.C>0, !grepl("GPT2M", Script))))
+#
+#                              (Intercept)     HasRC.C compatible.C True_Minus_False.C
+#v_guest_thug                    12.205749 -0.02194668 -2.545766952         -0.2042718
+#v_psychiatrist_nurse            12.665236 -0.02194668 -2.208907242         -0.2042718
+#o_lifeguard_swimmer             12.590915 -0.02194668 -1.732583283         -0.2042718
+#o_bureaucrat_guard              13.837014 -0.02194668 -1.475658775         -0.2042718
+#o_student_bully                 15.162266 -0.02194668 -1.080967839         -0.2042718
+#o_senator_diplomat               8.612687 -0.02194668 -1.002161147         -0.2042718
+#v_victim_swimmer                12.308828 -0.02194668 -0.981938076         -0.2042718
+#v_thief_detective               10.328938 -0.02194668 -0.805953009         -0.2042718
+#o_child_medic                   13.670466 -0.02194668 -0.723813968         -0.2042718
+#o_bookseller_thief              11.756582 -0.02194668 -0.650526839         -0.2042718
+#o_ceo_employee                   4.019287 -0.02194668 -0.546799699         -0.2042718
+#o_commander_president           14.216134 -0.02194668 -0.507111841         -0.2042718
+#v_doctor_colleague               8.566765 -0.02194668 -0.448448220         -0.2042718
+#o_trickster_woman               15.516596 -0.02194668 -0.266296919         -0.2042718
+# u = coef(model)$Item
+#> u$v = grepl("v_", u$item)
+#> u1 = u[u$v,]
+#> u2 = u[!u$v,]
+#> t.test(u1$compatible.C)
+#
+#        One Sample t-test
+#
+#data:  u1$compatible.C
+#t = 3.1617, df = 31, p-value = 0.003495
+#alternative hypothesis: true mean is not equal to 0
+#95 percent confidence interval:
+# 0.2577982 1.1948335
+#sample estimates:
+#mean of x 
+#0.7263159 
+#
+#> t.test(u2$compatible.C)
+#
+#        One Sample t-test
+#
+#data:  u2$compatible.C
+#t = 1.2206, df = 34, p-value = 0.2306
+#alternative hypothesis: true mean is not equal to 0
+#95 percent confidence interval:
+# -0.1278902  0.5125606
+#sample estimates:
+#mean of x 
+#0.1923352 
+
+
+
+
+model = (lmer(SurprisalReweighted ~ HasRC.C + compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", deletion_rate==0.55, HasSC.C>0)))
+#                              (Intercept)   HasRC.C compatible.C True_Minus_False.C                                                 
+#o_lifeguard_swimmer             12.502503 0.1911667  -2.79518307         -0.2625345
+#v_psychiatrist_nurse            12.555227 0.1911667  -2.45026724         -0.2625345
+#v_guest_thug                    13.251113 0.1911667  -2.36664022         -0.2625345
+#o_daughter_sister                9.373278 0.1911667  -1.56298862         -0.2625345
+#o_bureaucrat_guard              13.962854 0.1911667  -1.17707479         -0.2625345
+#o_student_bully                 15.263687 0.1911667  -1.14062156         -0.2625345
+#v_victim_swimmer                12.425828 0.1911667  -1.05488009         -0.2625345
+#o_child_medic                   13.984062 0.1911667  -0.96919797         -0.2625345
+#v_thief_detective               10.376001 0.1911667  -0.96217550         -0.2625345
+#v_guest_cousin                  13.405787 0.1911667  -0.91731791         -0.2625345
+
 
 summary(lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", deletion_rate==0.3, predictability_weight==0)))
 
