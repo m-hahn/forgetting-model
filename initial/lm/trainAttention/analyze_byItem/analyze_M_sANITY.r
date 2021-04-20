@@ -29,6 +29,14 @@ unique((data %>% filter(is.na(True_Minus_False.C)))$Noun)
 data$compatible.C = (grepl("_co", data$Condition)-0.5)
 data$HasRC.C = (grepl("SCRC", data$Condition)-0.5)
 data$HasSC.C = (0.5-grepl("NoSC", data$Condition))
+
+
+# Interesting
+u = data %>% group_by(compatible.C, Item, Condition) %>% summarise(surps = mean(SurprisalsWithoutThat - SurprisalsWithThat, na.rm=TRUE))                                                                  
+summary(lm(surps ~ compatible.C, data=u))
+
+
+
 crash()
 summary(lmer(ThatFractionReweighted ~ HasRC.C*compatible.C + HasRC.C*True_Minus_False.C +  (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", HasSC.C>0)))
 #                           Estimate Std. Error t value
