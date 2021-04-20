@@ -1,3 +1,4 @@
+import codecs
 import os
 
 header = "Noun Region Condition Surprisal SurprisalReweighted ThatFraction ThatFractionReweighted".split(" ")
@@ -16,17 +17,24 @@ with open(f"raw_output/{__file__}.tsv", "w") as outFile:
         continue
       print(suffix)
       accept = False
-      with open(PATH+f, "r") as inFile:
-         iterations = next(inFile).strip()
-         arguments = next(inFile).strip()
+      with codecs.open(PATH+f, "r", 'utf-8', "ignore") as inFile:
+         try:
+           iterations = next(inFile).strip()
+           arguments = next(inFile).strip()
+         except StopIteration:
+           continue
          for line in inFile:
              if "THAT" in line:
                 if "fixed" in line:
                      accept = True
                      break
       if accept:
-          arguments = dict([x.split("=") for x in arguments[10:-1].split(", ")])
-          print(arguments)
+          try:
+             arguments = dict([x.split("=") for x in arguments[10:-1].split(", ")])
+          except ValueError:
+              print("INVALID", arguments)
+              continue
+#          print(arguments)
           print(f)
           predictability_weight = arguments["predictability_weight"]
           deletion_rate = arguments["deletion_rate"]
