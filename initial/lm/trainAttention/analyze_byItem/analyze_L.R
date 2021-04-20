@@ -21,6 +21,23 @@ nounFreqs = nounFreqs[!duplicated(nounFreqs$noun),]
 data = merge(data, nounFreqs %>% rename(Noun = noun), by=c("Noun"), all.x=TRUE)
 
 data = data %>% mutate(True_Minus_False.C = True_False_False-False_False_False-mean(True_False_False-False_False_False, na.rm=TRUE))
+data = data %>% mutate(Ratio = True_False_False-False_False_False)
+
+
+library(ggplot2)
+
+plot = ggplot(data %>% group_by(Condition, deletion_rate, Ratio, predictability_weight) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted, na.rm=TRUE)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + facet_grid(predictability_weight~deletion_rate)
+ggsave(plot, file="figures/analyze_L.R_surp.pdf")
+
+
+plot = ggplot(data %>% group_by(Condition, deletion_rate, Ratio, predictability_weight) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted, na.rm=TRUE)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + facet_grid(predictability_weight~deletion_rate)
+ggsave(plot, file="figures/analyze_L.R_that.pdf")
+
+
+crash()
+
+
+
 
 unique((data %>% filter(is.na(True_Minus_False.C)))$Noun)
 # [1] conjecture  guess       insinuation intuition   observation
@@ -85,6 +102,16 @@ model2 = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1|ID) 
 #(Intercept)         9.90786    0.41429  23.915
 #compatible.C        0.29738    0.17382   1.711
 #True_Minus_False.C -0.23427    0.04523  -5.179
+
+library(ggrepel)
+model2 = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", ID==167196287)))
+u = coef(model2)$Item
+u[order(u$compatible.C),]
+u$Item = rownames(u)
+plot = ggplot(u, aes(x=compatible.C)) + geom_histogram() + geom_text_repel(aes(label=Item, y=as.numeric(as.factor(Item))/5)) + theme_bw()
+ggsave(plot, file="figures/analyze_L_167196287.R_slopes_hist.pdf", height=8, width=8)
+
+
 
 # for each model ID, record the t value of the compatibility effect
 for(id in unique(data$ID)) {

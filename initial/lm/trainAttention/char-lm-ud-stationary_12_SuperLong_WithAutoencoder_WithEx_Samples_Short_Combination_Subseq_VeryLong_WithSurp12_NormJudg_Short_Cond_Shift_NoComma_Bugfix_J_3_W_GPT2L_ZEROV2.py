@@ -1626,7 +1626,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
           print(sentenceID)
           context = None
           for compatible in ["compatible", "incompatible"]:
-           for condition in ["SC", "SCRC", "SC","NoSC"]:
+           for condition in ["SC", "SCRC", "NoSC"]:
             TRIALS_COUNT += 1
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]

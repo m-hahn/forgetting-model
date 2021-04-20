@@ -1,3 +1,4 @@
+import codecs
 import os
 
 header = "Noun Item Region Condition Surprisal SurprisalReweighted ThatFraction ThatFractionReweighted".split(" ")
@@ -16,9 +17,12 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
         continue
       print(suffix)
       accept = False
-      with open(PATH+f, "r") as inFile:
-         iterations = next(inFile).strip()
-         arguments = next(inFile).strip()
+      with codecs.open(PATH+f, "r", 'utf-8', "ignore") as inFile:
+         try:
+           iterations = next(inFile).strip()
+           arguments = next(inFile).strip()
+         except StopIteration:
+           continue
          for line in inFile:
              if "THAT" in line:
                 if "fixed" in line:
