@@ -29,15 +29,21 @@ data$compatible.C = (grepl("_co", data$Condition)-0.5)
 data$HasRC.C = (grepl("SCRC", data$Condition)-0.5)
 data$HasSC.C = (0.5-grepl("NoSC", data$Condition))
 
-crash()
+library(ggplot2)
+plot = ggplot(data %>% group_by(Noun, True_Minus_False.C, Condition) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=True_Minus_False.C, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun))
+ggsave(plot, file="figures/analyze_ZERO.R.pdf", height=8, width=8)
 
-model = (lmer(SurprisalReweighted ~ HasRC.C + compatible.C + True_Minus_False.C +  (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", HasSC.C > 0)))
-# GPT2 in the absence of any noise
-#                    Estimate Std. Error t value
-#(Intercept)         8.535705   0.471669  18.097
-#HasRC.C            -0.124532   0.008994 -13.846
-#compatible.C        0.406425   0.139664   2.910
-#True_Minus_False.C -0.131973   0.035126  -3.757
+
+
+model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C* True_Minus_False.C +  (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", HasSC.C > 0)))
+
+
+library(ggrepel)
+u = coef(model)$Item
+u$Item = rownames(u)
+plot = ggplot(u, aes(x=compatible.C)) + geom_histogram() + geom_text_repel(aes(label=Item, y=as.numeric(as.factor(Item))/5)) + theme_bw()
+ggsave(plot, file="figures/analyze_ZERO.R_slopes_hist.pdf", height=8, width=8)
+crash()
 
 
 

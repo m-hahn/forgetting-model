@@ -29,25 +29,29 @@ data$compatible.C = (grepl("_co", data$Condition)-0.5)
 data$HasRC.C = (grepl("SCRC", data$Condition)-0.5)
 data$HasSC.C = (0.5-grepl("NoSC", data$Condition))
 
-crash()
-
-model = (lmer(SurprisalReweighted ~ HasRC.C + compatible.C + True_Minus_False.C +  (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", HasSC.C > 0)))
-# GPT2L in the absence of any noise (TODO only for the top 31 nouns -- redo with the others)
-#                   Estimate Std. Error t value
-#(Intercept)         8.65544    0.45728  18.928
-#HasRC.C            -0.18006    0.01261 -14.275
-#compatible.C        0.25150    0.17154   1.466
-#True_Minus_False.C -0.18077    0.12082  -1.496
+library(ggplot2)
+plot = ggplot(data %>% group_by(Noun, True_Minus_False.C, Condition) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=True_Minus_False.C, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun))
+ggsave(plot, file="figures/analyze_ZERO_L.R.pdf", height=8, width=8)
 
 
 model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C* True_Minus_False.C +  (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", HasSC.C > 0)))
-#                            Estimate Std. Error t value (TODO only for the top 31 nouns -- redo with the others)
-#(Intercept)                 8.655440   0.457270  18.929
-#HasRC.C                    -0.180065   0.012574 -14.320
-#compatible.C                0.214119   0.171594   1.248
-#True_Minus_False.C         -0.179187   0.120857  -1.483
-#HasRC.C:compatible.C       -0.224265   0.025149  -8.918 !!!!!
-#HasRC.C:True_Minus_False.C  0.009509   0.017216   0.552
+#Fixed effects:                                                                                                                  
+#                            Estimate Std. Error t value
+#(Intercept)                 8.684672   0.455793  19.054
+#HasRC.C                    -0.226720   0.009226 -24.573
+#compatible.C                0.210564   0.169274   1.244
+#True_Minus_False.C         -0.001206   0.058716  -0.021
+#HasRC.C:compatible.C       -0.214995   0.018453 -11.651
+#HasRC.C:True_Minus_False.C -0.041138   0.008441  -4.874
+
+
+
+library(ggrepel)
+u = coef(model)$Item
+u$Item = rownames(u)
+plot = ggplot(u, aes(x=compatible.C)) + geom_histogram() + geom_text_repel(aes(label=Item, y=as.numeric(as.factor(Item))/5)) + theme_bw()
+ggsave(plot, file="figures/analyze_ZERO_L.R_slopes_hist.pdf", height=8, width=8)
+crash()
 
 
 
