@@ -1,4 +1,4 @@
-data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_J_3_W_GPT2L_ZERO.py_32831323_ZeroLoss", sep="\t")
+data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_J_3_W_GPT2L_ZEROV2.py_415624049_ZeroLoss", sep="\t")
 library(tidyr)
 library(dplyr)
 library(lme4)
@@ -31,7 +31,7 @@ data$HasSC.C = (0.5-grepl("NoSC", data$Condition))
 
 library(ggplot2)
 plot = ggplot(data %>% group_by(Noun, True_Minus_False.C, Condition) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=True_Minus_False.C, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun))
-ggsave(plot, file="figures/analyze_ZERO_L.R.pdf", height=8, width=8)
+ggsave(plot, file="figures/analyze_ZEROV2_L.R.pdf", height=8, width=8)
 
 
 model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C* True_Minus_False.C +  (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", HasSC.C > 0)))
@@ -50,8 +50,15 @@ library(ggrepel)
 u = coef(model)$Item
 u$Item = rownames(u)
 plot = ggplot(u, aes(x=compatible.C)) + geom_histogram() + geom_text_repel(aes(label=Item, y=as.numeric(as.factor(Item))/5)) + theme_bw()
-ggsave(plot, file="figures/analyze_ZERO_L.R_slopes_hist.pdf", height=8, width=8)
-write.table(u, file="analyze_ZERO_L.R.tsv", sep="\t")
+ggsave(plot, file="figures/analyze_ZEROV2_L.R_slopes_hist.pdf", height=8, width=8)
+
+v = read.csv("analyze_ZERO_L.R.tsv", sep="\t", quote='"')
+u = merge(u, v, by=c("Item"))
+
+print(cor.test(u$compatible.C.x, u$compatible.C.y))
+plot = ggplot(u, aes(x=compatible.C.x, y=compatible.C.y)) + geom_smooth(method="lm") + geom_text(aes(label=Item))
+ggsave(plot, file="figures/analyze_ZEROV2_L.R_comparison_slopes.pdf", width=10, height=10)
+
 crash()
 
 
