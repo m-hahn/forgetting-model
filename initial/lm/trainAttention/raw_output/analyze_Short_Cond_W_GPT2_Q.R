@@ -3,7 +3,7 @@ library(dplyr)
 
 
 
-data = read.csv("averages_Short_Cond_W_GPT2.tsv", quote='"', sep="\t")
+data = read.csv("averages_Short_Cond_W_GPT2_Q.tsv", quote='"', sep="\t")
 
 
 counts = unique(read.csv("~/forgetting/corpus_counts/wikipedia/results/counts4NEW_Processed.tsv", sep="\t"))
@@ -35,6 +35,32 @@ plot = ggplot(data %>% filter(Region == "V2_1") %>% group_by(predictability_weig
 plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun)) + facet_grid(predictability_weight~deletion_rate+Script)
 plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm", se=FALSE) + facet_grid(predictability_weight~deletion_rate+Script)
 
+
+
+plot = ggplot(data %>% filter(Region == "V1_0", grepl("GPT2L", Script)) %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm", se=FALSE) + facet_grid(predictability_weight~deletion_rate+Script)
+ggsave(plot, file="figures/Q_L_surp.pdf", width=10, height=10)
+plot = ggplot(data %>% filter(Region == "V1_0", grepl("GPT2L", Script)) %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + facet_grid(predictability_weight~deletion_rate+Script)
+ggsave(plot, file="figures/Q_L_that.pdf", width=10, height=10)
+
+
+
+plot = ggplot(data %>% filter(Region == "V1_0", grepl("GPT2M", Script)) %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm", se=FALSE) + facet_grid(predictability_weight~deletion_rate+Script)
+ggsave(plot, file="figures/Q_M_surp.pdf", width=10, height=10)
+
+plot = ggplot(data %>% filter(Region == "V1_0", grepl("GPT2M", Script)) %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + facet_grid(predictability_weight~deletion_rate+Script)
+ggsave(plot, file="figures/Q_M_that.pdf", width=10, height=10)
+
+
+plot = ggplot(data %>% filter(Region == "V1_0", Script == "script__Q_3_W_GPT2") %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm", se=FALSE) + facet_grid(predictability_weight~deletion_rate+Script)
+ggsave(plot, file="figures/Q_S_surp.pdf", width=10, height=10)
+
+plot = ggplot(data %>% filter(Region == "V1_0", Script == "script__Q_3_W_GPT2") %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + facet_grid(predictability_weight~deletion_rate+Script)
+ggsave(plot, file="figures/Q_S_that.pdf", width=10, height=10)
+
+
+
+plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun)) + facet_grid(predictability_weight~deletion_rate+Script)
+plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + facet_grid(predictability_weight~deletion_rate+Script)
 
 plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm", se=FALSE) + facet_grid(predictability_weight~deletion_rate)
 plot = ggplot(data %>% filter(Region == "V1_0", grepl("GPT2L", Script)) %>% group_by(Script, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm", se=FALSE) + facet_grid(predictability_weight~deletion_rate)
