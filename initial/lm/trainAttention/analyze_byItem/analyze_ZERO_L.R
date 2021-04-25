@@ -34,6 +34,15 @@ plot = ggplot(data %>% group_by(Noun, True_Minus_False.C, Condition) %>% summari
 ggsave(plot, file="figures/analyze_ZERO_L.R.pdf", height=8, width=8)
 
 
+
+model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C +  (1+compatible.C + HasRC.C + HasRC.C * compatible.C|Item), data=data %>% filter(Region == "V1_0", HasSC.C > 0, Noun == "report")))
+#                     Estimate Std. Error t value
+#(Intercept)           8.94965    0.44419  20.148
+#HasRC.C              -0.23995    0.09505  -2.525
+#compatible.C          0.32191    0.18067   1.782
+#HasRC.C:compatible.C -0.28202    0.12142  -2.323
+
+
 model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C* True_Minus_False.C +  (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", HasSC.C > 0)))
 #Fixed effects:                                                                                                                  
 #                            Estimate Std. Error t value

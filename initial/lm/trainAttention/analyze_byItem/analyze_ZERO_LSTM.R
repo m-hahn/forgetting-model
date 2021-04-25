@@ -44,6 +44,15 @@ model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C* True_Minus
 #HasRC.C:True_Minus_False.C -0.074730   0.007573  -9.868
 
 
+# model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C* True_Minus_False.C +  (1+compatible.C|Item), data=data %>% filter(Region == "V1_0", HasSC.C > 0, Noun == "report")))
+#                     Estimate Std. Error t value
+#(Intercept)           7.77094    0.54844  14.169
+#HasRC.C              -0.20230    0.06619  -3.056
+#compatible.C         -0.04186    0.13795  -0.303
+#HasRC.C:compatible.C  0.20752    0.13237   1.568
+
+
+
 library(ggrepel)
 u = coef(model)$Item
 u$Item = rownames(u)
