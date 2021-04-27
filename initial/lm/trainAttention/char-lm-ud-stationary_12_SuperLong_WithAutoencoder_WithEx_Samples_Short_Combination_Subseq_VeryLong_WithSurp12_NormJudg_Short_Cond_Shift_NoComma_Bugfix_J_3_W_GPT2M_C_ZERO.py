@@ -1,4 +1,3 @@
-assert False, "capitalization"
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -1277,7 +1276,9 @@ print(len(topNouns))
 #quit()
 
 
-    
+# This is to ensure the tsv files are useful even when the script is stopped prematurely
+random.shuffle(topNouns)
+
     
 #plain_lm = PlainLanguageModel()
 #plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
@@ -1606,7 +1607,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
     numberOfSamples = 3
-    import scoreWithGPT2XtraLarge as scoreWithGPT2
+    import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
     #topNouns = ["report"]
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
@@ -1631,6 +1632,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
             assert len(sentenceList) >= 5, sentenceList
+#            if "lifesaver" not in " ".join(sentenceList):
+ #              continue
             if condition == "NoSC" and compatible == "compatible":
                continue
             if condition == "SC":
@@ -1714,6 +1717,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
               resultNumeric_cpu = resultNumeric.detach().cpu()
               batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
+              for h in range(len(batch)):
+                 batch[h] = batch[h][:1].upper() + batch[h][1:]
+                 assert batch[h][0] != " ", batch[h]
 #              print(batch)
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
               surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)

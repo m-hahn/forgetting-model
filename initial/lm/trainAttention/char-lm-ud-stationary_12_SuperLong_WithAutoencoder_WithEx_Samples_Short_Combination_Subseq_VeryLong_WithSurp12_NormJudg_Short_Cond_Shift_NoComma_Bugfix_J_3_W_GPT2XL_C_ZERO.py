@@ -1,4 +1,3 @@
-assert False, "capitalization"
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -1277,7 +1276,9 @@ print(len(topNouns))
 #quit()
 
 
-    
+# This is to ensure the tsv files are useful even when the script is stopped prematurely
+random.shuffle(topNouns)
+
     
 #plain_lm = PlainLanguageModel()
 #plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
@@ -1714,7 +1715,11 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
               resultNumeric_cpu = resultNumeric.detach().cpu()
               batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
+              for h in range(len(batch)):
+                 batch[h] = batch[h][:1].upper() + batch[h][1:]
+                 assert batch[h][0] != " ", batch[h]
 #              print(batch)
+ #             quit()
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
               surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
               surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
