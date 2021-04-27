@@ -1,4 +1,4 @@
-data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_J_3_W_GPT2L_ZERO.py_32831323_ZeroLoss", sep="\t")
+data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_J_3_W_GPT2XL_C_ZERO.py_883952439_ZeroLoss", sep="\t")
 library(tidyr)
 library(dplyr)
 library(lme4)
@@ -37,22 +37,20 @@ ggsave(plot, file="figures/analyze_ZERO_L.R.pdf", height=8, width=8)
 
 model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C +  (1+compatible.C + HasRC.C + HasRC.C * compatible.C|Item), data=data %>% filter(Region == "V1_0", HasSC.C > 0, Noun == "report")))
 #                     Estimate Std. Error t value
-#(Intercept)           8.94965    0.44419  20.148
-#HasRC.C              -0.23995    0.09505  -2.525
-#compatible.C          0.32191    0.18067   1.782
-#HasRC.C:compatible.C -0.28202    0.12142  -2.323
+#(Intercept)           7.89722    0.47319  16.689
+#HasRC.C              -0.12654    0.08386  -1.509
+#compatible.C          0.03749    0.20962   0.179
+#HasRC.C:compatible.C -0.28781    0.15470  -1.860
 
 
 model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C* True_Minus_False.C +  (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", HasSC.C > 0)))
-#Fixed effects:                                                                                                                  
 #                            Estimate Std. Error t value
-#(Intercept)                 8.684672   0.455793  19.054
-#HasRC.C                    -0.226720   0.009226 -24.573
-#compatible.C                0.210564   0.169274   1.244
-#True_Minus_False.C         -0.001206   0.058716  -0.021
-#HasRC.C:compatible.C       -0.214995   0.018453 -11.651
-#HasRC.C:True_Minus_False.C -0.041138   0.008441  -4.874
-
+#(Intercept)                 7.677702   0.471715  16.276
+#HasRC.C                    -0.200946   0.014148 -14.203
+#compatible.C               -0.087176   0.189534  -0.460
+#True_Minus_False.C         -0.080546   0.067784  -1.188
+#HasRC.C:compatible.C       -0.230839   0.028296  -8.158
+#HasRC.C:True_Minus_False.C  0.002202   0.016046   0.137
 
 
 library(ggrepel)
@@ -66,30 +64,47 @@ crash()
 
 
 # Per-Item slopes u[order(u$compatible.C),]
-#                              (Intercept)    HasRC.C compatible.C True_Minus_False.C HasRC.C:compatible.C HasRC.C:True_Minus_False.C                                               
-#o_bureaucrat_guard              12.913126 -0.1800649  -3.59361647         -0.1791867           -0.2242652                 0.00950861
-#v_driver_guide                   4.592052 -0.1800649  -2.67680314         -0.1791867           -0.2242652                 0.00950861
-#v_guest_thug                    11.264083 -0.1800649  -2.62397397         -0.1791867           -0.2242652                 0.00950861
-#v_guest_cousin                  14.698953 -0.1800649  -2.54186839         -0.1791867           -0.2242652                 0.00950861
-#v_psychiatrist_nurse            11.931544 -0.1800649  -2.26196304         -0.1791867           -0.2242652                 0.00950861
-#v_victim_swimmer                10.177526 -0.1800649  -2.08973761         -0.1791867           -0.2242652                 0.00950861
-#o_lifeguard_swimmer             10.865607 -0.1800649  -1.91340769         -0.1791867           -0.2242652                 0.00950861
-#o_commander_president           13.471081 -0.1800649  -1.52694670         -0.1791867           -0.2242652                 0.00950861
-#o_politician_banker              8.702205 -0.1800649  -1.23774443         -0.1791867           -0.2242652                 0.00950861
-#.......
-#o_child_medic                   13.525293 -0.1800649   1.20973521         -0.1791867           -0.2242652                 0.00950861
-#v_firefighter_neighbor          10.540565 -0.1800649   1.38420479         -0.1791867           -0.2242652                 0.00950861
-#v_businessman_sponsor            7.799484 -0.1800649   1.53923469         -0.1791867           -0.2242652                 0.00950861
-#v_sponsor_musician              11.185728 -0.1800649   1.56771089         -0.1791867           -0.2242652                 0.00950861
-#o_carpenter_craftsman            4.256079 -0.1800649   1.58127995         -0.1791867           -0.2242652                 0.00950861
-#o_student_bully                 13.500579 -0.1800649   1.58286904         -0.1791867           -0.2242652                 0.00950861
-#v_lifeguard_soldier             14.371766 -0.1800649   1.80567240         -0.1791867           -0.2242652                 0.00950861
-#v_senator_diplomat              11.492689 -0.1800649   2.01609549         -0.1791867           -0.2242652                 0.00950861
-#v_vendor_salesman               12.504400 -0.1800649   2.06845695         -0.1791867           -0.2242652                 0.00950861
-#o_criminal_officer               4.306611 -0.1800649   2.12128782         -0.1791867           -0.2242652                 0.00950861
-#o_trickster_woman               15.635801 -0.1800649   2.42507581         -0.1791867           -0.2242652                 0.00950861
-#o_surgeon_patient                5.334806 -0.1800649   2.64915028         -0.1791867           -0.2242652                 0.00950861
-#v_captain_crew                   6.607844 -0.1800649   3.18019491         -0.1791867           -0.2242652                 0.00950861
-#v_agent_fbi                      4.992108 -0.1800649   3.59416046         -0.1791867           -0.2242652                 0.00950861
-
+#                              (Intercept)    HasRC.C compatible.C True_Minus_False.C HasRC.C:compatible.C HasRC.C:True_Minus_False.C                          Item
+#o_victim_criminal               16.443692 -0.2009456  -3.89012750        -0.08054613           -0.2308392                0.002202139             o_victim_criminal
+#o_bureaucrat_guard              12.798415 -0.2009456  -3.40844048        -0.08054613           -0.2308392                0.002202139            o_bureaucrat_guard
+#v_victim_swimmer                 9.588338 -0.2009456  -3.35275749        -0.08054613           -0.2308392                0.002202139              v_victim_swimmer
+#o_preacher_parishioners         10.164426 -0.2009456  -2.61462249        -0.08054613           -0.2308392                0.002202139       o_preacher_parishioners
+#v_driver_guide                   3.890123 -0.2009456  -2.51901611        -0.08054613           -0.2308392                0.002202139                v_driver_guide
+#v_psychiatrist_nurse            13.366258 -0.2009456  -2.49010069        -0.08054613           -0.2308392                0.002202139          v_psychiatrist_nurse
+#o_lifeguard_swimmer             12.053383 -0.2009456  -2.24142408        -0.08054613           -0.2308392                0.002202139           o_lifeguard_swimmer
+#o_senator_diplomat               6.971846 -0.2009456  -2.20642963        -0.08054613           -0.2308392                0.002202139            o_senator_diplomat
+#v_guest_cousin                  13.955848 -0.2009456  -1.97930941        -0.08054613           -0.2308392                0.002202139                v_guest_cousin
+#o_bookseller_thief               8.399671 -0.2009456  -1.85934557        -0.08054613           -0.2308392                0.002202139            o_bookseller_thief
+#v_president_farmer               8.077183 -0.2009456  -1.78781521        -0.08054613           -0.2308392                0.002202139            v_president_farmer
+#v_actor_fans                    10.256402 -0.2009456  -1.28761903        -0.08054613           -0.2308392                0.002202139                  v_actor_fans
+#v_guest_thug                     8.971182 -0.2009456  -1.13997745        -0.08054613           -0.2308392                0.002202139                  v_guest_thug
+#v_medic_survivor                 7.195995 -0.2009456  -1.09813851        -0.08054613           -0.2308392                0.002202139              v_medic_survivor
+#o_commander_president            9.904442 -0.2009456  -0.94565686        -0.08054613           -0.2308392                0.002202139         o_commander_president
+#v_thief_detective                9.951851 -0.2009456  -0.86368388        -0.08054613           -0.2308392                0.002202139             v_thief_detective
+#o_politician_banker              7.628845 -0.2009456  -0.80162446        -0.08054613           -0.2308392                0.002202139           o_politician_banker
+#o_student_professor              7.817502 -0.2009456  -0.61356419        -0.08054613           -0.2308392                0.002202139           o_student_professor
+#o_student_bully                 14.231308 -0.2009456  -0.58428238        -0.08054613           -0.2308392                0.002202139               o_student_bully
+#o_tenant_foreman                 8.998755 -0.2009456  -0.51962206        -0.08054613           -0.2308392                0.002202139              o_tenant_foreman
+#o_entrepreneur_philanthropist    5.453775 -0.2009456  -0.51561342        -0.08054613           -0.2308392                0.002202139 o_entrepreneur_philanthropist
+#....
+#o_neighbor_woman                 2.677498 -0.2009456   0.80525403        -0.08054613           -0.2308392                0.002202139              o_neighbor_woman
+#v_bully_children                 3.297750 -0.2009456   0.82632835        -0.08054613           -0.2308392                0.002202139              v_bully_children
+#o_trickster_woman               13.634632 -0.2009456   0.84976480        -0.08054613           -0.2308392                0.002202139             o_trickster_woman
+#o_trader_businessman             2.799590 -0.2009456   0.88673417        -0.08054613           -0.2308392                0.002202139          o_trader_businessman
+#o_clerk_customer                 8.095375 -0.2009456   0.90390935        -0.08054613           -0.2308392                0.002202139              o_clerk_customer
+#o_criminal_officer               3.289029 -0.2009456   0.93283198        -0.08054613           -0.2308392                0.002202139            o_criminal_officer
+#v_fiancé_author                  7.280652 -0.2009456   0.94354008        -0.08054613           -0.2308392                0.002202139               v_fiancé_author
+#o_carpenter_craftsman            3.694351 -0.2009456   1.04216853        -0.08054613           -0.2308392                0.002202139         o_carpenter_craftsman
+#v_banker_analyst                10.089040 -0.2009456   1.06726192        -0.08054613           -0.2308392                0.002202139              v_banker_analyst
+#o_pharmacist_stranger           10.356985 -0.2009456   1.15479462        -0.08054613           -0.2308392                0.002202139         o_pharmacist_stranger
+#o_child_medic                   11.721865 -0.2009456   1.16346285        -0.08054613           -0.2308392                0.002202139                 o_child_medic
+#v_lifeguard_soldier             14.406856 -0.2009456   1.71025774        -0.08054613           -0.2308392                0.002202139           v_lifeguard_soldier
+#o_actor_star                     6.941863 -0.2009456   1.77016498        -0.08054613           -0.2308392                0.002202139                  o_actor_star
+#v_senator_diplomat              11.223623 -0.2009456   1.77497946        -0.08054613           -0.2308392                0.002202139            v_senator_diplomat
+#o_surgeon_patient                3.261595 -0.2009456   1.79864220        -0.08054613           -0.2308392                0.002202139             o_surgeon_patient
+#v_vendor_salesman               11.502253 -0.2009456   1.98733412        -0.08054613           -0.2308392                0.002202139             v_vendor_salesman
+#o_mobster_media                  7.139858 -0.2009456   2.04248755        -0.08054613           -0.2308392                0.002202139               o_mobster_media
+#v_captain_crew                   5.004972 -0.2009456   2.28463496        -0.08054613           -0.2308392                0.002202139                v_captain_crew
+#v_agent_fbi                      4.570650 -0.2009456   3.25861236        -0.08054613           -0.2308392                0.002202139                   v_agent_fbi
+#o_consultant_artist             10.277153 -0.2009456   4.69647943        -0.08054613           -0.2308392                0.002202139           o_consultant_artist
 
