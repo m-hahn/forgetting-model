@@ -1605,7 +1605,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
     numberOfSamples = 3
-    import scoreWithGPT2Large as scoreWithGPT2
+    import scoreWithGPT2Context as scoreWithGPT2
     global topNouns
     #topNouns = ["report"]
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
@@ -1630,6 +1630,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
             assert len(sentenceList) >= 5, sentenceList
+#            if "lifesaver" not in " ".join(sentenceList):
+ #              continue
             if condition == "NoSC" and compatible == "compatible":
                continue
             if condition == "SC":

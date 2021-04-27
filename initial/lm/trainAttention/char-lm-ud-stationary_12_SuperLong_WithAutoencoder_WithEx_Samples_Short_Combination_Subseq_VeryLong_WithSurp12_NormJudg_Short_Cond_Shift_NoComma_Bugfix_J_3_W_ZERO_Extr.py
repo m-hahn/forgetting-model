@@ -130,9 +130,9 @@ class PlainLanguageModel(torch.nn.Module):
   """ Prior: a sequence LSTM network """
   def __init__(self):
       super(PlainLanguageModel, self).__init__()
-      self.rnn = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_lm, args.layer_num).cuda()
-      self.output = torch.nn.Linear(args.hidden_dim_lm, len(itos)+3).cuda()
-      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
+      self.rnn = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_lm, args.layer_num)
+      self.output = torch.nn.Linear(args.hidden_dim_lm, len(itos)+3)
+      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size)
       self.logsoftmax = torch.nn.LogSoftmax(dim=2)
       self.softmax = torch.nn.Softmax(dim=2)
 
@@ -143,13 +143,13 @@ class PlainLanguageModel(torch.nn.Module):
       self.modules = [self.rnn, self.output, self.word_embeddings]
       #self.learning_rate = args.learning_rate
       #self.optim = torch.optim.SGD(self.parameters(), lr=self.learning_rate, momentum=0.0) # 0.02, 0.9
-      self.zeroBeginning = torch.LongTensor([0 for _ in range(args.NUMBER_OF_REPLICATES*args.batchSize)]).cuda().view(1,args.NUMBER_OF_REPLICATES*args.batchSize)
+      self.zeroBeginning = torch.LongTensor([0 for _ in range(args.NUMBER_OF_REPLICATES*args.batchSize)]).view(1,args.NUMBER_OF_REPLICATES*args.batchSize)
       self.beginning = None
-      self.zeroBeginning_chars = torch.zeros(1, args.batchSize, 16).long().cuda()
-      self.zeroHidden = torch.zeros((args.layer_num, args.batchSize, args.hidden_dim_lm)).cuda()
-      self.bernoulli = torch.distributions.bernoulli.Bernoulli(torch.tensor([0.1 for _ in range(args.batchSize)]).cuda())
-      self.bernoulli_input = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_in for _ in range(args.batchSize * 2 * args.word_embedding_size)]).cuda())
-      self.bernoulli_output = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_out for _ in range(args.batchSize * args.hidden_dim_lm)]).cuda())
+      self.zeroBeginning_chars = torch.zeros(1, args.batchSize, 16).long()
+      self.zeroHidden = torch.zeros((args.layer_num, args.batchSize, args.hidden_dim_lm))
+      self.bernoulli = torch.distributions.bernoulli.Bernoulli(torch.tensor([0.1 for _ in range(args.batchSize)]))
+      self.bernoulli_input = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_in for _ in range(args.batchSize * 2 * args.word_embedding_size)]))
+      self.bernoulli_output = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_out for _ in range(args.batchSize * args.hidden_dim_lm)]))
 
       self.hidden = None
 
@@ -252,19 +252,19 @@ class PlainLanguageModel(torch.nn.Module):
 class Autoencoder:
   """ Amortized Reconstruction Posterior """
   def __init__(self):
-    self.rnn_encoder = torch.nn.LSTM(2*args.word_embedding_size, int(args.hidden_dim_autoencoder/2.0), args.layer_num, bidirectional=True).cuda()
-    self.rnn_decoder = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_autoencoder, args.layer_num).cuda()
-    self.output = torch.nn.Linear(args.hidden_dim_autoencoder, len(itos)+3).cuda()
-    self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
+    self.rnn_encoder = torch.nn.LSTM(2*args.word_embedding_size, int(args.hidden_dim_autoencoder/2.0), args.layer_num, bidirectional=True)
+    self.rnn_decoder = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_autoencoder, args.layer_num)
+    self.output = torch.nn.Linear(args.hidden_dim_autoencoder, len(itos)+3)
+    self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size)
     self.logsoftmax = torch.nn.LogSoftmax(dim=2)
     self.softmax = torch.nn.Softmax(dim=2)
     self.attention_softmax = torch.nn.Softmax(dim=1)
     self.train_loss = torch.nn.NLLLoss(ignore_index=0)
     self.print_loss = torch.nn.NLLLoss(size_average=False, reduce=False, ignore_index=0)
     self.char_dropout = torch.nn.Dropout2d(p=args.char_dropout_prob)
-    self.attention_proj = torch.nn.Linear(args.hidden_dim_autoencoder, args.hidden_dim_autoencoder, bias=False).cuda()
+    self.attention_proj = torch.nn.Linear(args.hidden_dim_autoencoder, args.hidden_dim_autoencoder, bias=False)
     self.attention_proj.weight.data.fill_(0)
-    self.output_mlp = torch.nn.Linear(2*args.hidden_dim_autoencoder, args.hidden_dim_autoencoder).cuda()
+    self.output_mlp = torch.nn.Linear(2*args.hidden_dim_autoencoder, args.hidden_dim_autoencoder)
     self.relu = torch.nn.ReLU()
     self.modules_autoencoder = [self.rnn_decoder, self.rnn_encoder, self.output, self.word_embeddings, self.attention_proj, self.output_mlp]
  
@@ -350,21 +350,18 @@ class Autoencoder:
       else:
          nounFraction = -1
          thatFraction = -1
-      result_numeric = torch.LongTensor(result_numeric).cuda()
+      result_numeric = torch.LongTensor(result_numeric)
       assert result_numeric.size()[0] == numberOfBatches
       return result, result_numeric, (nounFraction, thatFraction), thatFraction, amortizedPosterior
 
-    
-
-autoencoder = Autoencoder()
-
+   
 class LanguageModel:
    """ Amortized Prediction Posterior """
    def __init__(self):
-      self.rnn = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_lm, args.layer_num).cuda()
+      self.rnn = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_lm, args.layer_num)
       self.rnn_drop = self.rnn
-      self.output = torch.nn.Linear(args.hidden_dim_lm, len(itos)+3).cuda()
-      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
+      self.output = torch.nn.Linear(args.hidden_dim_lm, len(itos)+3)
+      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size)
       self.logsoftmax = torch.nn.LogSoftmax(dim=2)
       self.train_loss = torch.nn.NLLLoss(ignore_index=0)
       self.print_loss = torch.nn.NLLLoss(size_average=False, reduce=False, ignore_index=0)
@@ -383,88 +380,27 @@ class LanguageModel:
        return lm_lossTensor 
 
 
-lm = LanguageModel()
 
-#character_embeddings = torch.nn.Embedding(num_embeddings = len(itos_chars_total)+3, embedding_dim=args.char_emb_dim).cuda()
+#character_embeddings = torch.nn.Embedding(num_embeddings = len(itos_chars_total)+3, embedding_dim=args.char_emb_dim)
 
 class MemoryModel():
   """ Noise Model """
   def __init__(self):
-     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
-     self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
+     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500)
+     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500)
+     self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500)
+     self.memory_mlp_outer = torch.nn.Linear(500, 1)
      self.sigmoid = torch.nn.Sigmoid()
      self.relu = torch.nn.ReLU()
-     self.positional_embeddings = torch.nn.Embedding(num_embeddings=args.sequence_length+2, embedding_dim=256).cuda()
-     self.memory_word_pos_inter = torch.nn.Linear(256, 1, bias=False).cuda()
+     self.positional_embeddings = torch.nn.Embedding(num_embeddings=args.sequence_length+2, embedding_dim=256)
+     self.memory_word_pos_inter = torch.nn.Linear(256, 1, bias=False)
      self.memory_word_pos_inter.weight.data.fill_(0)
-     self.perword_baseline_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
-     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
+     self.perword_baseline_inner = torch.nn.Linear(2*args.word_embedding_size, 500)
+     self.perword_baseline_outer = torch.nn.Linear(500, 1)
+     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False)
      self.memory_bilinear.weight.data.fill_(0)
      self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
 
-
-memory = MemoryModel()
-
-def parameters_memory():
-   for module in memory.modules_memory:
-       for param in module.parameters():
-            yield param
-
-parameters_memory_cached = [x for x in parameters_memory()]
-
-
-# Set up optimization
-
-dual_weight = torch.cuda.FloatTensor([1.0])
-dual_weight.requires_grad=True
-
-
-
-
-
-
-def parameters_autoencoder():
-   for module in autoencoder.modules_autoencoder:
-       for param in module.parameters():
-            yield param
-
-
-
-def parameters_lm():
-   for module in lm.modules_lm:
-       for param in module.parameters():
-            yield param
-
-parameters_lm_cached = [x for x in parameters_lm()]
-
-
-assert not TRAIN_LM
-optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
-
-###############################################3
-
-
-# Load pretrained prior and amortized posteriors
-
-# Amortized Reconstruction Posterior
-if args.load_from_autoencoder is not None:
-  print(args.load_from_autoencoder)
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
-  for i in range(len(checkpoint["components"])):
-      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
- 
-# Amortized Prediction Posterior
-if args.load_from_lm is not None:
-  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(args.load_from_lm)+".txt")
-  for i in range(len(checkpoint["components"])):
-      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
 
 from torch.autograd import Variable
 
@@ -504,8 +440,8 @@ def prepareDatasetChunks(data, train=True):
          numerified = numerified[cutoff:]
 #         numerified_chars = numerified_chars[cutoff:]
        
-         numerifiedCurrent = torch.LongTensor(numerifiedCurrent).view(args.batchSize, -1, sequenceLengthHere).transpose(0,1).transpose(1,2).cuda()
-#         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2).cuda()
+         numerifiedCurrent = torch.LongTensor(numerifiedCurrent).view(args.batchSize, -1, sequenceLengthHere).transpose(0,1).transpose(1,2)
+#         numerifiedCurrent_chars = torch.LongTensor(numerifiedCurrent_chars).view(args.batchSize, -1, sequenceLengthHere, 16).transpose(0,1).transpose(1,2)
 
          numberOfSequences = numerifiedCurrent.size()[0]
          for i in range(numberOfSequences):
@@ -519,18 +455,18 @@ def prepareDatasetChunks(data, train=True):
 
 hidden = None
 
-zeroBeginning = torch.LongTensor([0 for _ in range(args.NUMBER_OF_REPLICATES*args.batchSize)]).cuda().view(1,args.NUMBER_OF_REPLICATES*args.batchSize)
+zeroBeginning = torch.LongTensor([0 for _ in range(args.NUMBER_OF_REPLICATES*args.batchSize)]).view(1,args.NUMBER_OF_REPLICATES*args.batchSize)
 beginning = None
 
-zeroBeginning_chars = torch.zeros(1, args.batchSize, 16).long().cuda()
+zeroBeginning_chars = torch.zeros(1, args.batchSize, 16).long()
 
 
-#zeroHidden = torch.zeros((args.layer_num, args.batchSize, args.hidden_dim)).cuda()
+#zeroHidden = torch.zeros((args.layer_num, args.batchSize, args.hidden_dim))
 
-bernoulli = torch.distributions.bernoulli.Bernoulli(torch.tensor([0.1 for _ in range(args.batchSize)]).cuda())
+bernoulli = torch.distributions.bernoulli.Bernoulli(torch.tensor([0.1 for _ in range(args.batchSize)]))
 
-#bernoulli_input = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_in for _ in range(args.batchSize * 2 * args.word_embedding_size)]).cuda())
-#bernoulli_output = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_out for _ in range(args.batchSize * args.hidden_dim)]).cuda())
+#bernoulli_input = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_in for _ in range(args.batchSize * 2 * args.word_embedding_size)]))
+#bernoulli_output = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_out for _ in range(args.batchSize * args.hidden_dim)]))
 
 #runningAveragePredictionLoss = 1.0
 runningAverageReward = 5.0
@@ -555,7 +491,7 @@ def product(x):
      r *= i
    return r
 
-PUNCTUATION = torch.LongTensor([stoi_total[x] for x in [".", "OOV", '"', "(", ")", "'", '"', ":", ",", "'s", "[", "]"]]).cuda()
+PUNCTUATION = torch.LongTensor([stoi_total[x] for x in [".", "OOV", '"', "(", ")", "'", '"', ":", ",", "'s", "[", "]"]])
 
 def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True):
       """ Forward pass through the entire model
@@ -579,7 +515,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       embedded_everything = lm.word_embeddings(numeric)
 
       # Positional embeddings
-      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
+      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).unsqueeze(1)
       embedded_positions = memory.positional_embeddings(numeric_positions)
       numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
@@ -779,7 +715,7 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
       embedded_everything = lm.word_embeddings(numeric)
 
       # Positional embeddings
-      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
+      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).unsqueeze(1)
       embedded_positions = memory.positional_embeddings(numeric_positions)
       numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
@@ -1064,7 +1000,7 @@ nounsAndVerbsIncompatible.append(["the ceo", "the employee", "impressed", "was r
 nounsAndVerbsCompatible.append(["the driver", "the tourist", "consulted", "was crazy", "seemed hard to believe ."])
 nounsAndVerbsIncompatible.append(["the driver", "the tourist", "consulted", "was lying", "seemed hard to believe ."])
 nounsAndVerbsCompatible.append(["the bookseller", "the thief", "robbed", "was a total fraud", "shocked his family ."])
-nounsAndVerbsIncompatible.append(["the bookseller", "the thief", "robbed", "got a heart attack", "shocked his family ."])
+nounsAndVerbsIncompatible.append(["the bookseller", "the thief", "robbed", "had a heart attack", "shocked his family ."])
 nounsAndVerbsCompatible.append(["the neighbor", "the woman", "distrusted", "startled the child", "was a lie ."])
 nounsAndVerbsIncompatible.append(["the neighbor", "the woman", "distrusted", "killed the dog", "was a lie ."])
 nounsAndVerbsCompatible.append(["the scientist", "the mayor", "trusted", "could n't be trusted", "was only a malicious smear ."])
@@ -1278,15 +1214,6 @@ print(len(topNouns))
 
     
     
-#plain_lm = PlainLanguageModel()
-#plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
-
-#if args.load_from_plain_lm is not None:
-#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
-#  for i in range(len(checkpoint["components"])):
-#      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
-#  del checkpoint
-
 
 # Helper Functions
 
@@ -1306,7 +1233,7 @@ def encodeContextCrop(inp, context):
      numerified = [stoi_total[char] if char in stoi_total else 2 for char in sentence.split(" ")]
      print(len(numerified))
      numerified = numerified[-args.sequence_length-1:]
-     numerified = torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
+     numerified = torch.LongTensor([numerified for _ in range(args.batchSize)]).t()
      return numerified
 
 def flatten(x):
@@ -1568,7 +1495,7 @@ calibrationSentences.append("The cook who the servant in the kitchen hired offen
 #              result, resultNumeric, fractions, thatProbs = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24)
 # #             print(resultNumeric.size())
 #              resultNumeric = resultNumeric.transpose(0,1).contiguous()
-#              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
+#              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0)
 #              resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
 #              # get next-word surprisals using the prior
 #              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=False, returnLastSurprisal=True, numberOfBatches=numberOfSamples*24)
@@ -1599,22 +1526,17 @@ def divideDicts(y, z):
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
-#    print(plain_lm) 
     surprisalsPerNoun = {}
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
     numberOfSamples = 3
-    import scoreWithGPT2Large as scoreWithGPT2
     global topNouns
     #topNouns = ["report"]
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted"]), file=outFile)
-     with torch.no_grad():
+    with torch.no_grad():
       TRIALS_COUNT = 0
       TOTAL_TRIALS = len(topNouns) * 20 * 2 * 1
-      for nounIndex, NOUN in enumerate(topNouns):
-        print(NOUN, "Time:", time.time() - startTimePredictions, nounIndex/len(topNouns), file=sys.stderr)
+      for nounIndex, NOUN in enumerate(topNouns[:1]):
         thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
@@ -1622,37 +1544,14 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         for sentenceID in range(len(nounsAndVerbsCompatible)):
-          print(sentenceID)
           context = None
           for compatible in ["compatible", "incompatible"]:
-           for condition in ["SC", "SCRC", "NoSC"]:
+           for condition in ["SC"]:
             TRIALS_COUNT += 1
-            print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
-            assert len(sentenceList) >= 5, sentenceList
-            if condition == "NoSC" and compatible == "compatible":
-               continue
-            if condition == "SC":
-               context = f"the {NOUN} that {sentenceList[0]}"
-               regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
-               remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
-               regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
-               assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
-            elif condition == "NoSC":
-               context = f"the {NOUN}"
-               regionsToDo = [(sentenceList[4].split(" ")[0], "V1")]
-               remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
-               regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
-               assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
-            elif condition == "SCRC":
-               context = f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
-               regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
-               remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
-               regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
-               assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
-            else:
-               assert False
-            print("INPUT", context, remainingInput)
+            print(f"The report that {sentenceList[0]} {sentenceList[3]} #{sentenceList[4]}")
+            print(f"The report that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]} {sentenceList[3]} #{sentenceList[4]}")
+            continue
             assert len(remainingInput) > 0
             for i in range(len(remainingInput)):
               if regions[i] not in ["V2_0", "V1_0"]:
@@ -1707,24 +1606,16 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
 
 
-              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
+              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0)
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
-
-              resultNumeric_cpu = resultNumeric.detach().cpu()
-              batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
-#              print(batch)
-              totalSurprisal = scoreWithGPT2.scoreSentences(batch)
-              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
-              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
-
-#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
-#              assert resultNumeric.size()[0] == args.sequence_length+1
-#              assert totalSurprisal.size()[0] == args.sequence_length
-#              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
-#              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
-#              surprisals_past = totalSurprisal[:-1].sum(dim=0)
-#              surprisals_nextWord = totalSurprisal[-1]
+              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
+              assert resultNumeric.size()[0] == args.sequence_length+1
+              assert totalSurprisal.size()[0] == args.sequence_length
+              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
+              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
+              surprisals_past = totalSurprisal[:-1].sum(dim=0)
+              surprisals_nextWord = totalSurprisal[-1]
 
               # where numberOfSamples is how many samples we take from the noise model, and 24 is how many samples are drawn from the amortized posterior for each noised sample
               amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
@@ -1808,38 +1699,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         #assert hasSeenCompatible
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
-    print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-      print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
-      for noun in topNouns:
- #      assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
-#       assert "SCRC_compatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
-#       assert len(surprisalsPerNoun[noun]["SCRC_compatible"]) > 0
-       for condition in surprisalsPerNoun[noun]:
-#         assert "V1_0" in thatFractionsPerNoun[noun][condition], list(thatFractionsPerNoun[noun][condition])
-#         assert "V1_0" in surprisalsPerNoun[noun][condition], list(surprisalsPerNoun[noun][condition])
-         for region in surprisalsPerNoun[noun][condition]:
-           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], surprisalsReweightedPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", thatFractionsReweightedPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
-    # For sanity-checking: Prints correlations between surprisal and that-bias
-    for region in ["V2_0", "V2_1", "V1_0"]:
-      for condition in surprisalsPerNoun["report"]:
-       if region not in surprisalsPerNoun["report"][condition]:
-          continue
-       print(SANITY, condition, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsReweightedPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 , correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsReweightedPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 )
-       surprisals = torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])
-       print(condition, surprisals.mean(), "SD", math.sqrt(surprisals.pow(2).mean() - surprisals.mean().pow(2)))
-#    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["SC"][region] - surprisalsPerNoun[noun]["NoSC"][region] for region in surprisalsPerNoun[noun]["SC"]]) for noun in topNouns])
- #   print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
-
-
-#getTotalSentenceSurprisalsCalibration(SANITY="Model")
-#quit()
-
 
 startTimePredictions = time.time()
 
 with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+#if True:
   startTimePredictions = time.time()
+#  print(args, file=outFile)
 
   sys.stdout = outFile
   getTotalSentenceSurprisals(SANITY="ZeroLoss")
