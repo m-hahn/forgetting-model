@@ -49,11 +49,152 @@ crash()
 
 summary(lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", deletion_rate==0.5, predictability_weight=0.0)))
 
-data2 = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_J_3_W_GPT2M_ZERO.py_332848174_ZeroLoss", sep="\t")
+data2 = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_J_3_W_GPT2L_ZERO.py_32831323_ZeroLoss", sep="\t")
 
 data = merge(data, data2 %>% group_by(Noun, Item, Region, Condition) %>% summarise(SurprisalZero = mean(SurprisalReweighted)), by=c("Noun", "Item", "Region", "Condition"))
 
 
+for(id in unique(data$ID)) {
+ model = (lmer(SurprisalReweighted ~ SurprisalZero + compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(ID == id))) 
+ predictability_weight = unique(((data %>% filter(ID == id))$predictability_weight))[1]
+ deletion_rate = unique(((data %>% filter(ID == id))$deletion_rate))[1]
+ print(paste(id, " ", summary(model)$coef[3,3], " ", deletion_rate, " ", predictability_weight))
+}
+
+#[1] "599568962   1.52510761213343   0.5   0.75"
+#[1] "261611831   1.41519779435684   0.5   0"
+#[1] "620654642   2.76696949310314   0.55   1"
+#[1] "68680906   1.63947812783625   0.55   1"
+#[1] "3535245   3.07547998660363   0.55   0.75"
+#[1] "185553481   1.86707832162419   0.55   0.75"
+#[1] "978406179   0.83881763121371   0.45   0"
+#[1] "795928457   1.08905389338733   0.5   0.75"
+#[1] "262926142   -0.70113064005367   0.45   0.5"
+#[1] "69019020   1.99082049550013   0.45   0.75"
+#[1] "848128467   2.12594971742125   0.45   1"
+#[1] "387749835   1.93933525385585   0.55   1"
+#[1] "319356587   1.01738429658323   0.45   1"
+#[1] "348524596   0.860003120551236   0.5   0"
+#[1] "192234817   1.47062769791564   0.55   0.75"
+#[1] "96253495   0.572872285120205   0.45   0.75"
+#[1] "266998840   4.03082312583201   0.45   1"
+#[1] "167196287   3.55475426704156   0.5   0.5"
+#[1] "374361203   0.120816300968543   0.5   0.5"
+#[1] "983021535   2.87143278426597   0.45   0.25"
+#[1] "558918113   3.38323440262849   0.45   0.25"
+#[1] "198947364   0.382985628300918   0.45   0"
+#[1] "798647547   1.38514336709713   0.45   0.25"
+#[1] "781374715   2.94334024490162   0.5   0.5"
+
+
+
+zero_slopes = read.csv("analyze_ZERO_L.R.tsv", sep="\t")
+
+data = merge(zero_slopes %>% rename(compatibleSlope = compatible.C) %>% select(Item, compatibleSlope), data, by=c("Item"))
+
+
+for(id in unique(data$ID)) {
+ model = (lmer(SurprisalReweighted ~ SurprisalZero + compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(ID == id, abs(compatibleSlope) < 1.5))) 
+ predictability_weight = unique(((data %>% filter(ID == id))$predictability_weight))[1]
+ deletion_rate = unique(((data %>% filter(ID == id))$deletion_rate))[1]
+ print(paste(id, " ", summary(model)$coef[3,3], " ", deletion_rate, " ", predictability_weight))
+}
+
+#[1] "599568962   2.28385223351258   0.5   0.75"
+#[1] "261611831   2.8583265121534   0.5   0"
+#[1] "620654642   3.26006251282723   0.55   1"
+#[1] "68680906   1.91003982838422   0.55   1"
+#[1] "3535245   4.5123161510624   0.55   0.75"
+#[1] "185553481   2.47574054788372   0.55   0.75"
+#[1] "978406179   2.09071902101199   0.45   0"
+#[1] "795928457   1.74632869742527   0.5   0.75"
+#[1] "262926142   -0.344525348308368   0.45   0.5"
+#[1] "69019020   2.97921990228808   0.45   0.75"
+#[1] "848128467   2.9522994370413   0.45   1"
+#.............
+
+
+
+for(id in unique(data$ID)) {
+ model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(ID == id, abs(compatibleSlope) < 1.0))) 
+ predictability_weight = unique(((data %>% filter(ID == id))$predictability_weight))[1]
+ deletion_rate = unique(((data %>% filter(ID == id))$deletion_rate))[1]
+ print(paste(id, " ", summary(model)$coef[2,3], " ", deletion_rate, " ", predictability_weight))
+}
+t.test((coef(model)$Item)$compatible.C)
+t.test((zero_slopes %>% filter(abs(compatible.C) < 1.0))$compatible.C) 
+
+
+
+
+
+# t.test((zero_slopes %>% filter(abs(compatible.C) < 1.5))$compatible.C) # already slightly > 0
+
+for(id in unique(data$ID)) {
+ model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(ID == id, abs(compatibleSlope) < 1.5))) 
+ predictability_weight = unique(((data %>% filter(ID == id))$predictability_weight))[1]
+ deletion_rate = unique(((data %>% filter(ID == id))$deletion_rate))[1]
+ print(paste(id, " ", summary(model)$coef[2,3], " ", deletion_rate, " ", predictability_weight))
+}
+
+#[1] "599568962   3.41502156729185   0.5   0.75"
+#[1] "261611831   3.7205289977566   0.5   0"
+#[1] "620654642   3.78739577127921   0.55   1"
+#[1] "68680906   3.4683747964492   0.55   1"
+#[1] "3535245   4.57283508369948   0.55   0.75"
+#[1] "185553481   3.40925230680836   0.55   0.75"
+#[1] "978406179   3.1302083925126   0.45   0"
+#[1] "795928457   2.27522488670222   0.5   0.75"
+#[1] "262926142   2.80215216826713   0.45   0.5"
+#[1] "69019020   3.57669373750129   0.45   0.75"
+#[1] "848128467   3.5429045338713   0.45   1"
+#[1] "387749835   3.48129358876028   0.55   1"
+#[1] "319356587   3.34018732357405   0.45   1"
+#[1] "348524596   3.04897185643481   0.5   0"
+#
+
+
+t.test((zero_slopes %>% filter(compatible.C > -1.71, compatible.C < 1.87))$compatible.C)  # already slightly > 0
+
+for(id in unique(data$ID)) {
+ model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(ID == id, compatibleSlope >  quantile(zero_slopes$compatible.C, 0.1)[[1]], compatibleSlope <  quantile(zero_slopes$compatible.C, 0.9)[[1]] ))) 
+ predictability_weight = unique(((data %>% filter(ID == id))$predictability_weight))[1]
+ deletion_rate = unique(((data %>% filter(ID == id))$deletion_rate))[1]
+ print(paste(id, " ", summary(model)$coef[2,3], " ", deletion_rate, " ", predictability_weight))
+}
+
+#[1] "599568962   3.35586172854273   0.5   0.75"
+#[1] "261611831   3.49529261749463   0.5   0"
+#[1] "620654642   3.80068088252013   0.55   1"
+#[1] "68680906   3.38376035623509   0.55   1"
+#[1] "3535245   4.46711838361496   0.55   0.75"
+#[1] "185553481   3.37294958527281   0.55   0.75"
+#[1] "978406179   3.13519030641148   0.45   0"
+#[1] "795928457   2.32331843232109   0.5   0.75"
+#[1] "262926142   2.81256662349425   0.45   0.5"
+#[1] "69019020   3.50228163795129   0.45   0.75"
+#[1] "848128467   3.48196114820066   0.45   1"
+
+
+
+for(id in unique(data$ID)) {
+ model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(ID == id, compatibleSlope > -2.2, compatibleSlope <  1.2))) 
+ predictability_weight = unique(((data %>% filter(ID == id))$predictability_weight))[1]
+ deletion_rate = unique(((data %>% filter(ID == id))$deletion_rate))[1]
+ print(paste(id, " ", summary(model)$coef[2,3], " ", deletion_rate, " ", predictability_weight))
+}
+
+#
+#
+#[1] "599568962   0.677816259633849   0.5   0.75"
+#[1] "261611831   1.11593683703216   0.5   0"
+#[1] "620654642   1.64343754371917   0.55   1"
+#[1] "68680906   0.722642729798531   0.55   1"
+#[1] "3535245   1.77269661098737   0.55   0.75"
+#[1] "185553481   0.921073010447262   0.55   0.75"
+#[1] "978406179   0.71272355045047   0.45   0"
+#[1] "795928457   0.0831893114277476   0.5   0.75"
+#[1] "262926142   0.279565259901081   0.45   0.5"
 
 
 

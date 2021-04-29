@@ -1,4 +1,4 @@
-data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_J_3_W_ZERO.py_503388591_ZeroLoss", sep="\t")
+data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_J_3_W_GPT2M_C_ZERO.py_759389861_ZeroLoss", sep="\t")
 library(tidyr)
 library(dplyr)
 library(lme4)
@@ -36,12 +36,21 @@ ggsave(plot, file="figures/analyze_ZERO_LSTM_503388591.R.pdf", height=8, width=8
 
 model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C* True_Minus_False.C +  (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", HasSC.C > 0)))
 #                            Estimate Std. Error t value
-#(Intercept)                 7.803358   0.552829  14.115
-#HasRC.C                    -0.444104   0.008278 -53.646
-#compatible.C                0.012643   0.143372   0.088
-#True_Minus_False.C          0.022521   0.022019   1.023
-#HasRC.C:compatible.C        0.066633   0.016557   4.025
-#HasRC.C:True_Minus_False.C -0.074730   0.007573  -9.868
+#(Intercept)                 7.232635   0.433583  16.681
+#HasRC.C                    -0.130832   0.010803 -12.111
+#compatible.C               -0.374129   0.154272  -2.425
+#True_Minus_False.C         -0.057383   0.040682  -1.411
+#HasRC.C:compatible.C       -0.108454   0.021605  -5.020
+#HasRC.C:True_Minus_False.C -0.019353   0.009883  -1.958
+
+
+# model = (lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C* True_Minus_False.C +  (1+compatible.C|Item), data=data %>% filter(Region == "V1_0", HasSC.C > 0, Noun == "report")))
+#                     Estimate Std. Error t value
+#(Intercept)           7.77094    0.54844  14.169
+#HasRC.C              -0.20230    0.06619  -3.056
+#compatible.C         -0.04186    0.13795  -0.303
+#HasRC.C:compatible.C  0.20752    0.13237   1.568
+
 
 
 library(ggrepel)

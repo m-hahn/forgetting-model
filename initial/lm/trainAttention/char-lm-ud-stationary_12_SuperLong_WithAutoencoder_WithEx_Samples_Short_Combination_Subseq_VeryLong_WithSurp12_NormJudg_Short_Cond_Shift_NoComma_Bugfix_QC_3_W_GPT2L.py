@@ -1,4 +1,3 @@
-assert False
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -78,7 +77,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.4
+assert args.deletion_rate > 0.3
 assert args.deletion_rate < 0.8
 
 
@@ -1716,6 +1715,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
               resultNumeric_cpu = resultNumeric.detach().cpu()
               batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
+              for h in range(len(batch)):
+                 batch[h] = batch[h][:1].upper() + batch[h][1:]
+                 assert batch[h][0] != " ", batch[h]
 #              print(batch)
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
               surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)

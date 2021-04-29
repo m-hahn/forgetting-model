@@ -1277,7 +1277,9 @@ print(len(topNouns))
 #quit()
 
 
-    
+# This is to ensure the tsv files are useful even when the script is stopped prematurely
+random.shuffle(topNouns)
+
     
 #plain_lm = PlainLanguageModel()
 #plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
@@ -1610,7 +1612,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     global topNouns
 #    topNouns = ["fact", "report"]
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted"]), file=outFile)
+     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat"]), file=outFile)
      with torch.no_grad():
       TRIALS_COUNT = 0
       TOTAL_TRIALS = len(topNouns) * 20 * 2 * 1
@@ -1769,12 +1771,18 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 #                 print((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).size(), log_importance_weights.size(), log_importance_weights_sum.size())
  #                print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)))
   #               print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)).sum(dim=1))
+#                 print(surprisals_nextWord.size(), (((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) .size())))
+                 surprisalsWithThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] == stoi_total["that"]).view(-1, 24)].mean())
+                 surprisalsWithoutThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] != stoi_total["that"]).view(-1, 24)].mean())
+                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
                  thatFractionReweightedHere = float((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
                  thatFractionsReweighted[condition+"_"+compatible][regions[i]]+=thatFractionReweightedHere
    #              print((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
     #             print(((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().mean()))
      #            quit()
 
+              else:
+                 thatFractionReweightedHere = -1
 
 
               for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
@@ -1785,7 +1793,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               surprisalCountByRegions[condition+"_"+compatible][regions[i]] += 1
 
               assert sentenceList[-1] in ["o","v"]
-              print("\t".join([str(w) for w in [NOUN, (sentenceList[-1]+"_"+sentenceList[0]+"_"+sentenceList[1]).replace("the","").replace(" ", ""), regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere)]]), file=outFile)
+              print("\t".join([str(w) for w in [NOUN, (sentenceList[-1]+"_"+sentenceList[0]+"_"+sentenceList[1]).replace("the","").replace(" ", ""), regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere), surprisalsWithThat, surprisalsWithoutThat]]), file=outFile)
+#                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
 
 
            #   if compatible == "compatible":

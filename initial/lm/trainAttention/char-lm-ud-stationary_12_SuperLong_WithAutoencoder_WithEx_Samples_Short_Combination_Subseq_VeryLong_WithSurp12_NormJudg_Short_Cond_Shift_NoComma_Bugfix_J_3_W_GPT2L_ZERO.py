@@ -1,3 +1,4 @@
+assert False, "capitalization"
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -1625,13 +1626,11 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
           print(sentenceID)
           context = None
           for compatible in ["compatible", "incompatible"]:
-           for condition in ["SC", "SCRC", "SC","NoSC"]:
+           for condition in ["SC", "SCRC", "NoSC"]:
             TRIALS_COUNT += 1
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
             assert len(sentenceList) >= 5, sentenceList
-#            if "lifesaver" not in " ".join(sentenceList):
- #              continue
             if condition == "NoSC" and compatible == "compatible":
                continue
             if condition == "SC":

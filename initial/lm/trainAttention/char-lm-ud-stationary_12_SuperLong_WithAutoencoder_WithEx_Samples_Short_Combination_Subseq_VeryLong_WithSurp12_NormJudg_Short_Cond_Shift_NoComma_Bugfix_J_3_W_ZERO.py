@@ -1,4 +1,3 @@
-assert False
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -78,7 +77,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.4
+assert args.deletion_rate > 0.0
 assert args.deletion_rate < 0.8
 
 
@@ -1277,18 +1276,15 @@ print(len(topNouns))
 #quit()
 
 
-# This is to ensure the tsv files are useful even when the script is stopped prematurely
-random.shuffle(topNouns)
-
     
-#plain_lm = PlainLanguageModel()
-#plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
+    
+plain_lm = PlainLanguageModel()
+plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
 
-#if args.load_from_plain_lm is not None:
-#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
-#  for i in range(len(checkpoint["components"])):
-#      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
-#  del checkpoint
+if args.load_from_plain_lm is not None:
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
+  for i in range(len(checkpoint["components"])):
+      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
 
 
 # Helper Functions
@@ -1602,20 +1598,19 @@ def divideDicts(y, z):
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
-#    print(plain_lm) 
+    print(plain_lm) 
     surprisalsPerNoun = {}
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
-    numberOfSamples = 10
-    import scoreWithGPT2Large as scoreWithGPT2
+    numberOfSamples = 3
     global topNouns
-#    topNouns = ["fact", "report"]
+    #topNouns = ["report"]
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat"]), file=outFile)
+     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted"]), file=outFile)
      with torch.no_grad():
       TRIALS_COUNT = 0
-      TOTAL_TRIALS = len(topNouns) * len(nounsAndVerbsCompatible) * 2 * 1
+      TOTAL_TRIALS = len(topNouns) * 20 * 2 * 1
       for nounIndex, NOUN in enumerate(topNouns):
         print(NOUN, "Time:", time.time() - startTimePredictions, nounIndex/len(topNouns), file=sys.stderr)
         thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
@@ -1628,7 +1623,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
           print(sentenceID)
           context = None
           for compatible in ["compatible", "incompatible"]:
-           for condition in ["SCRC", "SC","NoSC"]:
+           for condition in ["SC", "SCRC", "NoSC"]:
             TRIALS_COUNT += 1
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
@@ -1658,7 +1653,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             print("INPUT", context, remainingInput)
             assert len(remainingInput) > 0
             for i in range(len(remainingInput)):
-              if regions[i].startswith("V2"):
+              if regions[i] not in ["V2_0", "V1_0"]:
                 continue
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = args.sequence_length - len(context.split(" ")) - i - 1
@@ -1713,21 +1708,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
-
-              resultNumeric_cpu = resultNumeric.detach().cpu()
-              batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
-#              print(batch)
-              totalSurprisal = scoreWithGPT2.scoreSentences(batch)
-              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
-              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
-
-#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
-#              assert resultNumeric.size()[0] == args.sequence_length+1
-#              assert totalSurprisal.size()[0] == args.sequence_length
-#              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
-#              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
-#              surprisals_past = totalSurprisal[:-1].sum(dim=0)
-#              surprisals_nextWord = totalSurprisal[-1]
+              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
+              assert resultNumeric.size()[0] == args.sequence_length+1
+              assert totalSurprisal.size()[0] == args.sequence_length
+              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
+              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
+              surprisals_past = totalSurprisal[:-1].sum(dim=0)
+              surprisals_nextWord = totalSurprisal[-1]
 
               # where numberOfSamples is how many samples we take from the noise model, and 24 is how many samples are drawn from the amortized posterior for each noised sample
               amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
@@ -1771,18 +1758,12 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 #                 print((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).size(), log_importance_weights.size(), log_importance_weights_sum.size())
  #                print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)))
   #               print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)).sum(dim=1))
-#                 print(surprisals_nextWord.size(), (((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) .size())))
-                 surprisalsWithThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] == stoi_total["that"]).view(-1, 24)].mean())
-                 surprisalsWithoutThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] != stoi_total["that"]).view(-1, 24)].mean())
-                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
                  thatFractionReweightedHere = float((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
                  thatFractionsReweighted[condition+"_"+compatible][regions[i]]+=thatFractionReweightedHere
    #              print((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
     #             print(((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().mean()))
      #            quit()
 
-              else:
-                 thatFractionReweightedHere = -1
 
 
               for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
@@ -1793,9 +1774,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               surprisalCountByRegions[condition+"_"+compatible][regions[i]] += 1
 
               assert sentenceList[-1] in ["o","v"]
-              print("\t".join([str(w) for w in [NOUN, (sentenceList[-1]+"_"+sentenceList[0]+"_"+sentenceList[1]).replace("the","").replace(" ", ""), regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere), surprisalsWithThat, surprisalsWithoutThat]]), file=outFile)
-#                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
+              print("\t".join([str(w) for w in [NOUN, (sentenceList[-1]+"_"+sentenceList[0]+"_"+sentenceList[1]).replace("the","").replace(" ", ""), regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere)]]), file=outFile)
 
+#              quit()
 
            #   if compatible == "compatible":
             #    hasSeenCompatible = True
@@ -1831,8 +1812,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
            print(noun, region, condition, surprisalsPerNoun[noun][condition][region], surprisalsReweightedPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", thatFractionsReweightedPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
     # For sanity-checking: Prints correlations between surprisal and that-bias
     for region in ["V2_0", "V2_1", "V1_0"]:
-      for condition in surprisalsPerNoun["fact"]:
-       if region not in surprisalsPerNoun["fact"][condition]:
+      for condition in surprisalsPerNoun["report"]:
+       if region not in surprisalsPerNoun["report"][condition]:
           continue
        print(SANITY, condition, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsReweightedPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 , correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsReweightedPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 )
        surprisals = torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])
@@ -1847,10 +1828,15 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
 startTimePredictions = time.time()
 
-#getTotalSentenceSurprisals(SANITY="ZeroLoss")
+with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+  startTimePredictions = time.time()
+  print(args, file=outFile)
+
+  sys.stdout = outFile
+  getTotalSentenceSurprisals(SANITY="ZeroLoss")
 #getTotalSentenceSurprisals(SANITY="Sanity")
 #getTotalSentenceSurprisals(SANITY="Model")
-#quit()
+quit()
 
 
 #getTotalSentenceSurprisals()
