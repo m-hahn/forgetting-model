@@ -77,7 +77,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.4
+assert args.deletion_rate > 0.3
 assert args.deletion_rate < 0.8
 
 
