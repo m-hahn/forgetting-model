@@ -31,74 +31,54 @@ data$HasRC.C = (grepl("SCRC", data$Condition)-0.5)
 data$HasSC.C = (0.5-grepl("NoSC", data$Condition))
 crash()
 
-summary(lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", deletion_rate==0.55)))
+
+for(id in unique(data$ID)) {
+ model = (lmer(SurprisalReweighted ~ HasRC.C + compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(ID == id, HasSC.C > 0))) 
+ print(paste(id, " t=", summary(model)$coef[3,3], "   ", "THAT", mean((data %>% filter(ID == id, HasSC.C>0))$ThatFractionReweighted), " ", mean((data %>% filter(ID == id))$deletion_rate), " ", mean((data %>% filter(ID == id))$predictability_weight)))
+}
+
+#[1] "74858729  t= -0.0965847666522677     THAT 49.8760619690155   0.55   0" little differentiation between the conditions
+#[1] "839962200  t= 4.05629297495252     THAT 47.3447026486757   0.45   0.25"
+#[1] "164077158  t= 3.04161192392009     THAT 32.0494127936032   0.55   0.5"
+#[1] "900360318  t= -0.782070156063247     THAT 89.6503623188406   0.45   1"
+#[1] "571568854  t= 2.64887680623599     THAT 30.3935532233883   0.55   0.25"
+#[1] "575057157  t= -0.767243139858213     THAT 91.6619190404798   0.5   1" numerically looks similar for fact-like nouns, but mushed together for report-like nouns
+#[1] "340958261  t= 3.88139019461207     THAT 37.9551474262869   0.5   0.25"
+#[1] "856034402  t= 0.790047509768374     THAT 62.8295852073963   0.45   1" SC perfect, SCRC very bad
+#[1] "786202606  t= 1.48235102180331     THAT 55.1375562218891   0.45   0" little differentiation between the conditions
+#[1] "406705276  t= 2.85315520526899     THAT 58.6818465767116   0.5   0.75"
+#[1] "334841046  t= 0.664298329216967     THAT 66.2674912543728   0.55   1"
+#[1] "269367432  t= 1.01506949603331     THAT 71.5763993003498   0.45   1" numerically, effect only for SCRC
+#[1] "118571863  t= -1.92289243463435     THAT 99.4614567716142   0.5   0.5" little differentiation
+#[1] "27877760  t= 1.744134266077     THAT 69.3245252373813   0.5   1"
+#[1] "54220181  t= 2.75766801447358     THAT 36.2465017491254   0.5   0.5"
+#[1] "726444270  t= 0.00324040693664153     THAT 63.6557971014493   0.45   1" SC perfect, SCRC very bad
+#[1] "883180537  t= 3.85469479381111     THAT 37.1547351324338   0.45   0.25"
 
 
-model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1|ID) + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0")))
+
+for(id in unique(data$ID)) {
+ model = (lmer(SurprisalReweighted ~  compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(ID == id, HasRC.C > 0))) 
+ print(paste(id, " t=", summary(model)$coef[2,3], "   ", "THAT", mean((data %>% filter(ID == id, HasRC.C>0))$ThatFractionReweighted), " ", mean((data %>% filter(ID == id))$deletion_rate), " ", mean((data %>% filter(ID == id))$predictability_weight)))
+}
 
 
-model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", ID == 118571863, HasRC.C>0))) # Here: ThatFractionReweighted ~ 99.43
-#                   Estimate Std. Error t value
-#(Intercept)         7.58546    0.43661  17.374
-#compatible.C       -0.30663    0.16318  -1.879
-#True_Minus_False.C -0.12027    0.04131  -2.911
+#[1] "74858729  t= -0.40706854869121     THAT 53.8424537731134   0.55   0"
+#[1] "839962200  t= 4.01174591924989     THAT 40.5156171914043   0.45   0.25"
+#[1] "164077158  t= 0.254713443951974     THAT 14.5835832083958   0.55   0.5"
+#[1] "900360318  t= 0.179294300258421     THAT 80.3234632683658   0.45   1"
+#[1] "571568854  t= 2.73984489202737     THAT 22.5548475762119   0.55   0.25"
+#[1] "575057157  t= 0.694706789869906     THAT 83.7749875062469   0.5   1"
+#[1] "340958261  t= 3.9556906304858     THAT 30.1875312343828   0.5   0.25"
+#[1] "856034402  t= 2.91859835068961     THAT 27.8004747626187   0.45   1"
+#[1] "786202606  t= 1.97378149484259     THAT 48.8924287856072   0.45   0"
+#[1] "406705276  t= 3.05705101202096     THAT 35.2744877561219   0.5   0.75"
+#[1] "334841046  t= 1.08600625527248     THAT 33.8265867066467   0.55   1"
+#[1] "269367432  t= 3.57655779400584     THAT 44.1965267366317   0.45   1"
+#[1] "118571863  t= -1.68455490001768     THAT 99.4445277361319   0.5   0.5"
+#[1] "27877760  t= 4.92147007941425     THAT 39.404047976012   0.5   1"
+#[1] "54220181  t= 1.93542023707146     THAT 25.1707896051974   0.5   0.5"
+#[1] "726444270  t= 1.78209531967077     THAT 28.4833833083458   0.45   1"
+#[1] "883180537  t= 4.125532594836     THAT 23.0530984507746   0.45   0.25"
 
-model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", ID == 340958261, HasSC.C>0, HasRC.C < 0))) 
-#                   Estimate Std. Error t value
-#(Intercept)          8.9891     0.4202  21.393
-#compatible.C         0.4715     0.1778   2.652
-#True_Minus_False.C  -0.5431     0.1186  -4.581
-
-model = (lmer(SurprisalReweighted ~ HasRC.C*compatible.C + HasRC.C*True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", ID == 340958261, HasSC.C>0))) 
-#                           Estimate Std. Error t value
-#(Intercept)                 9.18245    0.39704  23.127
-#HasRC.C                     0.38470    0.02220  17.328
-#compatible.C                0.56867    0.16674   3.411
-#True_Minus_False.C         -0.44125    0.09672  -4.562
-#HasRC.C:compatible.C        0.18915    0.04417   4.282
-#HasRC.C:True_Minus_False.C  0.20273    0.02098   9.661
-
-
-model = (lmer(SurprisalReweighted ~ compatible.C + True_Minus_False.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(Region == "V1_0", ID == 340958261, HasRC.C>0))) # ThatFraction ~ 34.9
-#                   Estimate Std. Error t value
-#(Intercept)         9.37571    0.38057  24.636
-#compatible.C        0.66587    0.17711   3.760
-#True_Minus_False.C -0.33941    0.08431  -4.026
-
-#                              (Intercept) compatible.C True_Minus_False.C                                                                                                                           [48/453]
-#o_principal_teacher              6.735914 -2.262172729         -0.3394132
-#o_lifeguard_swimmer             12.201851 -2.258745732         -0.3394132
-#v_psychiatrist_nurse            12.306987 -1.702843800         -0.3394132
-#o_daughter_sister               10.898761 -1.609836991         -0.3394132
-#v_driver_guide                   5.544647 -1.405544975         -0.3394132
-#v_medic_survivor                 7.613208 -1.284630744         -0.3394132
-#o_senator_diplomat               9.509173 -1.028021524         -0.3394132
-#o_bureaucrat_guard              10.924730 -0.986881564         -0.3394132
-#o_child_medic                   12.884394 -0.985190413         -0.3394132
-#v_guest_cousin                  14.219785 -0.927290547         -0.3394132
-#o_student_professor             10.838067 -0.913494778         -0.3394132
-#v_victim_swimmer                11.230104 -0.708113866         -0.3394132
-#o_actor_star                     8.103389 -0.687363044         -0.3394132
-#o_driver_tourist                 8.977362 -0.548959795         -0.3394132
-#v_guest_thug                    12.480916 -0.473464784         -0.3394132
-#o_pharmacist_stranger           12.644455 -0.416350798         -0.3394132
-#v_president_farmer               8.314064 -0.259655132         -0.3394132
-#v_thief_detective                9.411520 -0.203799076         -0.3394132
-#....
-#o_ceo_employee                   5.075193  1.649162713         -0.3394132
-#o_carpenter_craftsman            6.097640  1.732554882         -0.3394132
-#v_plumber_apprentice             6.749909  1.919202481         -0.3394132
-#o_neighbor_woman                 5.364507  2.066117961         -0.3394132
-#v_banker_analyst                10.813736  2.107884996         -0.3394132
-#v_fisherman_gardener             6.947918  2.117190298         -0.3394132
-#v_captain_crew                   5.596918  2.161535342         -0.3394132
-#v_fiancé_author                  8.526400  2.329782471         -0.3394132
-#o_extremist_agent                6.931134  2.595982083         -0.3394132
-#v_judge_attorney                 5.237604  2.625143077         -0.3394132
-#v_agent_fbi                      7.120727  2.648860653         -0.3394132
-#v_bully_children                 6.151890  2.684320617         -0.3394132
-#o_trader_businessman             5.781854  2.722501190         -0.3394132
-#o_surgeon_patient                6.932951  3.301127358         -0.3394132
-#v_janitor_organizer              6.457288  3.343189793         -0.3394132
-#o_criminal_officer               7.189620  4.707576793         -0.3394132
 
