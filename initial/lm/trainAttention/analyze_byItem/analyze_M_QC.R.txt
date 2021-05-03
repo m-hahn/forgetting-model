@@ -96,3 +96,199 @@ HasSC.C:True_Minus_False.C -0.35204055 0.01097437 -32.0784358
 HasRC.C             2.02663792 0.009678293 209.4003485
 True_Minus_False.C -0.11388296 0.025337209  -4.4946923
 compatible.C        0.03453198 0.159215616   0.2168882
+[1] "----"
+[1] "1    0.5"
+                              Estimate Std. Error     t value
+(Intercept)                 8.29238586 0.45193158  18.3487641
+HasRC.C                     1.20654567 0.01508637  79.9758527
+HasSC.C                    -0.27183572 0.01686722 -16.1162136
+True_Minus_False.C          0.05353384 0.03598032   1.4878647
+compatible.C                0.06070149 0.23514567   0.2581442
+HasSC.C:True_Minus_False.C -0.45600435 0.01543033 -29.5524622
+                      Estimate Std. Error    t value
+(Intercept)         8.15377156 0.47057211 17.3273583
+HasRC.C             1.20654567 0.01390991 86.7400103
+True_Minus_False.C -0.17446834 0.03047731 -5.7245324
+compatible.C        0.06067891 0.23584908  0.2572785
+[1] "----"
+[1] "1    0.35"
+                             Estimate Std. Error    t value
+(Intercept)                 8.2843525 0.44280823  18.708669
+HasRC.C                     0.8675417 0.03615589  23.994475
+HasSC.C                    -0.5919456 0.04112775 -14.392852
+True_Minus_False.C          0.2155555 0.08220919   2.622036
+compatible.C                0.1787127 0.17195986   1.039270
+HasSC.C:True_Minus_False.C -0.7842513 0.03662666 -21.412036
+                     Estimate Std. Error   t value
+(Intercept)         7.9818677 0.43242876 18.458226
+HasRC.C             0.8675417 0.02847843 30.463118
+True_Minus_False.C -0.1717724 0.07605792 -2.258443
+compatible.C        0.1786165 0.17202954  1.038290
+[1] "----"
+[1] "1    0.3"
+                              Estimate Std. Error    t value
+(Intercept)                 7.91764959 0.43392579  18.246552
+HasRC.C                     0.44287709 0.01568823  28.229889
+HasSC.C                    -0.60531927 0.01754012 -34.510548
+True_Minus_False.C          0.05150672 0.04033171   1.277078
+compatible.C               -0.20725040 0.14999738  -1.381693
+HasSC.C:True_Minus_False.C -0.37354367 0.01604591 -23.279675
+                     Estimate Std. Error   t value
+(Intercept)         7.6158469 0.42586990 17.883036
+HasRC.C             0.4428771 0.01144765 38.687155
+True_Minus_False.C -0.1352651 0.03647136 -3.708804
+compatible.C       -0.2073190 0.15000023 -1.382124
+[1] "----"
+[1] "0.25    0.55"
+                              Estimate Std. Error     t value
+(Intercept)                 8.84580793 0.39629781  22.3211124
+HasRC.C                     0.58665422 0.01908932  30.7320617
+HasSC.C                     1.26381442 0.02134269  59.2153339
+True_Minus_False.C         -0.04629036 0.04953212  -0.9345524
+compatible.C                0.45122985 0.17035630   2.6487418
+HasSC.C:True_Minus_False.C -0.50983523 0.01952455 -26.1125272
+                     Estimate Std. Error   t value
+(Intercept)         9.4700273 0.38330603 24.706179
+HasRC.C             0.5866542 0.01461264 40.147034
+True_Minus_False.C -0.3012080 0.04945714 -6.090283
+compatible.C        0.4512831 0.17036726  2.648884
+[1] "----"
+[1] "0.25    0.45"
+                             Estimate Std. Error     t value
+(Intercept)                 8.7343659 0.45637762  19.1384626
+HasRC.C                     0.1851411 0.01133301  16.3364392
+HasSC.C                     0.3030763 0.01267080  23.9192747
+True_Minus_False.C         -0.0184536 0.04923682  -0.3747926
+compatible.C                0.4775917 0.23353811   2.0450267
+HasSC.C:True_Minus_False.C -0.5895089 0.01159140 -50.8574528
+                     Estimate  Std. Error   t value
+(Intercept)         8.8830959 0.462890407 19.190495
+HasRC.C             0.1851411 0.009543209 19.400294
+True_Minus_False.C -0.3132080 0.045121082 -6.941501
+compatible.C        0.4775857 0.233613984  2.044337
+[1] "----"
+[1] "0.25    0.5"
+                              Estimate Std. Error    t value
+(Intercept)                 8.74471456 0.40098066  21.808320
+HasRC.C                     0.45934304 0.01974725  23.261118
+HasSC.C                     0.89426586 0.02207828  40.504332
+True_Minus_False.C         -0.08558091 0.05864132  -1.459396
+compatible.C                0.66594182 0.17155935   3.881699
+HasSC.C:True_Minus_False.C -0.63146345 0.02019747 -31.264481
+                     Estimate Std. Error   t value
+(Intercept)         9.1913114 0.38752118 23.718217
+HasRC.C             0.4593430 0.01599785 28.712789
+True_Minus_False.C -0.4013126 0.05711474 -7.026428
+compatible.C        0.6659345 0.17157428  3.881319
+[1] "----"
+[1] "0.25    0.4"
+                              Estimate Std. Error    t value
+(Intercept)                 7.93689936 0.44259827  17.932513
+HasRC.C                    -0.21355989 0.01576710 -13.544656
+HasSC.C                    -0.63647871 0.01762830 -36.105516
+True_Minus_False.C          0.08266095 0.05502922   1.502128
+compatible.C               -0.34438967 0.15222208  -2.262416
+HasSC.C:True_Minus_False.C -0.37222740 0.01612657 -23.081615
+                     Estimate Std. Error    t value
+(Intercept)         7.6193461 0.43746368  17.417094
+HasRC.C            -0.2135599 0.01113821 -19.173627
+True_Minus_False.C -0.1034527 0.05743521  -1.801208
+compatible.C       -0.3444670 0.15223530  -2.262727
+[1] "----"
+[1] "0.25    0.35"
+                              Estimate Std. Error     t value
+(Intercept)                 8.18400883 0.46516109  17.5939238
+HasRC.C                    -0.20243621 0.02192076  -9.2349098
+HasSC.C                    -0.91496103 0.02511794 -36.4265989
+True_Minus_False.C          0.18108945 0.05396286   3.3558166
+compatible.C               -0.07666854 0.17428400  -0.4399058
+HasSC.C:True_Minus_False.C -0.51839515 0.02201657 -23.5456809
+                      Estimate Std. Error     t value
+(Intercept)         7.73005698 0.45909732  16.8375129
+HasRC.C            -0.20243621 0.01570018 -12.8938806
+True_Minus_False.C -0.07337636 0.05601024  -1.3100525
+compatible.C       -0.07675400 0.17430578  -0.4403411
+[1] "----"
+[1] "0.5    0.55"
+                              Estimate Std. Error     t value
+(Intercept)                 9.15693110 0.41533073  22.0473238
+HasRC.C                     1.07618376 0.02026434  53.1072790
+HasSC.C                     0.97124311 0.02265641  42.8683679
+True_Minus_False.C          0.02239459 0.05039078   0.4444184
+compatible.C                0.50303733 0.16537789   3.0417448
+HasSC.C:True_Minus_False.C -0.57649349 0.02072635 -27.8145216
+                     Estimate Std. Error   t value
+(Intercept)         9.6384642 0.40041651 24.071096
+HasRC.C             1.0761838 0.01678594 64.112210
+True_Minus_False.C -0.2658522 0.04956268 -5.363958
+compatible.C        0.5030490 0.16539520  3.041497
+[1] "----"
+[1] "0.5    0.5"
+                              Estimate Std. Error     t value
+(Intercept)                 8.39955466 0.81278553  10.3342818
+HasRC.C                     0.50990511 0.01517786  33.5953233
+HasSC.C                     0.37436792 0.01696950  22.0612168
+True_Minus_False.C          0.01911669 0.04357029   0.4387552
+compatible.C                0.09443380 0.40590113   0.2326522
+HasSC.C:True_Minus_False.C -0.43870805 0.01552390 -28.2601606
+                      Estimate Std. Error    t value
+(Intercept)         8.58484383 0.97103436  8.8409270
+HasRC.C             0.50990511 0.01308515 38.9682287
+True_Minus_False.C -0.20023733 0.04321701 -4.6332994
+compatible.C        0.09442055 0.41049035  0.2300189
+[1] "----"
+[1] "0.75    0.55"
+                              Estimate Std. Error    t value
+(Intercept)                 9.14214418 0.42889188  21.315731
+HasRC.C                     0.25314743 0.03320532   7.623702
+HasSC.C                     0.87393855 0.03767651  23.195848
+True_Minus_False.C         -0.05818732 0.08487263  -0.685584
+compatible.C                0.72006019 0.18069136   3.985028
+HasSC.C:True_Minus_False.C -0.41767115 0.03389000 -12.324319
+                     Estimate Std. Error   t value
+(Intercept)         9.5652978 0.41445643 23.079140
+HasRC.C             0.2531474 0.02625714  9.641087
+True_Minus_False.C -0.2669299 0.08272476 -3.226723
+compatible.C        0.7201867 0.18070475  3.985433
+[1] "----"
+[1] "0.75    0.5"
+                              Estimate Std. Error     t value
+(Intercept)                 8.74218991 0.43654605  20.0258138
+HasRC.C                     0.87365546 0.01917439  45.5636688
+HasSC.C                     0.17902916 0.02143780   8.3510991
+True_Minus_False.C          0.03038183 0.05063826   0.5999777
+compatible.C                0.47866003 0.16773020   2.8537499
+HasSC.C:True_Minus_False.C -0.58630426 0.01961155 -29.8958643
+                     Estimate Std. Error   t value
+(Intercept)         8.8281987 0.42411184 20.815733
+HasRC.C             0.8736555 0.01568141 55.712812
+True_Minus_False.C -0.2627703 0.05057442 -5.195715
+compatible.C        0.4786624 0.16776605  2.853154
+[1] "----"
+[1] "0.75    0.35"
+                              Estimate Std. Error      t value
+(Intercept)                 8.32180785 0.45825450  18.15979532
+HasRC.C                     0.46088556 0.01946345  23.67954180
+HasSC.C                    -0.62836312 0.02176098 -28.87568278
+True_Minus_False.C          0.09089603 0.05508042   1.65024227
+compatible.C                0.01411207 0.17438436   0.08092509
+HasSC.C:True_Minus_False.C -0.46712192 0.01990720 -23.46497026
+                      Estimate Std. Error     t value
+(Intercept)         8.00119677 0.45255432 17.68008031
+HasRC.C             0.46088556 0.01650184 27.92933691
+True_Minus_False.C -0.14266493 0.05703114 -2.50152702
+compatible.C        0.01405463 0.17440162  0.08058774
+[1] "----"
+[1] "0.75    0.3"
+                              Estimate Std. Error    t value
+(Intercept)                 7.83693459 0.43761796  17.908165
+HasRC.C                     0.06232499 0.01542519   4.040468
+HasSC.C                    -0.76985929 0.01724603 -44.639788
+True_Minus_False.C          0.07289746 0.04452021   1.637401
+compatible.C               -0.29305236 0.15186603  -1.929677
+HasSC.C:True_Minus_False.C -0.33123265 0.01577688 -20.994817
+                      Estimate Std. Error   t value
+(Intercept)         7.45321729 0.43063869 17.307356
+HasRC.C             0.06232499 0.01093420  5.700004
+True_Minus_False.C -0.09271887 0.04207083 -2.203876
+compatible.C       -0.29312596 0.15187347 -1.930067

@@ -29,6 +29,31 @@ unique((data %>% filter(is.na(True_Minus_False.C)))$Noun)
 data$compatible.C = (grepl("_co", data$Condition)-0.5)
 data$HasRC.C = (grepl("SCRC", data$Condition)-0.5)
 data$HasSC.C = (0.5-grepl("NoSC", data$Condition))
+
+data[data$HasSC.C < 0,]$compatible.C = 0
+data[data$HasSC.C < 0,]$HasRC.C = 0
+
+for(pred in unique(data$predictability_weight)) {
+  for(del in unique(data$deletion_rate)) {
+    data2 = data %>% filter(predictability_weight == pred, deletion_rate == del)
+    if(nrow(data2) > 0) {
+       if(length(unique(data2$ID)) == 1) {
+          model = lmer(SurprisalReweighted ~ HasRC.C + HasSC.C * True_Minus_False.C + compatible.C + (1+compatible.C|Item) + (1|Noun), data=data2)
+          model2 = lmer(SurprisalReweighted ~ HasRC.C + HasSC.C * True_Minus_False.C + compatible.C + (1+compatible.C|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0))
+       } else {
+          model = lmer(SurprisalReweighted ~ HasRC.C + HasSC.C * True_Minus_False.C + compatible.C + (1+compatible.C|Item) + (1|Noun) + (1+compatible.C|ID), data=data2)
+          model2 = lmer(SurprisalReweighted ~ HasRC.C + HasSC.C * True_Minus_False.C + compatible.C + (1+compatible.C|Item) + (1|Noun) + (1+compatible.C|ID), data=data2 %>% filter(HasSC.C>0))
+       }
+      sink("analyze_M_QC.R.txt", append=TRUE)
+       print("----")
+       print(paste(pred, "  ", del))
+       print(summary(model)$coef)
+       print(summary(model2)$coef)
+       sink()
+    }
+  }
+}
+
 crash()
 
 
