@@ -77,7 +77,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.3
+assert args.deletion_rate > 0.0
 assert args.deletion_rate < 0.8
 
 
@@ -809,10 +809,8 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
 
       punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
 
-      # Disregard likelihood computation on punctuation
-      bernoulli_logprob = torch.where(punctuation, 0*bernoulli_logprob, bernoulli_logprob)
-      # Penalize forgotten punctuation
-      bernoulli_logprob = torch.where(torch.logical_and(punctuation, memory_filter==0), 0*bernoulli_logprob-10.0, bernoulli_logprob)
+      # Penalize forgotten punctuation. Otherwise, just set likelihood to 0: under uniform loss, everything is the same
+      bernoulli_logprob = torch.where(torch.logical_and(punctuation, memory_filter==0), 0*bernoulli_logprob-10.0, 0*bernoulli_logprob)
 
 #      bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
 
@@ -1598,8 +1596,11 @@ def divideDicts(y, z):
      r[x] = y[x]/z[x]
    return r
 
+bernoulliMask = torch.zeros(21, 12).cuda() + args.deletion_rate
+
+
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
-    assert SANITY in ["Model", "Sanity", "ZeroLoss"]
+    assert SANITY == "Uniform"
     assert VERBS in [1,2]
 #    print(plain_lm) 
     surprisalsPerNoun = {}
@@ -1674,10 +1675,16 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
                  numeric_noised = numeric
+              elif SANITY == "Uniform":
+                 numeric = numerified
+                 numeric = numeric.expand(-1, numberOfSamples)
+                 numeric_noised = torch.where(torch.bernoulli(bernoulliMask) == 1, 0*numeric, numeric)
+                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               else:
                  assert SANITY == "Model"
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
+             
               # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
@@ -1896,7 +1903,7 @@ for epoch in range(1000):
       counter += 1
       updatesCount += 1
       # Get model predictions at the end of optimization
-      if updatesCount == maxUpdates:
+      if True:
 
        # Record calibration for the acceptability judgments
        #getTotalSentenceSurprisalsCalibration(SANITY="Model")
@@ -1921,7 +1928,7 @@ for epoch in range(1000):
          showAttention("of")
          showAttention("by")
          showAttention("about")
-         getTotalSentenceSurprisals(SANITY="Model")
+         getTotalSentenceSurprisals(SANITY="Uniform")
   #       getTotalSentenceSurprisals(SANITY="Sanity")
 
 #         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
@@ -1949,7 +1956,7 @@ for epoch in range(1000):
          showAttention("by")
          showAttention("about")
          sys.stdout = STDOUT
-
+         quit()
 #      if updatesCount % 10000 == 0:
 #         optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
 #         optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9

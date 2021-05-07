@@ -77,7 +77,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.3
+assert args.deletion_rate == 0.0
 assert args.deletion_rate < 0.8
 
 
@@ -1896,7 +1896,7 @@ for epoch in range(1000):
       counter += 1
       updatesCount += 1
       # Get model predictions at the end of optimization
-      if updatesCount == maxUpdates:
+      if True:
 
        # Record calibration for the acceptability judgments
        #getTotalSentenceSurprisalsCalibration(SANITY="Model")
@@ -1921,7 +1921,7 @@ for epoch in range(1000):
          showAttention("of")
          showAttention("by")
          showAttention("about")
-         getTotalSentenceSurprisals(SANITY="Model")
+         getTotalSentenceSurprisals(SANITY="ZeroLoss")
   #       getTotalSentenceSurprisals(SANITY="Sanity")
 
 #         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
@@ -1949,7 +1949,7 @@ for epoch in range(1000):
          showAttention("by")
          showAttention("about")
          sys.stdout = STDOUT
-
+       quit()
 #      if updatesCount % 10000 == 0:
 #         optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
 #         optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
