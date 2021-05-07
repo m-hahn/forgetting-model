@@ -390,8 +390,8 @@ lm = LanguageModel()
 class MemoryModel():
   """ Noise Model """
   def __init__(self):
-     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+     self.memory_mlp_inner = torch.nn.Linear(256, 500).cuda()
+     self.memory_mlp_inner_bilinear = torch.nn.Linear(256, 500).cuda()
      self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
      self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
      self.sigmoid = torch.nn.Sigmoid()
@@ -584,13 +584,13 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
       # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
+      memory_byword_inner = memory.memory_mlp_inner(embedded_positions.detach())
       memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
 
   #    print(embedded_positions.size(), embedded_everything.size())
  #     print(memory.memory_bilinear(embedded_positions).size())
 #      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
+      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_positions.detach())).transpose(1,2)).transpose(1,2)
 
       memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
       memory_hidden = memory.sigmoid(memory_hidden_logit)
@@ -784,13 +784,13 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
       numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
       # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
+      memory_byword_inner = memory.memory_mlp_inner(embedded_positions.detach())
       memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
 
   #    print(embedded_positions.size(), embedded_everything.size())
  #     print(memory.memory_bilinear(embedded_positions).size())
 #      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
+      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_positions.detach())).transpose(1,2)).transpose(1,2)
 
       memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
       memory_hidden = memory.sigmoid(memory_hidden_logit)
