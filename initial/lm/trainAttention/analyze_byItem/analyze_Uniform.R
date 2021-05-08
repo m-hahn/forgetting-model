@@ -1,5 +1,4 @@
-data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/collect12_NormJudg_Short_Cond_W_GPT2_ByTrial_QC.py.tsv", sep="\t")
-#data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_Q_3_W_GPT2M.py_620912032_Model", sep="\t")
+data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_QC_3_W_GPT2M_UNIFORM.py_772408561_Uniform", sep="\t")
 library(tidyr)
 library(dplyr)
 library(lme4)
@@ -32,6 +31,13 @@ data$HasSC.C = (0.5-grepl("NoSC", data$Condition))
 
 data[data$HasSC.C < 0,]$compatible.C = 0
 data[data$HasSC.C < 0,]$HasRC.C = 0
+
+
+model = lmer(SurprisalReweighted ~ HasRC.C + HasSC.C * True_Minus_False.C + compatible.C + (1+compatible.C|Item) + (1|Noun), data=data)
+model2 = lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C * True_Minus_False.C + compatible.C + (1+compatible.C|Item) + (1|Noun), data=data %>% filter(HasSC.C>0))
+
+
+crash()
 
 for(pred in unique(data$predictability_weight)) {
   for(del in unique(data$deletion_rate)) {
