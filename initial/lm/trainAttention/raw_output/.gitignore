@@ -1,2 +1,4 @@
 collect12_13.py.tsv
 collect12_Long.py.tsv
+*.tsv
+*.swn
