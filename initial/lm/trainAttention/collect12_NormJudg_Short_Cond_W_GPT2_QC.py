@@ -23,11 +23,11 @@ with open(f"raw_output/{__file__}.tsv", "w") as outFile:
            arguments = next(inFile).strip()
          except StopIteration:
            continue
-         for line in inFile:
-             if "THAT" in line:
-                if "fixed" in line:
-                     accept = True
-                     break
+#         for line in inFile:
+#             if "THAT" in line:
+#                if "fixed" in line:
+#                     accept = True
+#                     break
       if True or accept:
           arguments = dict([x.split("=") for x in arguments[10:-1].split(", ")])
           print(arguments)
