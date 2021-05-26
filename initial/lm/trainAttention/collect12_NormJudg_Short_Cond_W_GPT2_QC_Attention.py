@@ -31,7 +31,7 @@ with open(f"raw_output/{__file__}.tsv", "w") as outFile:
                  attention = [float(x) for x in attention]
                  print(word, attention)
                  for i in range(len(attention)):
-                    print("\t".join([str(w) for w  in [suffix, arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], i, word, attention[i]]]), file=outFile)
+                    print("\t".join([str(w) for w  in [suffix, arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], word, i, attention[i]]]), file=outFile)
    
                  scores = next(inFile).strip()
          except StopIteration:
