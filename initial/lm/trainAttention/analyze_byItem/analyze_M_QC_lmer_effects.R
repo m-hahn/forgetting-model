@@ -46,10 +46,11 @@ for(pred in unique(data$predictability_weight)) {
 #       if(length(unique(data2$ID)) == 1) {
  #         model2 = lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C * True_Minus_False.C + compatible.C + (1|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0))
   #     } else {
-          model2 = lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C * True_Minus_False.C + compatible.C + True_Minus_False.C * compatible.C + (1|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0) %>% group_by(HasRC.C, compatible.C, True_Minus_False.C, Item, Noun) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)))
+          model2 = lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C * True_Minus_False.C + compatible.C + True_Minus_False.C * compatible.C + (1+compatible.C|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0) %>% group_by(HasRC.C, compatible.C, True_Minus_False.C, Item, Noun) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)))
 #          model2 = lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C * True_Minus_False.C + compatible.C + (1+compatible.C+True_Minus_False.C|Item) + (1|Noun) + (1+compatible.C+True_Minus_False.C|ID), data=data2 %>% filter(HasSC.C>0))
    #    }
 #crash()
+       cat(paste(pred, del, coef(summary(model2))[2,1], coef(summary(model2))[3,1], coef(summary(model2))[4,1], coef(summary(model2))[5,1], coef(summary(model2))[6,1], coef(summary(model2))[7,1], "\n", sep="\t"))
       sink("analyze_M_QC_lmer_effects.R.txt", append=TRUE)
        cat(paste(pred, del, coef(summary(model2))[2,1], coef(summary(model2))[3,1], coef(summary(model2))[4,1], coef(summary(model2))[5,1], coef(summary(model2))[6,1], coef(summary(model2))[7,1], "\n", sep="\t"))
        sink()
