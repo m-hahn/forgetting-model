@@ -13,7 +13,7 @@ import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--language", type=str, dest="language", default="Recursion")
-parser.add_argument("--horizon", type=int, dest="horizon", default=5)
+parser.add_argument("--horizon", type=int, dest="horizon", default=6)
 parser.add_argument("--code_number", type=int, dest="code_number", default=100)
 parser.add_argument("--beta", type=float, dest="beta", default=0.1)
 parser.add_argument("--dirichlet", type=float, dest="dirichlet", default=0.00001)
@@ -38,12 +38,12 @@ grammar["S"].append((("NP1", "VP",), 0.5))
 grammar["S"].append((("NP2", "VP",), 0.5))
 
 grammar["NP1"].append((("N1",), 0.1))
-#grammar["NP1"].append((("N1", "SC",), 0.7))
-#grammar["NP1"].append((("N1", "PP",), 0.2))
+grammar["NP1"].append((("N1", "SC",), 0.7))
+grammar["NP1"].append((("N1", "PP",), 0.2))
 
 grammar["NP2"].append((("N2",), 0.1))
-#grammar["NP2"].append((("N2", "SC",), 0.2))
-#grammar["NP2"].append((("N2", "PP",), 0.7))
+grammar["NP2"].append((("N2", "SC",), 0.2))
+grammar["NP2"].append((("N2", "PP",), 0.7))
 
 grammar["NP3"].append((("N3",), 0.99))
 
@@ -51,8 +51,8 @@ grammar["PP"].append((("about", "NP3",), 0.99))
 
 grammar["SC"].append((("that", "NP3", "VP",), 0.99))
 
-grammar["VP"].append((("V",), 0.99))
-#grammar["VP"].append((("V", "NP3",), 0.99))
+#grammar["VP"].append((("V",), 0.99))
+grammar["VP"].append((("V", "NP3",), 0.99))
 
 grammar["V"].append((("annoyed",), 0.25))
 grammar["V"].append((("shocked",), 0.25))
@@ -99,14 +99,14 @@ def process(x):
    return x
 
 lastPosUni = ("EOS",)*(args.horizon-1)
-for _ in range(1000):
+for _ in range(20000):
  sentence = sample("S")
  for line in sentence:
    nextPosUni = line
    ngram = process(lastPosUni+(nextPosUni,))
    ngrams[ngram] = ngrams.get(ngram, 0) + 1
    lastPosUni = lastPosUni[1:]+(nextPosUni,)
-   print(ngram)
+ #  print(ngram)
  nextPosUni = "EOS"
  ngram = process(lastPosUni+(nextPosUni,))
  ngrams[ngram] = ngrams.get(ngram, 0) + 1
@@ -118,6 +118,8 @@ import torch.nn as nn
 import torch
 from torch.autograd import Variable
 
+
+print("Number of training ngrams")
 
 ngrams = list(ngrams.iteritems())
 ngrams = sorted(ngrams, key=lambda x:x[1], reverse=True)
@@ -143,6 +145,12 @@ itos_pasts = list(set(pasts)) + ["_OOV_"]
 itos_futures = list(set(futures)) + ["_OOV_"]
 stoi_pasts = dict(zip(itos_pasts, range(len(itos_pasts))))
 stoi_futures = dict(zip(itos_futures, range(len(itos_futures))))
+
+print(len(ngrams))
+print("Pasts", len(stoi_pasts))
+print("Futures", len(stoi_futures))
+#quit()
+
 
 import torch
 
@@ -265,9 +273,34 @@ import torch.nn as nn
 import torch
 from torch.autograd import Variable
 
+ngrams = {}
+#ngrams[("fact", "that", "patient", "annoyed", "diplomat", "annoyed")] = 1
+#ngrams[("report", "that", "patient", "annoyed", "diplomat", "annoyed")] = 1
+surprisals_fact_one = []
+surprisals_report_one = []
+surprisals_fact_two = []
+surprisals_report_two = []
+
+
+
+for noun in [x[0] for x in grammar["N1"]]:
+ for verb in [x[0] for x in grammar["V"]]:
+  ngrams[(noun[0], verb[0])] = 1
+  for noun3 in [x[0] for x in grammar["N3"]]:
+   for verb2 in [x[0] for x in grammar["V"]]:
+     ngrams[(noun[0], "that", noun3[0], verb2[0], noun3[0], verb[0])] = 1
+
+for noun in [x[0] for x in grammar["N2"]]:
+ for verb in [x[0] for x in grammar["V"]]:
+  ngrams[(noun[0], verb[0])] = 1
+  for noun3 in [x[0] for x in grammar["N3"]]:
+   for verb2 in [x[0] for x in grammar["V"]]:
+     ngrams[(noun[0], "that", noun3[0], verb2[0], noun3[0], verb[0])] = 1
 
 ngrams = list(ngrams.iteritems())
 ngrams = sorted(ngrams, key=lambda x:x[1])
+
+
 
 #ngrams = [x for x in ngrams if x[1] > 100]
 #print(ngrams)
@@ -323,9 +356,18 @@ logDecoding = logWithoutNA(decoding)
 logFutureMarginal = logWithoutNA(marginal_future)
 
 futureSurprisal = -((future_given_past * marginal_past.unsqueeze(1)).unsqueeze(1) * encoding.unsqueeze(2) * logDecoding.unsqueeze(0)).sum()
+myID = random.randint(0,10000000)
 
-for i in range(len(pasts)):
-   print(pasts[i], futures[i], (encoding[pasts_int[i]] * logDecoding[:,futures_int[i]]).sum())
+outpath = "output/estimates-"+__file__+"_model_"+str(myID)+".txt"
+with open(outpath, "w") as outFile:
+    print >> outFile, "\t".join(x+" "+str(getattr(args,x)) for x in args_names)
+    print >> outFile, "MI with Past (train)", float(miWithPast_train)
+    print >> outFile, "Future Surprisal (train)", float(futureSurprisal_train)
+    for i in range(len(pasts)):
+       print(pasts[i])
+       print(futures[i])
+       print((encoding[pasts_int[i]] * logDecoding[:,futures_int[i]]).sum())
+       print >> outFile, "\t".join([" ".join(pasts[i]), " ".join(futures[i]), str(float((encoding[pasts_int[i]] * logDecoding[:,futures_int[i]]).sum()))])
 print(futureSurprisal.size())
 quit()
 
@@ -339,7 +381,6 @@ miWithPast = torch.sum((encoding * (logEncoding - log_marginal_hidden.unsqueeze(
 print(["Mi with past", miWithPast, "Future Surprisal", futureSurprisal/args.horizon, "Horizon", args.horizon, "but the comparison with longer blocks isn't really fair"]) # "Mi with future", miWithFuture
 
 
-myID = random.randint(0,10000000)
 
 
 outpath = "../../results/outputs-oce/estimates-"+args.language+"_"+__file__+"_model_"+str(myID)+".txt"
