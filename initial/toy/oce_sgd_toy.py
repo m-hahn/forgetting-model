@@ -1,28 +1,27 @@
 import numpy as np
-# Computes estimates also from held-out data.
+# GD version of 5, appears to come up with better solutions than 5
+# With arguments
 
-# Was called zNgramIB_5.py.
+# Was called zNgramIB_9_TOY.py.
 
-
+import matplotlib
+matplotlib.use('Agg')
 
 
 import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--language", type=str, dest="language", default="RIP")
+parser.add_argument("--language", type=str, dest="language", default="Recursion")
 parser.add_argument("--horizon", type=int, dest="horizon", default=5)
 parser.add_argument("--code_number", type=int, dest="code_number", default=100)
-parser.add_argument("--beta", type=float, dest="beta", default=100)
+parser.add_argument("--beta", type=float, dest="beta", default=0.1)
 parser.add_argument("--dirichlet", type=float, dest="dirichlet", default=0.00001)
 
 args_names = ["language", "horizon", "code_number", "beta", "dirichlet"]
 args = parser.parse_args()
 
 
-args.beta = 1/args.beta
-
-assert args.beta <= 1.0
 
 import random
 import sys
@@ -145,17 +144,11 @@ itos_futures = list(set(futures)) + ["_OOV_"]
 stoi_pasts = dict(zip(itos_pasts, range(len(itos_pasts))))
 stoi_futures = dict(zip(itos_futures, range(len(itos_futures))))
 
-#print(itos_pasts)
-#quit()
-
 import torch
 
 pasts_int = torch.LongTensor([stoi_pasts[x] for x in pasts])
 futures_int = torch.LongTensor([stoi_futures[x] for x in futures])
 
-
-print(pasts)
-print(futures)
 
 marginal_past = torch.zeros(len(itos_pasts))
 for i in range(len(pasts)):
@@ -192,86 +185,55 @@ for i in range(len(futures)):
    marginal_future[futures_int[i]] += frequencies[i]
 marginal_future[-1] = args.dirichlet * len(itos_pasts)
 marginal_future = marginal_future.div(marginal_future.sum())
+logFutureMarginal = logWithoutNA(marginal_future)
 
 print(marginal_future)
 print(len(marginal_future))
 
+import torch.optim
 
 
 
-encoding = torch.empty(len(itos_pasts), args.code_number).uniform_(0.000001, 1)
-encoding = encoding.div(encoding.sum(1).unsqueeze(1))
-
-decoding = torch.empty(args.code_number, len(itos_futures)).uniform_(0.000001, 1)
-decoding = decoding.div(decoding.sum(1).unsqueeze(1))
-print(decoding[0].sum())
-#quit()
-
-marginal_hidden = torch.matmul(marginal_past.unsqueeze(0), encoding).squeeze(0)
+encoding_logits = torch.empty(len(itos_pasts), args.code_number).uniform_(0.000001, 1)
+encoding_logits.requires_grad = True
+optimizer = torch.optim.Adam([encoding_logits], lr= 0.01) # also try 0.001, 0.0001
+softmax = torch.nn.Softmax()
+logsoftmax = torch.nn.LogSoftmax()
 
 
-import torch.nn.functional
 
 def runOCE():
-    global decoding
-    global encoding
-    global marginal_hidden
     objective = 10000000
-    for t in range(500):
+    for t in range(100000):
        print("Iteration", t)
+       optimizer.zero_grad()
     
-    
-       divergence_by_past = (future_given_past * logWithoutNA(future_given_past))
-       divergence_by_past = divergence_by_past.sum(1)
-    
-       log_future_given_past = logWithoutNA(future_given_past)
-    
-       log_decoding = logWithoutNA(decoding)
-   
-       ratios = log_future_given_past.unsqueeze(1) - log_decoding.unsqueeze(0)
-       divergence2 = (future_given_past.unsqueeze(1) * ratios).sum(2)
-
-       total_distortion = torch.matmul(marginal_past.unsqueeze(0), divergence2 * encoding).sum()
-    
-       assert total_distortion >= 0, total_distortion
-     
-       logNewEncoding = logWithoutNA(marginal_hidden.unsqueeze(0)) + (-args.beta * divergence2)
-
-       logNewEncoding = torch.nn.functional.log_softmax( logNewEncoding, dim=1) #                 logNewEncoding - logNorm
-       newEncoding = torch.exp(logNewEncoding)
-       new_marginal_hidden = torch.matmul(marginal_past.unsqueeze(0), newEncoding).squeeze(0)
-       newEncodingInverted = (newEncoding * marginal_past.unsqueeze(1)).div(new_marginal_hidden.unsqueeze(0))
-       newEncodingInverted[new_marginal_hidden.unsqueeze(0).expand(len(itos_pasts), -1) == 0] = 0
-    
-       newDecoding = torch.matmul(future_given_past.t(), newEncodingInverted).t()
-       assert abs(newDecoding[0].sum()) < 0.01 or abs(newDecoding[0].sum() - 1.0) < 0.01 , newDecoding[0].sum()
-       
-       entropy = new_marginal_hidden * logWithoutNA(new_marginal_hidden)
-       entropy = -torch.sum(entropy)
-        
-       print("Entropy", entropy)
-       encoding = newEncoding
-       decoding = newDecoding
-       marginal_hidden = new_marginal_hidden
-    
-       logDecoding = logWithoutNA(decoding) 
-       logFutureMarginal = logWithoutNA(marginal_future)
-       miWithFuture = torch.sum((decoding * (logDecoding - logFutureMarginal.unsqueeze(0))).sum(1) * marginal_hidden)
-    
-       logEncoding = logWithoutNA(encoding)
+       encoding = softmax(encoding_logits)
+       marginal_hidden = torch.matmul(marginal_past.unsqueeze(0), encoding).squeeze(0)
        log_marginal_hidden = logWithoutNA(marginal_hidden)
+       normalizedEncoding = encoding.div(marginal_hidden.unsqueeze(0))
+       decoding = torch.matmul((marginal_past.unsqueeze(1) * future_given_past).t(), normalizedEncoding).t()
+       print(decoding[0].sum())
     
+       logEncoding = logsoftmax(encoding_logits)
+       logDecoding = logWithoutNA(decoding)
+       miWithFuture = torch.sum((decoding * (logDecoding - logFutureMarginal.unsqueeze(0))).sum(1) * marginal_hidden) # WRONG
        miWithPast = torch.sum((encoding * (logEncoding - log_marginal_hidden.unsqueeze(0))).sum(1) * marginal_past)
-       assert miWithFuture <= miWithPast+1e-5, (miWithFuture , miWithPast)
-       newObjective = 1/args.beta * miWithPast - miWithFuture
+       assert miWithFuture <= miWithPast + 1e-5, (miWithFuture , miWithPast)
+       newObjective = args.beta * miWithPast - miWithFuture
+       newObjective.backward()
+       optimizer.step()
+     
        print(["Mi with future", miWithFuture, "Mi with past", miWithPast])
        print(["objectives","last",objective, "new", newObjective])
-       if not (newObjective - 0.1 <= objective):
-          print ("WARNING: Objective not improving. ", newObjective, objective)
-       if newObjective == objective:
+       #assert newObjective - 0.1 <= objective, (newObjective, objective)
+       if abs(newObjective - objective) < 1e-13:
          print("Ending")
          break
        objective = newObjective
+    miWithPast = torch.sum((encoding * (logEncoding - log_marginal_hidden.unsqueeze(0))).sum(1) * marginal_past)
+    assert miWithFuture <= miWithPast + 1e-5, (miWithFuture , miWithPast)
+
     return encoding, decoding, logDecoding, miWithPast, log_marginal_hidden
 
 encoding, decoding, logDecoding, miWithPast_train, log_marginal_hidden = runOCE()
@@ -347,17 +309,17 @@ future_given_past += 0.00001
 
 future_given_past = future_given_past.div(future_given_past.sum(1).unsqueeze(1))
 
-#marginal_future = torch.zeros(len(itos_futures))
-#for i in range(len(futures)):
-#   marginal_future[futures_int[i]] += frequencies[i]
-#marginal_future = marginal_future.div(marginal_future.sum())
+marginal_future = torch.zeros(len(itos_futures))
+for i in range(len(futures)):
+   marginal_future[futures_int[i]] += frequencies[i]
+marginal_future = marginal_future.div(marginal_future.sum())
 
 
 marginal_hidden = torch.matmul(marginal_past.unsqueeze(0), encoding).squeeze(0)
 
 
 logDecoding = logWithoutNA(decoding) 
-#logFutureMarginal = logWithoutNA(marginal_future)
+logFutureMarginal = logWithoutNA(marginal_future)
 
 futureSurprisal = -((future_given_past * marginal_past.unsqueeze(1)).unsqueeze(1) * encoding.unsqueeze(2) * logDecoding.unsqueeze(0)).sum()
 
@@ -366,7 +328,7 @@ futureSurprisal = -((future_given_past * marginal_past.unsqueeze(1)).unsqueeze(1
 logEncoding = logWithoutNA(encoding)
 
 miWithPast = torch.sum((encoding * (logEncoding - log_marginal_hidden.unsqueeze(0))).sum(1) * marginal_past)
-print(["Mi with past", miWithPast, "Future Surprisal", futureSurprisal/args.horizon, "Horizon", args.horizon]) # "Mi with future", miWithFuture
+print(["Mi with past", miWithPast, "Future Surprisal", futureSurprisal/args.horizon, "Horizon", args.horizon, "but the comparison with longer blocks isn't really fair"]) # "Mi with future", miWithFuture
 
 
 myID = random.randint(0,10000000)

@@ -1,4 +1,3 @@
-import numpy as np
 # Computes estimates also from held-out data.
 
 # Was called zNgramIB_5.py.
@@ -10,10 +9,10 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--language", type=str, dest="language", default="RIP")
-parser.add_argument("--horizon", type=int, dest="horizon", default=5)
+parser.add_argument("--language", type=str, dest="language", default="English")
+parser.add_argument("--horizon", type=int, dest="horizon", default=1)
 parser.add_argument("--code_number", type=int, dest="code_number", default=100)
-parser.add_argument("--beta", type=float, dest="beta", default=100)
+parser.add_argument("--beta", type=float, dest="beta", default=0.1)
 parser.add_argument("--dirichlet", type=float, dest="dirichlet", default=0.00001)
 
 args_names = ["language", "horizon", "code_number", "beta", "dirichlet"]
@@ -32,87 +31,22 @@ import sys
 
 header = ["index", "word", "lemma", "posUni", "posFine", "morph", "head", "dep", "_", "_"]
 
-
-from collections import defaultdict
-grammar = defaultdict(list)
-grammar["S"].append((("NP1", "VP",), 0.5))
-grammar["S"].append((("NP2", "VP",), 0.5))
-
-grammar["NP1"].append((("N1",), 0.1))
-#grammar["NP1"].append((("N1", "SC",), 0.7))
-#grammar["NP1"].append((("N1", "PP",), 0.2))
-
-grammar["NP2"].append((("N2",), 0.1))
-#grammar["NP2"].append((("N2", "SC",), 0.2))
-#grammar["NP2"].append((("N2", "PP",), 0.7))
-
-grammar["NP3"].append((("N3",), 0.99))
-
-grammar["PP"].append((("about", "NP3",), 0.99))
-
-grammar["SC"].append((("that", "NP3", "VP",), 0.99))
-
-grammar["VP"].append((("V",), 0.99))
-#grammar["VP"].append((("V", "NP3",), 0.99))
-
-grammar["V"].append((("annoyed",), 0.25))
-grammar["V"].append((("shocked",), 0.25))
-grammar["V"].append((("surprised",), 0.25))
-grammar["V"].append((("pleased",), 0.25))
-
-grammar["N1"].append((("fact",), 0.33))
-grammar["N1"].append((("belief",), 0.33))
-grammar["N1"].append((("reassurance",), 0.33))
-
-grammar["N2"].append((("report",), 0.33))
-grammar["N2"].append((("story",), 0.33))
-grammar["N2"].append((("admission",), 0.33))
-
-grammar["N3"].append((("doctor",), 0.25))
-grammar["N3"].append((("patient",), 0.25))
-grammar["N3"].append((("janitor",), 0.25))
-grammar["N3"].append((("diplomat",), 0.25))
-
-
-def sample(cat):
-   if cat in grammar:
-      productions = grammar[cat]
-      probabilities = [x[1] for x in productions]
-      probabilities = [x/sum(probabilities) for x in probabilities]
-    
-      selected = np.random.choice(list(range(len(productions))), p=probabilities)
-      r = []
-      for x in productions[selected][0]:
-         r += sample(x)
-      return r
-   else:
-      return [cat]
-
-
-
+from corpusIterator import CorpusIterator
 
 ngrams = {}
 
-def process(x):
-   while "EOS" in x[:-1] and x.index("EOS") + 1 < len(x):
-      x = tuple(x[x.index("EOS")+1:])
-   assert len(x) >= 1
-   return x
-
-lastPosUni = ("EOS",)*(args.horizon-1)
-for _ in range(1000):
- sentence = sample("S")
+lastPosUni = ("EOS",)*(2*args.horizon-1)
+for sentence in CorpusIterator(args.language,"train", storeMorph=True).iterator():
  for line in sentence:
-   nextPosUni = line
-   ngram = process(lastPosUni+(nextPosUni,))
+   nextPosUni = line["posUni"]
+   ngram = lastPosUni+(nextPosUni,)
    ngrams[ngram] = ngrams.get(ngram, 0) + 1
    lastPosUni = lastPosUni[1:]+(nextPosUni,)
-   print(ngram)
  nextPosUni = "EOS"
- ngram = process(lastPosUni+(nextPosUni,))
+ ngram = lastPosUni+(nextPosUni,)
  ngrams[ngram] = ngrams.get(ngram, 0) + 1
  lastPosUni = lastPosUni[1:]+(nextPosUni,)
-#quit()
+
 
 #import torch.distributions
 import torch.nn as nn
@@ -121,12 +55,11 @@ from torch.autograd import Variable
 
 
 ngrams = list(ngrams.iteritems())
-ngrams = sorted(ngrams, key=lambda x:x[1], reverse=True)
+
 #ngrams = [x for x in ngrams if x[1] > 100]
 #print(ngrams)
 print(["Number of ngrams", len(ngrams)])
 
-print(ngrams)
 
 keys = [x[0] for x in ngrams]
 
@@ -136,8 +69,8 @@ total = sum([x[1] for x in ngrams])
 
 frequencies = [x[1] for x in ngrams]
 
-pasts = [x[:-1] for x in keys]  #range(horizon:range(horizon, 2*horizon)]
-futures = [x[-1:] for x in keys]
+pasts = [x[:args.horizon] for x in keys]  #range(horizon:range(horizon, 2*horizon)]
+futures = [x[args.horizon:] for x in keys]
 
 
 itos_pasts = list(set(pasts)) + ["_OOV_"]
@@ -145,17 +78,11 @@ itos_futures = list(set(futures)) + ["_OOV_"]
 stoi_pasts = dict(zip(itos_pasts, range(len(itos_pasts))))
 stoi_futures = dict(zip(itos_futures, range(len(itos_futures))))
 
-#print(itos_pasts)
-#quit()
-
 import torch
 
 pasts_int = torch.LongTensor([stoi_pasts[x] for x in pasts])
 futures_int = torch.LongTensor([stoi_futures[x] for x in futures])
 
-
-print(pasts)
-print(futures)
 
 marginal_past = torch.zeros(len(itos_pasts))
 for i in range(len(pasts)):
@@ -284,11 +211,10 @@ futureSurprisal_train = -((future_given_past * marginal_past.unsqueeze(1)).unsqu
 
 ngrams = {}
 
-lastPosUni = ("EOS",)*(args.horizon-1)
-for _ in range(1000):
- sentence = sample("S")
+lastPosUni = ("EOS",)*(2*args.horizon-1)
+for sentence in CorpusIterator(args.language,"dev", storeMorph=True).iterator():
  for line in sentence:
-   nextPosUni = line
+   nextPosUni = line["posUni"]
    ngram = lastPosUni+(nextPosUni,)
    ngrams[ngram] = ngrams.get(ngram, 0) + 1
    lastPosUni = lastPosUni[1:]+(nextPosUni,)
@@ -319,8 +245,8 @@ total = sum([x[1] for x in ngrams])
 
 frequencies = [x[1] for x in ngrams]
 
-pasts = [x[:-1] for x in keys]  #range(horizon:range(horizon, 2*horizon)]
-futures = [x[-1:] for x in keys]
+pasts = [x[:args.horizon] for x in keys]  #range(horizon:range(horizon, 2*horizon)]
+futures = [x[args.horizon:] for x in keys]
 
 
 
@@ -373,14 +299,12 @@ myID = random.randint(0,10000000)
 
 
 outpath = "../../results/outputs-oce/estimates-"+args.language+"_"+__file__+"_model_"+str(myID)+".txt"
-#with sys.stdout as outFile: #open(outpath, "w") as outFile:
-outFile = sys.stdout
-if True:
+with open(outpath, "w") as outFile:
     print >> outFile, "\t".join(x+" "+str(getattr(args,x)) for x in args_names)
-    print >> outFile, "Mi With Past", float(miWithPast)
-    print >> outFile, "Future Surprisal", float(futureSurprisal)
-    print >> outFile, "MI with Past (train)", float(miWithPast_train)
-    print >> outFile, float(futureSurprisal_train)
+    print >> outFile, float(miWithPast)
+    print >> outFile, float(futureSurprisal/args.horizon)
+    print >> outFile, float(miWithPast_train)
+    print >> outFile, float(futureSurprisal_train/args.horizon)
 
 
 print(outpath)
