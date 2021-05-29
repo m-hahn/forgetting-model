@@ -251,11 +251,11 @@ for _ in range(1000):
  sentence = sample("S")
  for line in sentence:
    nextPosUni = line
-   ngram = lastPosUni+(nextPosUni,)
+   ngram = process(lastPosUni+(nextPosUni,))
    ngrams[ngram] = ngrams.get(ngram, 0) + 1
    lastPosUni = lastPosUni[1:]+(nextPosUni,)
  nextPosUni = "EOS"
- ngram = lastPosUni+(nextPosUni,)
+ ngram = process(lastPosUni+(nextPosUni,))
  ngrams[ngram] = ngrams.get(ngram, 0) + 1
  lastPosUni = lastPosUni[1:]+(nextPosUni,)
 
@@ -267,6 +267,7 @@ from torch.autograd import Variable
 
 
 ngrams = list(ngrams.iteritems())
+ngrams = sorted(ngrams, key=lambda x:x[1])
 
 #ngrams = [x for x in ngrams if x[1] > 100]
 #print(ngrams)
@@ -322,6 +323,13 @@ logDecoding = logWithoutNA(decoding)
 logFutureMarginal = logWithoutNA(marginal_future)
 
 futureSurprisal = -((future_given_past * marginal_past.unsqueeze(1)).unsqueeze(1) * encoding.unsqueeze(2) * logDecoding.unsqueeze(0)).sum()
+
+for i in range(len(pasts)):
+   print(pasts[i], futures[i], (encoding[pasts_int[i]] * logDecoding[:,futures_int[i]]).sum())
+print(futureSurprisal.size())
+quit()
+
+
 
 
 
