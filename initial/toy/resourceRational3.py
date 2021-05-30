@@ -1,3 +1,6 @@
+#~/python-py37-mhahn resourceRational3.py --learning_rate_memory=0.00001 --learning_rate_autoencoder=0.1 --learning_rate_lm=0.1 --sequence_length=7 --deletion_rate=0.5
+
+
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -180,6 +183,8 @@ stoi = dict([(itos[i],i) for i in range(len(itos))])
 itos_total = ["<SOS>", "<EOS>", "OOV"] + itos
 stoi_total = dict([(itos_total[i],i) for i in range(len(itos_total))])
 
+assert "report0" in itos_total
+assert "fact0" in itos_total
 
 import random
 import torch
@@ -267,7 +272,7 @@ class PlainLanguageModel(torch.nn.Module):
 #           self.beginning = torch.where(forRestart.unsqueeze(0) == 1, zeroBeginning, self.beginning)
 #       print("BEGINNING", "NUMERIC", self.beginning.size(), numeric.size())
        assert numeric.size()[1] == numberOfBatches, ("numberOfBatches", numberOfBatches, numeric.size())
-       assert numeric.size()[0] == args.sequence_length+1
+       assert numeric.size()[0] <= args.sequence_length+1
        self.beginning = numeric[numeric.size()[0]-1].view(1, numberOfBatches)
        input_tensor = Variable(numeric[:-1], requires_grad=False)
        target_tensor = Variable(numeric[1:], requires_grad=False)
@@ -904,7 +909,7 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
 #      print(memory_filter.size(), memory_hidden.size())
       bernoulli_logprob = torch.where(memory_filter, torch.log(memory_hidden.squeeze(2)+1e-10), torch.log(1-memory_hidden.squeeze(2)+1e-10))
 
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
+      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(2, 1, 1)).long().sum(dim=0)).bool())
 
       # Disregard likelihood computation on punctuation
       bernoulli_logprob = torch.where(punctuation, 0*bernoulli_logprob, bernoulli_logprob)
@@ -971,12 +976,12 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 200000 if args.tuning == 1 else 10000000000
+maxUpdates = 100000 if args.tuning == 1 else 10000000000
 
-def showAttention(word):
+def showAttention(word, stream=sys.stdout):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
     attention = attention[:,0,0]
-    print(*(["SCORES", word, "\t"]+[round(x,2) for x in list(attention.cpu().data.numpy())]))
+    print(*(["SCORES", word, "\t"]+[round(x,2) for x in list(attention.cpu().data.numpy())]), file=stream)
 
 
 
@@ -989,8 +994,8 @@ for verb in [x[0] for x in grammar["V"]]:
    for verb2 in [x[0] for x in grammar["V"]]:                                                                                                                                                               
      nounsAndVerbsCompatible.append([noun3[0], "NA", "NA", verb2[0]+" "+noun3[0], verb[0]])
 
-random.shuffle(nounsAndVerbsCompatible)
-nounsAndVerbsCompatible = nounsAndVerbsCompatible[:100]
+#random.shuffle(nounsAndVerbsCompatible)
+#nounsAndVerbsCompatible = nounsAndVerbsCompatible[:100]
 
 for x in [nounsAndVerbsCompatible]:
  for z in x:
@@ -1006,8 +1011,8 @@ for x in [nounsAndVerbsCompatible]:
 #nounsAndVerbs = nounsAndVerbs[:1]
 
 topNouns = []
-for noun in [x[0] for x in grammar["N1"] + grammar["N2"]]:                                                                                                                                                                  
-   topNouns.append(noun)
+for noun in [x[0] for x in grammar["N1"] + grammar["N2"]]:                                                   
+   topNouns.append(noun[0])
 
 topNouns = list(set(topNouns))
 
@@ -1352,37 +1357,35 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
       TOTAL_TRIALS = len(topNouns) * 20 * 2 * 1
       for nounIndex, NOUN in enumerate(topNouns):
         print(NOUN, "Time:", time.time() - startTimePredictions, nounIndex/len(topNouns), file=sys.stderr)
-        thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalReweightedByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        surprisalReweightedByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         for sentenceID in range(len(nounsAndVerbsCompatible)):
           print(sentenceID)
           context = None
-          for compatible in ["compatible", "incompatible"]:
-           for condition in ["SCRC", "SC","NoSC"]:
+          for compatible in ["compatible"]:
+           for condition in ["SC","NoSC"]:
             TRIALS_COUNT += 1
-            print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
+            print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS, condition)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
             assert len(sentenceList) >= 5, sentenceList
-            if condition == "NoSC" and compatible == "compatible":
-               continue
             if condition == "SC":
-               context = f"the {NOUN} that {sentenceList[0]}"
+               context = f"{NOUN} that {sentenceList[0]}"
                regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
             elif condition == "NoSC":
-               context = f"the {NOUN}"
+               context = f"{NOUN}"
                regionsToDo = [(sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
             elif condition == "SCRC":
-               context = f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
+               context = f"{NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
                regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
@@ -1394,7 +1397,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             for i in range(len(remainingInput)):
               if regions[i].startswith("V2"):
                 continue
-              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
+              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "fact0 annoyed0 doctor0 EOS fact0 annoyed0 doctor0 EOS " + context)
               pointWhereToStart = args.sequence_length - len(context.split(" ")) - i - 1
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
@@ -1412,7 +1415,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               else:
                  assert SANITY == "Model"
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
-                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
+                 numeric_noised = torch.where(numeric == stoi["EOS"]+3, numeric, numeric_noised)
               # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
@@ -1447,11 +1450,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
-              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
+#              print([[itos_total[x] for x in y] for y in resultNumeric[pointWhereToStart:]])
+ #             quit()
+              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric[pointWhereToStart:], train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
               assert resultNumeric.size()[0] == args.sequence_length+1
-              assert totalSurprisal.size()[0] == args.sequence_length
+              assert totalSurprisal.size()[0] <= args.sequence_length
               # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
-              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
+              totalSurprisal = totalSurprisal.view(-1, numberOfSamples, 24)
               surprisals_past = totalSurprisal[:-1].sum(dim=0)
               surprisals_nextWord = totalSurprisal[-1]
 
@@ -1518,7 +1523,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               surprisalByRegions[condition+"_"+compatible][regions[i]] += float( surprisalOfNextWord)
               surprisalCountByRegions[condition+"_"+compatible][regions[i]] += 1
 
-              assert sentenceList[-1] in ["o","v"]
+              #assert sentenceList[-1] in ["o","v"]
               print("\t".join([str(w) for w in [NOUN, (sentenceList[-1]+"_"+sentenceList[0]+"_"+sentenceList[1]).replace("the","").replace(" ", ""), regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere), surprisalsWithThat, surprisalsWithoutThat]]), file=outFile)
 #                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
 
@@ -1541,6 +1546,15 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         #quit()
         #quit()
         #assert hasSeenCompatible
+
+     print("=========================")
+     showAttention("fact0", stream=outFile)
+     showAttention("report0", stream=outFile)
+     showAttention("doctor0", stream=outFile)
+     showAttention("annoyed0", stream=outFile)
+     showAttention("that", stream=outFile)
+     showAttention("about", stream=outFile)
+
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
@@ -1578,6 +1592,9 @@ startTimePredictions = time.time()
 #getPerNounReconstructionsSanity()
 #getPerNounReconstructionsSanityVerb()
 startTimeTotal = time.time()
+
+#getTotalSentenceSurprisals(SANITY="Model")
+#quit()
 
 
 def trainingIterator():
