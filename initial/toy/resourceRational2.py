@@ -118,25 +118,25 @@ grammar["SC"].append((("that", "NP3", "VP",), 0.99))
 #grammar["VP"].append((("V",), 0.99))
 grammar["VP"].append((("V", "NP3",), 0.99))
 
-for q in range(30):
+for q in range(1):
    grammar["V"].append((("annoyed"+str(q),), 0.25))
-   grammar["V"].append((("shocked"+str(q),), 0.25))
-   grammar["V"].append((("surprised"+str(q),), 0.25))
-   grammar["V"].append((("pleased"+str(q),), 0.25))
+#   grammar["V"].append((("shocked"+str(q),), 0.25))
+#   grammar["V"].append((("surprised"+str(q),), 0.25))
+#   grammar["V"].append((("pleased"+str(q),), 0.25))
    
    
    grammar["N1"].append((("fact"+str(q),), 0.33))
-   grammar["N1"].append((("belief"+str(q),), 0.33))
-   grammar["N1"].append((("reassurance"+str(q),), 0.33))
+#   grammar["N1"].append((("belief"+str(q),), 0.33))
+#   grammar["N1"].append((("reassurance"+str(q),), 0.33))
    
    grammar["N2"].append((("report"+str(q),), 0.33))
-   grammar["N2"].append((("story"+str(q),), 0.33))
-   grammar["N2"].append((("admission"+str(q),), 0.33))
+#   grammar["N2"].append((("story"+str(q),), 0.33))
+#   grammar["N2"].append((("admission"+str(q),), 0.33))
    
    grammar["N3"].append((("doctor"+str(q),), 0.25))
-   grammar["N3"].append((("patient"+str(q),), 0.25))
-   grammar["N3"].append((("janitor"+str(q),), 0.25))
-   grammar["N3"].append((("diplomat"+str(q),), 0.25))
+#   grammar["N3"].append((("patient"+str(q),), 0.25))
+#   grammar["N3"].append((("janitor"+str(q),), 0.25))
+#   grammar["N3"].append((("diplomat"+str(q),), 0.25))
    
 
 def sample(cat):
@@ -612,6 +612,7 @@ def product(x):
    return r
 
 PUNCTUATION = torch.LongTensor([stoi_total[x] for x in ["EOS", "OOV"]]).cuda()
+CONTENT = torch.LongTensor([stoi_total[x] for x in ["annoyed0", "fact0", "report0", "doctor0"]]).cuda()
 
 def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True):
       """ Forward pass through the entire model
@@ -706,7 +707,12 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       # Prediction Loss 
       autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
-
+      contentWords = (CONTENT.view(-1, 1, 1) == target_tensor_onlyNoised[:-1].unsqueeze(0)).float().sum(dim=0)
+  #    print(contentWords)
+   #   print(autoencoder_lossTensor)
+      autoencoder_lossTensor = autoencoder_lossTensor + 6.907755 * contentWords
+#      print(autoencoder_lossTensor)
+ #     quit()
       ##########################################
       ##########################################
       # RUN LANGUAGE MODEL (amortized prediction of next word)

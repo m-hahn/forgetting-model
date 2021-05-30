@@ -118,25 +118,25 @@ grammar["SC"].append((("that", "NP3", "VP",), 0.99))
 #grammar["VP"].append((("V",), 0.99))
 grammar["VP"].append((("V", "NP3",), 0.99))
 
-for q in range(30):
+for q in range(1):
    grammar["V"].append((("annoyed"+str(q),), 0.25))
-   grammar["V"].append((("shocked"+str(q),), 0.25))
-   grammar["V"].append((("surprised"+str(q),), 0.25))
-   grammar["V"].append((("pleased"+str(q),), 0.25))
+#   grammar["V"].append((("shocked"+str(q),), 0.25))
+#   grammar["V"].append((("surprised"+str(q),), 0.25))
+#   grammar["V"].append((("pleased"+str(q),), 0.25))
    
    
    grammar["N1"].append((("fact"+str(q),), 0.33))
-   grammar["N1"].append((("belief"+str(q),), 0.33))
-   grammar["N1"].append((("reassurance"+str(q),), 0.33))
+#   grammar["N1"].append((("belief"+str(q),), 0.33))
+#   grammar["N1"].append((("reassurance"+str(q),), 0.33))
    
    grammar["N2"].append((("report"+str(q),), 0.33))
-   grammar["N2"].append((("story"+str(q),), 0.33))
-   grammar["N2"].append((("admission"+str(q),), 0.33))
+#   grammar["N2"].append((("story"+str(q),), 0.33))
+#   grammar["N2"].append((("admission"+str(q),), 0.33))
    
    grammar["N3"].append((("doctor"+str(q),), 0.25))
-   grammar["N3"].append((("patient"+str(q),), 0.25))
-   grammar["N3"].append((("janitor"+str(q),), 0.25))
-   grammar["N3"].append((("diplomat"+str(q),), 0.25))
+#   grammar["N3"].append((("patient"+str(q),), 0.25))
+#   grammar["N3"].append((("janitor"+str(q),), 0.25))
+#   grammar["N3"].append((("diplomat"+str(q),), 0.25))
    
 
 def sample(cat):
@@ -265,8 +265,8 @@ class PlainLanguageModel(torch.nn.Module):
 #           hidden2 = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroHidden, hidden2)
 #           self.hidden = (hidden1, hidden2)
 #           self.beginning = torch.where(forRestart.unsqueeze(0) == 1, zeroBeginning, self.beginning)
-       print("BEGINNING", "NUMERIC", self.beginning.size(), numeric.size())
-       assert numeric.size()[1] == numberOfBatches, ("numberOfBatches", numberOfBatches)
+#       print("BEGINNING", "NUMERIC", self.beginning.size(), numeric.size())
+       assert numeric.size()[1] == numberOfBatches, ("numberOfBatches", numberOfBatches, numeric.size())
        assert numeric.size()[0] == args.sequence_length+1
        self.beginning = numeric[numeric.size()[0]-1].view(1, numberOfBatches)
        input_tensor = Variable(numeric[:-1], requires_grad=False)
@@ -292,10 +292,10 @@ class PlainLanguageModel(torch.nn.Module):
      
           lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, numberOfBatches)
    
-          if printHere:
-             lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, args.batchSize)
-             losses = lossTensor.data.cpu().numpy()
-             numericCPU = numeric.cpu().data.numpy()
+       #   if printHere:
+        #     lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, args.batchSize)
+         #    losses = lossTensor.data.cpu().numpy()
+          #   numericCPU = numeric.cpu().data.numpy()
              #print(("NONE", itos_total[numericCPU[0][0]]))
              #for i in range((args.sequence_length)):
              #   print((losses[i][0], itos_total[numericCPU[i+1][0]]))
@@ -477,6 +477,10 @@ memory = MemoryModel()
 #memory.word_embeddings.weight.data = lm.word_embeddings.weight.data.clone()
 
 
+plain_lm = PlainLanguageModel()
+
+
+
 def parameters_memory():
    for module in memory.modules_memory:
        for param in module.parameters():
@@ -501,6 +505,11 @@ def parameters_autoencoder():
             yield param
 
 
+def parameters_plain_lm():
+   for module in plain_lm.modules:
+       for param in module.parameters():
+            yield param
+
 
 def parameters_lm():
    for module in lm.modules_lm:
@@ -511,6 +520,7 @@ parameters_lm_cached = [x for x in parameters_lm()]
 
 
 assert  TRAIN_LM
+optim_plain_lm = torch.optim.SGD(parameters_plain_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
 optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
 optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
 optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
@@ -612,6 +622,7 @@ def product(x):
    return r
 
 PUNCTUATION = torch.LongTensor([stoi_total[x] for x in ["EOS", "OOV"]]).cuda()
+CONTENT = torch.LongTensor([stoi_total[x] for x in ["annoyed0", "fact0", "report0", "doctor0"]]).cuda()
 
 def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True):
       """ Forward pass through the entire model
@@ -706,12 +717,22 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       # Prediction Loss 
       autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
-
+      contentWords = (CONTENT.view(-1, 1, 1) == target_tensor_onlyNoised[:-1].unsqueeze(0)).float().sum(dim=0)
+  #    print(contentWords)
+   #   print(autoencoder_lossTensor)
+      autoencoder_lossTensor = autoencoder_lossTensor + 6.907755 * contentWords
+#      print(autoencoder_lossTensor)
+ #     quit()
       ##########################################
       ##########################################
       # RUN LANGUAGE MODEL (amortized prediction of next word)
       if args.predictability_weight > 0:
        lm_lossTensor = lm.forward(input_tensor_noised, target_tensor_full, NUMBER_OF_REPLICATES)
+
+
+      plain_lm_lossTensor, _, _, _ = plain_lm.forward(numeric[:,:1], train=True, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=1)
+
+
       ##########################################
       ##########################################
 
@@ -733,6 +754,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       # Language Model Loss
       loss += lm_lossTensor.mean()
+      loss += plain_lm_lossTensor.mean()
 
       # Overall Reward
       negativeRewardsTerm = negativeRewardsTerm1 + dual_weight * (negativeRewardsTerm2-retentionTarget)
@@ -786,6 +808,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 #      if printHere:
          if args.predictability_weight > 0:
           lm_losses = lm_lossTensor.data.cpu().numpy()
+          plain_lm_losses = plain_lm_lossTensor.data.cpu().numpy()
          autoencoder_losses = autoencoder_lossTensor.data.cpu().numpy()
 
          numeric_noisedCPU = numeric_noised.cpu().data.numpy()
@@ -800,6 +823,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
  #           print(lm_lossTensor.size(), target_tensor_full.size())
             summary.append(autoencoder_losses[i][0] if i < autoencoder_lossTensor.size()[0] else "--")
             summary.append(lm_losses[0][0] if args.predictability_weight > 0 and i+1 == args.sequence_length else "---")
+            summary.append(plain_lm_losses[i][0] if args.predictability_weight > 0 and i < args.sequence_length else "---")
             summary.append(itos_total[numericCPU[i+1][0]])
             summary.append(itos_total[numeric_noisedCPU[i+1][0]])
             summary.append(memory_hidden_CPU[i+1])
@@ -904,6 +928,7 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
 def backward(loss, printHere):
       """ An optimization step for the resource-rational objective function """
       # Set stored gradients to zero
+      optim_plain_lm.zero_grad()
       optim_lm.zero_grad()
       optim_autoencoder.zero_grad()
       optim_memory.zero_grad()
@@ -920,6 +945,7 @@ def backward(loss, printHere):
          torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
 
       # Adapt parameters
+      optim_plain_lm.step()
       optim_lm.step()
       optim_autoencoder.step()
 #      if (100.0*updatesCount)/maxUpdates > 50:
@@ -997,7 +1023,6 @@ random.shuffle(topNouns)
 
     
     
-plain_lm = PlainLanguageModel()
 
 
 

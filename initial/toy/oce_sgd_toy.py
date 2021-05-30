@@ -1,3 +1,6 @@
+# Command:
+# ~/python-py27 oce_sgd_toy.py --beta 0.8 --horizon=6 --code_number=2000 --dirichlet=0 --samples=2000000
+
 import numpy as np
 # GD version of 5, appears to come up with better solutions than 5
 # With arguments
@@ -16,8 +19,8 @@ parser.add_argument("--language", type=str, dest="language", default="Recursion"
 parser.add_argument("--horizon", type=int, dest="horizon", default=6)
 parser.add_argument("--code_number", type=int, dest="code_number", default=2000)
 parser.add_argument("--beta", type=float, dest="beta", default=0.1)
-parser.add_argument("--dirichlet", type=float, dest="dirichlet", default=0.00001)
-parser.add_argument("--samples", type=int, dest="samples", default=20000)
+parser.add_argument("--dirichlet", type=float, dest="dirichlet", default=0.0)
+parser.add_argument("--samples", type=int, dest="samples", default=2000000)
 
 args_names = ["language", "horizon", "code_number", "beta", "dirichlet"]
 args = parser.parse_args()
@@ -100,7 +103,9 @@ def process(x):
    return x
 
 lastPosUni = ("EOS",)*(args.horizon-1)
-for _ in range(args.samples):
+for samplen in range(args.samples):
+ if samplen % 1000 == 0:
+    print(samplen/(0.0+args.samples), len(ngrams))
  sentence = sample("S")
  for line in sentence:
    nextPosUni = line
@@ -358,6 +363,12 @@ logFutureMarginal = logWithoutNA(marginal_future)
 
 futureSurprisal = -((future_given_past * marginal_past.unsqueeze(1)).unsqueeze(1) * encoding.unsqueeze(2) * logDecoding.unsqueeze(0)).sum()
 myID = random.randint(0,10000000)
+
+
+#encoded = encoding[stoi_pasts[("report", "that", "doctor", "annoyed", "patient")]]
+#encoded = encoding[stoi_pasts[itos_pasts[0]]]
+#print(encoded)
+#quit()
 
 outpath = "output/estimates-"+__file__+"_model_"+str(myID)+".txt"
 with open(outpath, "w") as outFile:
