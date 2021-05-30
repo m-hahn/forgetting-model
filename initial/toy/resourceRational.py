@@ -28,12 +28,12 @@ parser.add_argument("--batchSize", type=int, default=random.choice([1]))
 parser.add_argument("--NUMBER_OF_REPLICATES", type=int, default=random.choice([12,20]))
 
 ## Layer size
-parser.add_argument("--word_embedding_size", type=int, default=random.choice([512]))
-parser.add_argument("--hidden_dim_lm", type=int, default=random.choice([1024]))
-parser.add_argument("--hidden_dim_autoencoder", type=int, default=random.choice([512]))
+parser.add_argument("--word_embedding_size", type=int, default=random.choice([128]))
+parser.add_argument("--hidden_dim_lm", type=int, default=random.choice([128]))
+parser.add_argument("--hidden_dim_autoencoder", type=int, default=random.choice([128]))
 
 ## Layer number
-parser.add_argument("--layer_num", type=int, default=random.choice([2]))
+parser.add_argument("--layer_num", type=int, default=random.choice([1]))
 
 ## Regularization
 parser.add_argument("--weight_dropout_in", type=float, default=random.choice([0.05]))
@@ -456,6 +456,7 @@ class MemoryModel():
      self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
      self.sigmoid = torch.nn.Sigmoid()
      self.relu = torch.nn.ReLU()
+     self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
      self.positional_embeddings = torch.nn.Embedding(num_embeddings=args.sequence_length+2, embedding_dim=256).cuda()
      self.memory_word_pos_inter = torch.nn.Linear(256, 1, bias=False).cuda()
      self.memory_word_pos_inter.weight.data.fill_(0)
@@ -467,6 +468,10 @@ class MemoryModel():
 
 
 memory = MemoryModel()
+
+# This is not necessary here, but beneficial in large-scale settings
+#memory.word_embeddings.weight.data = lm.word_embeddings.weight.data.clone()
+
 
 def parameters_memory():
    for module in memory.modules_memory:
@@ -623,7 +628,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
          numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
 #      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
 #      numeric = torch.cat([beginning, numeric], dim=0)
-      embedded_everything = lm.word_embeddings(numeric)
+      embedded_everything = memory.word_embeddings(numeric)
 
       # Positional embeddings
       numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
@@ -782,9 +787,21 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
          memory_hidden_logit_per_wordtype_cpu = memory_hidden_logit_per_wordtype.cpu().data
          attention_bilinear_term = attention_bilinear_term.cpu().data
          numeric_embedded_cpu = numeric_embedded.cpu().data
- #        print(("NONE", itos_total[numericCPU[0][0]]))
-#         for i in range((args.sequence_length+1)):
-            #print(autoencoder_losses[i][0] if i < args.sequence_length else "--", "\t", lm_losses[0][0] if args.predictability_weight > 0 and i == args.sequence_length else "---" , "\t", itos_total[numericCPU[i+1][0]],"\t", itos_total[numeric_noisedCPU[i+1][0]],"\t", memory_hidden_CPU[i+1],"\t", float(baselineValues[0]) if i == args.sequence_length else "","\t", float(numeric_embedded_cpu[i+1,0,0]),"\t", float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]),"\t", float(attention_bilinear_term[i+1,0,0]))
+         print(("NONE", itos_total[numericCPU[0][0]]))
+         for i in range((args.sequence_length)):
+            summary = []
+#            print(autoencoder_lossTensor.size(), args.sequence_length, numeric.size())
+ #           print(lm_lossTensor.size(), target_tensor_full.size())
+            summary.append(autoencoder_losses[i][0] if i < autoencoder_lossTensor.size()[0] else "--")
+            summary.append(lm_losses[0][0] if args.predictability_weight > 0 and i+1 == args.sequence_length else "---")
+            summary.append(itos_total[numericCPU[i+1][0]])
+            summary.append(itos_total[numeric_noisedCPU[i+1][0]])
+            summary.append(memory_hidden_CPU[i+1])
+#            summary.append(float(baselineValues[0]) if i == args.sequence_length else "")
+ #           summary.append(float(numeric_embedded_cpu[i+1,0,0]))
+  #          summary.append(float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]))
+   #         summary.append(float(attention_bilinear_term[i+1,0,0]))
+            print("\t".join([str(q) for q in summary]))
 #            print((, itos_total[numericCPU[i+1][0]], itos_total[numeric_noisedCPU[i+1][0]], memory_hidden_CPU[i+1]))
 
 
@@ -899,7 +916,8 @@ def backward(loss, printHere):
       # Adapt parameters
       optim_lm.step()
       optim_autoencoder.step()
-      optim_memory.step()
+      if (100.0*updatesCount)/maxUpdates > 50:
+         optim_memory.step()
 
 #      print(dual_weight.grad)
       dual_weight.data.add_(args.dual_learning_rate*dual_weight.grad.data)
