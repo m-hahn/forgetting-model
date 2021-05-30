@@ -3,6 +3,7 @@
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
 # And (for the plain LM): ../autoencoder/autoencoder2_mlp_bidir_AND_languagemodel_sample.py
 print("Character aware!")
+import numpy as np
 import os
 # Character-aware version of the `Tabula Rasa' language model
 # char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop.py
@@ -20,7 +21,7 @@ parser.add_argument("--myID", type=int, default=random.randint(0,1000000000))
 
 
 # Sequence length
-parser.add_argument("--sequence_length", type=int, default=random.choice([5]))
+parser.add_argument("--sequence_length", type=int, default=random.choice([6]))
 
 # Parameters of the neural network models
 parser.add_argument("--batchSize", type=int, default=random.choice([1]))
@@ -42,6 +43,7 @@ parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.
 ## Learning Rates
 parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.000002, 0.00001, 0.00002, 0.00005]))  # Can also use 0.0001, which leads to total convergence to deterministic solution withtin maximum iterations (March 25, 2021)   #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
 parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.2])) # 0.0001, 
+parser.add_argument("--learning_rate_lm", type = float, default= random.choice([0.001, 0.01, 0.1, 0.2])) # 0.0001, 
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
 parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.2, 0.3]))
@@ -56,11 +58,11 @@ parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.
 
 # Lambda and Delta Parameters
 parser.add_argument("--deletion_rate", type=float, default=0.5)
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.5]))
 
 
-TRAIN_LM = False
-assert not TRAIN_LM
+TRAIN_LM = True
+#assert not TRAIN_LM
 
 
 
@@ -151,9 +153,6 @@ def sample(cat):
 
 
 
-
-
-
 def plus(it1, it2):
    for x in it1:
       yield x
@@ -162,10 +161,17 @@ def plus(it1, it2):
 
 
 # Load Vocabulary
-char_vocab_path = "vocabularies/"+args.language.lower()+"-wiki-word-vocab-50000.txt"
 
-with open(char_vocab_path, "r") as inFile:
-     itos = [x.split("\t")[0] for x in inFile.read().strip().split("\n")[:50000]]
+itos = set(["EOS"])
+
+for _, y in grammar.items():
+  for rule in y:
+   for rhs in rule[0]:
+      if rhs not in grammar:
+        itos.add(rhs)
+      print(y, rhs)
+itos = sorted(list(itos))
+
 stoi = dict([(itos[i],i) for i in range(len(itos))])
 
 
@@ -444,8 +450,8 @@ lm = LanguageModel()
 class MemoryModel():
   """ Noise Model """
   def __init__(self):
-     self.memory_mlp_inner = torch.nn.Linear(256, 500).cuda()
-     self.memory_mlp_inner_bilinear = torch.nn.Linear(256, 500).cuda()
+     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
      self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
      self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
      self.sigmoid = torch.nn.Sigmoid()
@@ -495,7 +501,8 @@ def parameters_lm():
 parameters_lm_cached = [x for x in parameters_lm()]
 
 
-assert not TRAIN_LM
+assert  TRAIN_LM
+optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
 optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
 optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
 
@@ -505,20 +512,6 @@ optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory
 # Load pretrained prior and amortized posteriors
 
 # Amortized Reconstruction Posterior
-if args.load_from_autoencoder is not None:
-  print(args.load_from_autoencoder)
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
-  for i in range(len(checkpoint["components"])):
-      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
- 
-# Amortized Prediction Posterior
-if args.load_from_lm is not None:
-  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(args.load_from_lm)+".txt")
-  for i in range(len(checkpoint["components"])):
-      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
 
 from torch.autograd import Variable
 
@@ -609,7 +602,7 @@ def product(x):
      r *= i
    return r
 
-PUNCTUATION = torch.LongTensor([stoi_total[x] for x in [".", "OOV", '"', "(", ")", "'", '"', ":", ",", "'s", "[", "]"]]).cuda()
+PUNCTUATION = torch.LongTensor([stoi_total[x] for x in ["EOS", "OOV"]]).cuda()
 
 def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True):
       """ Forward pass through the entire model
@@ -638,13 +631,13 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
       # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_positions.detach())
+      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
       memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
 
   #    print(embedded_positions.size(), embedded_everything.size())
  #     print(memory.memory_bilinear(embedded_positions).size())
 #      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_positions.detach())).transpose(1,2)).transpose(1,2)
+      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
 
       memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
       memory_hidden = memory.sigmoid(memory_hidden_logit)
@@ -666,7 +659,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
          entropy=-1.0
       memory_filter = memory_filter.squeeze(2)
 
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
+      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(2, 1, 1)).long().sum(dim=0)).bool())
         
       ####################################################################################
       numeric_noised = torch.where(torch.logical_or(punctuation, memory_filter==1), numeric, 0*numeric) #[[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
@@ -728,6 +721,9 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       # Autoencoder Loss
       loss += autoencoder_lossTensor.mean()
+
+      # Language Model Loss
+      loss += lm_lossTensor.mean()
 
       # Overall Reward
       negativeRewardsTerm = negativeRewardsTerm1 + dual_weight * (negativeRewardsTerm2-retentionTarget)
@@ -838,13 +834,13 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
       numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
       # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_positions.detach())
+      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
       memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
 
   #    print(embedded_positions.size(), embedded_everything.size())
  #     print(memory.memory_bilinear(embedded_positions).size())
 #      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_positions.detach())).transpose(1,2)).transpose(1,2)
+      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
 
       memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
       memory_hidden = memory.sigmoid(memory_hidden_logit)
@@ -885,6 +881,7 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
 def backward(loss, printHere):
       """ An optimization step for the resource-rational objective function """
       # Set stored gradients to zero
+      optim_lm.zero_grad()
       optim_autoencoder.zero_grad()
       optim_memory.zero_grad()
 
@@ -897,10 +894,10 @@ def backward(loss, printHere):
       # Gradient clipping
       torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
       if TRAIN_LM:
-         assert False
          torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
 
       # Adapt parameters
+      optim_lm.step()
       optim_autoencoder.step()
       optim_memory.step()
 
@@ -930,241 +927,16 @@ def showAttention(word):
 
 
 
-
-
-
+nounsAndVerbsCompatible = []
 nounsAndVerbsIncompatible = []
-nounsAndVerbsIncompatible.append(["the principal",       "the teacher",        "kissed",      "was fired",                     "was quoted in the newspaper", "was the XXXX quoted in the newspaper ?", "Y"])
-nounsAndVerbsIncompatible.append(["the sculptor",        "the painter",        "admired",    "was n't talented",   "was completely untrue", "was the XXXX untrue ?", "Y"])
-nounsAndVerbsIncompatible.append(["the consultant",      "the artist",         "hired",      "was a fraud",       "shocked everyone", "did the XXXX shock everyone ?", "Y"])
-nounsAndVerbsIncompatible.append(["the runner",          "the psychiatrist",   "treated",    "was doping",        "was ridiculous", "was the XXXX ridiculous ?", "Y"])
-nounsAndVerbsIncompatible.append(["the child",           "the medic",          "rescued",    "was unharmed",      "relieved everyone", "did the XXXX relieve everyone ?", "Y"])
-nounsAndVerbsIncompatible.append(["the criminal",        "the officer",        "arrested",   "was guilty",        "was entirely bogus", "was the XXXX bogus ?", "Y"])
-nounsAndVerbsIncompatible.append(["the student",         "the professor",      "hated",      "dropped out",       "made the professor happy", "did the XXXX make the professor happy ?", "Y"])
-nounsAndVerbsIncompatible.append(["the mobster",         "the media",          "portrayed",  "had disappeared",    "turned out to be true", "did the XXXX turn out to be true ?", "Y"])
-nounsAndVerbsIncompatible.append(["the actor",           "the star",        "loved",      "was missing",       "made her cry", "did the XXXX almost make her cry ?", "Y"])
-nounsAndVerbsIncompatible.append(["the preacher",        "the parishioners",   "fired",      "stole money",        "proved to be true", "did the XXXX prove to be true ?", "Y"])
-nounsAndVerbsIncompatible.append(["the violinist",       "the sponsors",       "backed",     "abused drugs",                       "is likely true", "was the XXXX likely true ?", "Y"])
-nounsAndVerbsIncompatible.append(["the senator",         "the diplomat",       "opposed",    "was winning",                   "made him angry", "did the XXXX make him angry ?", "Y"])
-nounsAndVerbsIncompatible.append(["the commander",       "the president",      "appointed",  "was corrupt",         "troubled people", "did the XXXX trouble people ?", "Y"])
-nounsAndVerbsIncompatible.append(["the victim",         "the criminal",       "assaulted",  "was surviving",         "calmed everyone down", "did the XXXX calm everyone down ?", "Y"])
-nounsAndVerbsIncompatible.append(["the politician",      "the banker",         "bribed",     "stole money",         "came as a shock to his supporters", "did the XXXX come as a shock ?", "Y"])
-nounsAndVerbsIncompatible.append(["the surgeon",         "the patient",        "thanked",    "had no degree",         "was not a surprise", "was the XXXX unsurprising ?", "Y"])
-nounsAndVerbsIncompatible.append(["the extremist",       "the agent",          "caught",     "got an award",         "was disconcerting", "was the XXXX disconcerting ?", "Y"])
-nounsAndVerbsIncompatible.append(["the clerk",           "the customer",       "called",     "was a hero",         "seemed absurd", "did the XXXX seem absurd ?", "Y"])
-nounsAndVerbsIncompatible.append(["the trader",          "the businessman",    "consulted",  "had insider information",         "was confirmed", "was the XXXX confirmed ?", "Y"])
-nounsAndVerbsIncompatible.append(["the ceo",             "the employee",       "impressed",  "was retiring",         "was entirely correct", "was the XXXX correct ?", "Y"])
 
-nounsAndVerbsCompatible = []
-#nounsAndVerbsCompatible.append(["the principal",       "the teacher",        "kissed",      "appeared on tv",                     "was quoted in the newspaper", "was the XXXX quoted in the newspaper ?", "Y"])
-#nounsAndVerbsCompatible.append(["the sculptor",        "the painter",        "admired",    "surprised the doctor",   "was completely untrue", "was the XXXX untrue ?", "Y"])
-#nounsAndVerbsCompatible.append(["the consultant",      "the artist",         "hired",      "was confirmed",       "shocked everyone", "did the XXXX shock everyone ?", "Y"])
-#nounsAndVerbsCompatible.append(["the runner",          "the psychiatrist",   "treated",    "was credible",        "was ridiculous", "was the XXXX ridiculous ?", "Y"])
-#nounsAndVerbsCompatible.append(["the child",           "the medic",          "rescued",    "made people happy",      "relieved everyone", "did the XXXX relieve everyone ?", "Y"])
-#nounsAndVerbsCompatible.append(["the criminal",        "the officer",        "arrested",   "was refuted",        "was entirely bogus", "was the XXXX bogus ?", "Y"])
-#nounsAndVerbsCompatible.append(["the student",         "the professor",      "hated",      "shocked his colleagues",       "made the professor happy", "did the XXXX make the professor happy ?", "Y"])
-#nounsAndVerbsCompatible.append(["the mobster",         "the media",          "portrayed",  "calmed everyone down",    "turned out to be true", "did the XXXX turn out to be true ?", "Y"])
-#nounsAndVerbsCompatible.append(["the actor",           "the starlet",        "loved",      "was quoted in newspapers",       "made her cry", "did the XXXX almost make her cry ?", "Y"])
-#nounsAndVerbsCompatible.append(["the preacher",        "the parishioners",   "fired",      "was foolish",        "proved to be true", "did the XXXX prove to be true ?", "Y"])
-#nounsAndVerbsCompatible.append(["the violinist",       "the sponsors",       "backed",     "made her cry",                       "is likely true", "was the XXXX likely true ?", "Y"])
-#nounsAndVerbsCompatible.append(["the senator",         "the diplomat",       "opposed",    "annoyed him",                   "really made him angry", "did the XXXX make him angry ?", "Y"])
-#nounsAndVerbsCompatible.append(["the commander",       "the president",      "appointed",  "was dangerous",         "troubled people", "did the XXXX trouble people ?", "Y"])
-#nounsAndVerbsCompatible.append(["the victim",         "the criminal",       "assaulted",  "remained hidden",         "calmed everyone down", "did the XXXX calm everyone down ?", "Y"])
-#nounsAndVerbsCompatible.append(["the politician",      "the banker",         "bribed",     "was popular",         "came as a shock to his supporters", "did the XXXX come as a shock ?", "Y"])
-#nounsAndVerbsCompatible.append(["the surgeon",         "the patient",        "thanked",    "was widely known",         "was not a surprise", "was the XXXX unsurprising ?", "Y"])
-#nounsAndVerbsCompatible.append(["the extremist",       "the agent",          "caught",     "stunned everyone",         "was disconcerting", "was the XXXX disconcerting ?", "Y"])
-#nounsAndVerbsCompatible.append(["the clerk",           "the customer",       "called",     "was idiotic",         "seemed absurd", "did the XXXX seem absurd ?", "Y"])
-#nounsAndVerbsCompatible.append(["the trader",          "the businessman",    "consulted",  "sounded hopeful",         "was confirmed", "was the XXXX confirmed ?", "Y"])
-#nounsAndVerbsCompatible.append(["the CEO",             "the employee",       "impressed",  "hurt him",         "was entirely correct", "was the XXXX correct ?", "Y"])
-#
-#
-#
-#
-#
-#nounsAndVerbsCompatible.append(["the clerk", "the customer", "called", "was sad", "seemed absurd ."])
-#nounsAndVerbsIncompatible.append(["the clerk", "the customer", "called", "was heroic", "seemed absurd ."])
-#nounsAndVerbsCompatible.append(["the CEO", "the employee", "impressed", "deserved attention", "was entirely correct ."])
-#nounsAndVerbsIncompatible.append(["the CEO", "the employee", "impressed", "was retiring", "was entirely correct ."])
-#nounsAndVerbsCompatible.append(["the driver", "the tourist", "consulted", "was crazy", "seemed hard to believe ."])
-#nounsAndVerbsIncompatible.append(["the driver", "the tourist", "consulted", "was lying", "seemed hard to believe ."])
-#nounsAndVerbsCompatible.append(["the bookseller", "the thief", "robbed", "was a total fraud", "shocked his family ."])
-#nounsAndVerbsIncompatible.append(["the bookseller", "the thief", "robbed", "got a heart attack", "shocked his family ."])
-#nounsAndVerbsCompatible.append(["the neighbor", "the woman", "distrusted", "startled the child", "was a lie ."])
-#nounsAndVerbsIncompatible.append(["the neighbor", "the woman", "distrusted", "killed the dog", "was a lie ."])
-#nounsAndVerbsCompatible.append(["the scientist", "the mayor", "trusted", "couldn't be trusted", "was only a malicious smear ."])
-#nounsAndVerbsIncompatible.append(["the scientist", "the mayor", "trusted", "had faked data", "was only a malicious smear ."])
-#nounsAndVerbsCompatible.append(["the lifesaver", "the swimmer", "called", "pleased the children", "impressed the whole city ."])
-#nounsAndVerbsIncompatible.append(["the lifesaver", "the swimmer", "called", "saved the children", "impressed the whole city ."])
-#nounsAndVerbsCompatible.append(["the entrepreneur", "the philanthropist", "funded", "exasperated the nurse", "came as a disappointment ."])
-#nounsAndVerbsIncompatible.append(["the entrepreneur", "the philanthropist", "funded", "wasted the money", "came as a disappointment ."])
-#nounsAndVerbsCompatible.append(["the trickster", "the woman", "recognized", "was finally acknowledged", "calmed people down ."])
-#nounsAndVerbsIncompatible.append(["the trickster", "the woman", "recognized", "was finally caught", "calmed people down ."])
-#nounsAndVerbsCompatible.append(["the student", "the bully", "intimidated", "drove everyone crazy", "devastated his parents ."])
-#nounsAndVerbsIncompatible.append(["the student", "the bully", "intimidated", "plagiarized his homework", "devastated his parents ."])
-#nounsAndVerbsCompatible.append(["the carpenter", "the craftsman", "carried", "confused the apprentice", "was acknowledged ."])
-#nounsAndVerbsIncompatible.append(["the carpenter", "the craftsman", "carried", "hurt the apprentice", "was acknowledged ."])
-#nounsAndVerbsCompatible.append(["the daughter", "the sister", "found", "frightened the grandmother", "seemed concerning ."])
-#nounsAndVerbsIncompatible.append(["the daughter", "the sister", "found", "greeted the grandmother", "seemed concerning ."])
-#nounsAndVerbsCompatible.append(["the tenant", "the foreman", "looked for", "annoyed the shepherd", "proved to be made up ."])
-#nounsAndVerbsIncompatible.append(["the tenant", "the foreman", "looked for", "questioned the shepherd", "proved to be made up ."])
-#nounsAndVerbsCompatible.append(["the musician", "the father", "missed", "displeased the artist", "confused the banker ."])
-#nounsAndVerbsIncompatible.append(["the musician", "the father", "missed", "injured the artist", "confused the banker ."])
-#nounsAndVerbsCompatible.append(["the pharmacist", "the stranger", "saw", "distracted the customer", "sounded surprising ."])
-#nounsAndVerbsIncompatible.append(["the pharmacist", "the stranger", "saw", "questioned the customer", "sounded surprising ."])
-#nounsAndVerbsCompatible.append(["the bureaucrat", "the guard", "shouted at", "disturbed the newscaster", "annoyed the neighbor ."])
-#nounsAndVerbsIncompatible.append(["the bureaucrat", "the guard", "shouted at", "instructed the newscaster", "annoyed the neighbor ."])
-#nounsAndVerbsCompatible.append(["the cousin", "the brother", "attacked", "troubled the uncle", "startled the mother ."])
-#nounsAndVerbsIncompatible.append(["the cousin", "the brother", "attacked", "killed the uncle", "startled the mother ."])
-#
-VNnounsAndVerbsIncompatible = []
-VNnounsAndVerbsCompatible = []
-
-VNnounsAndVerbsIncompatible.append(["the teacher", "the principal", "liked", "failed the student", "was only a malicious smear ."])
-VNnounsAndVerbsCompatible.append(["the teacher", "the principal", "liked", "annoyed the student", "was only a malicious smear ."])
-VNnounsAndVerbsIncompatible.append(["the doctor", "the colleague", "distrusted", "cured the patients", "seemed hard to believe ."])
-VNnounsAndVerbsCompatible.append(["the doctor", "the colleague", "distrusted", "bothered the patients", "seemed hard to believe ."])
-VNnounsAndVerbsIncompatible.append(["the bully", "the children", "hated", "harassed the boy", "was entirely correct ."])
-VNnounsAndVerbsCompatible.append(["the bully", "the children", "hated", "shocked the boy", "was entirely correct ."])
-VNnounsAndVerbsIncompatible.append(["the agent", "the fbi", "sent", "arrested the criminal", "was acknowledged ."])
-VNnounsAndVerbsCompatible.append(["the agent", "the fbi", "sent", "confused the criminal", "was acknowledged ."])
-VNnounsAndVerbsIncompatible.append(["the senator", "the diplomat", "supported", "defeated the opponent", "deserved attention ."])
-VNnounsAndVerbsCompatible.append(["the senator", "the diplomat", "supported", "troubled the opponent", "deserved attention ."])
-VNnounsAndVerbsIncompatible.append(["the fiancé", "the author", "met", "married the bride", "did not surprise anyone ."])
-VNnounsAndVerbsCompatible.append(["the fiancé", "the author", "met", "startled the bride", "did not surprise anyone ."])
-VNnounsAndVerbsIncompatible.append(["the businessman", "the sponsor", "backed", "fired the employee", "came as a disappointment ."])
-VNnounsAndVerbsCompatible.append(["the businessman", "the sponsor", "backed", "hurt the employee", "came as a disappointment ."])
-VNnounsAndVerbsIncompatible.append(["the thief", "the detective", "caught", "robbed the woman", "shocked her family ."])
-VNnounsAndVerbsCompatible.append(["the thief", "the detective", "caught", "enraged the woman", "shocked her family ."])
-VNnounsAndVerbsIncompatible.append(["the criminal", "the stranger", "distracted", "killed the officer", "seemed concerning ."])
-VNnounsAndVerbsCompatible.append(["the criminal", "the stranger", "distracted", "surprised the officer", "seemed concerning ."])
-VNnounsAndVerbsIncompatible.append(["the customer", "the vendor", "welcomed", "called the clerk", "was very believable ."])
-VNnounsAndVerbsCompatible.append(["the customer", "the vendor", "welcomed", "horrified the clerk", "was very believable ."])
-VNnounsAndVerbsIncompatible.append(["the president", "the farmer", "admired", "appointed the commander", "was entirely bogus ."])
-VNnounsAndVerbsCompatible.append(["the president", "the farmer", "admired", "impressed the commander", "was entirely bogus ."])
-VNnounsAndVerbsIncompatible.append(["the victim", "the swimmer", "rescued", "sued the criminal", "appeared on tv ."])
-VNnounsAndVerbsCompatible.append(["the victim", "the swimmer", "rescued", "surprised the criminal", "appeared on tv ."])
-VNnounsAndVerbsIncompatible.append(["the guest", "the cousin", "invited", "visited the uncle", "calmed everyone down ."])
-VNnounsAndVerbsCompatible.append(["the guest", "the cousin", "invited", "pleased the uncle", "calmed everyone down ."])
-VNnounsAndVerbsIncompatible.append(["the psychiatrist", "the nurse", "assisted", "diagnosed the patient", "impressed the whole city ."])
-VNnounsAndVerbsCompatible.append(["the psychiatrist", "the nurse", "assisted", "pleased the patient", "impressed the whole city ."])
-VNnounsAndVerbsIncompatible.append(["the driver", "the guide", "called", "drove the tourist", "was absolutely true ."])
-VNnounsAndVerbsCompatible.append(["the driver", "the guide", "called", "amazed the tourist", "was absolutely true ."])
-VNnounsAndVerbsIncompatible.append(["the actor", "the fans", "loved", "greeted the director", "appeared to be true ."])
-VNnounsAndVerbsCompatible.append(["the actor", "the fans", "loved", "astonished the director", "appeared to be true ."])
-VNnounsAndVerbsIncompatible.append(["the banker", "the analyst", "deceived", "trusted the customer", "proved to be made up ."])
-VNnounsAndVerbsCompatible.append(["the banker", "the analyst", "deceived", "excited the customer", "proved to be made up ."])
-VNnounsAndVerbsIncompatible.append(["the judge", "the attorney", "hated", "convicted the defendant", "was a lie ."])
-VNnounsAndVerbsCompatible.append(["the judge", "the attorney", "hated", "vindicated the defendant", "was a lie ."])
-VNnounsAndVerbsIncompatible.append(["the captain", "the crew", "trusted", "commanded the sailor", "was nice to hear ."])
-VNnounsAndVerbsCompatible.append(["the captain", "the crew", "trusted", "encouraged the sailor", "was nice to hear ."])
-VNnounsAndVerbsIncompatible.append(["the manager", "the boss", "authorized", "hired the intern", "seemed absurd ."])
-VNnounsAndVerbsCompatible.append(["the manager", "the boss", "authorized", "saddened the intern", "seemed absurd ."])
-VNnounsAndVerbsIncompatible.append(["the plaintiff", "the jury", "interrogated", "attacked the witness", "made it into the news ."])
-VNnounsAndVerbsCompatible.append(["the plaintiff", "the jury", "interrogated", "startled the witness", "made it into the news ."])
-VNnounsAndVerbsIncompatible.append(["the guest", "the thug", "hit", "tricked the bartender", "sounded hilarious ."])
-VNnounsAndVerbsCompatible.append(["the guest", "the thug", "hit", "stunned the bartender", "sounded hilarious ."])
-VNnounsAndVerbsIncompatible.append(["the pediatrician", "the receptionist", "supported", "distrusted the parent", "troubled people ."])
-VNnounsAndVerbsCompatible.append(["the pediatrician", "the receptionist", "supported", "disturbed the parent", "troubled people ."])
-VNnounsAndVerbsIncompatible.append(["the medic", "the survivor", "thanked", "greeted the surgeon", "turned out to be untrue ."])
-VNnounsAndVerbsCompatible.append(["the medic", "the survivor", "thanked", "annoyed the surgeon", "turned out to be untrue ."])
-VNnounsAndVerbsIncompatible.append(["the lifeguard", "the soldier", "taught", "rescued the swimmer", "pleased the townspeople ."])
-VNnounsAndVerbsCompatible.append(["the lifeguard", "the soldier", "taught", "encouraged the swimmer", "pleased the townspeople ."])
-VNnounsAndVerbsIncompatible.append(["the fisherman", "the gardener", "helped", "admired the politician", "was interesting ."])
-VNnounsAndVerbsCompatible.append(["the fisherman", "the gardener", "helped", "delighted the politician", "was interesting ."])
-VNnounsAndVerbsIncompatible.append(["the janitor", "the organizer", "criticized", "ignored the audience", "was funny ."])
-VNnounsAndVerbsCompatible.append(["the janitor", "the organizer", "criticized", "amused the audience", "was funny ."])
-VNnounsAndVerbsIncompatible.append(["the investor", "the scientist", "hated", "deceived the entrepreneur", "taught everyone a lesson ."])
-VNnounsAndVerbsCompatible.append(["the investor", "the scientist", "hated", "disappointed the entrepreneur", "taught everyone a lesson ."])
-VNnounsAndVerbsIncompatible.append(["the firefighter", "the neighbor", "insulted", "rescued the resident", "struck john as implausible ."])
-VNnounsAndVerbsCompatible.append(["the firefighter", "the neighbor", "insulted", "disappointed the resident", "struck john as implausible ."])
-VNnounsAndVerbsIncompatible.append(["the vendor", "the salesman", "recruited", "welcomed the client", "excited the boss ."])
-VNnounsAndVerbsCompatible.append(["the vendor", "the salesman", "recruited", "enchanted the client", "excited the boss ."])
-VNnounsAndVerbsIncompatible.append(["the plumber", "the apprentice", "consulted", "assisted the woman", "was true ."])
-VNnounsAndVerbsCompatible.append(["the plumber", "the apprentice", "consulted", "puzzled the woman", "was true ."])
-VNnounsAndVerbsIncompatible.append(["the sponsor", "the musician", "entertained", "cheered the onlookers", "pleased everyone ."])
-VNnounsAndVerbsCompatible.append(["the sponsor", "the musician", "entertained", "captivated the onlookers", "pleased everyone ."])
+for verb in [x[0] for x in grammar["V"]]:                                                                                                                                                                  
+  for noun3 in [x[0] for x in grammar["N3"]]:                                                                                                                                                               
+   for verb2 in [x[0] for x in grammar["V"]]:                                                                                                                                                               
+     nounsAndVerbsCompatible.append([noun3[0], "NA", "NA", verb2[0]+" "+noun3[0], verb[0]])
 
 
-nounsAndVerbsCompatible = []
-nounsAndVerbsCompatible.append(["the principal",       "the teacher",        "kissed",      "appeared on tv",                     "was quoted in the newspaper", "was the XXXX quoted in the newspaper ?", "Y"])
-nounsAndVerbsCompatible.append(["the sculptor",        "the painter",        "admired",    "surprised the doctor",   "was completely untrue", "was the XXXX untrue ?", "Y"])
-nounsAndVerbsCompatible.append(["the consultant",      "the artist",         "hired",      "was confirmed",       "shocked everyone", "did the XXXX shock everyone ?", "Y"])
-nounsAndVerbsCompatible.append(["the runner",          "the psychiatrist",   "treated",    "was credible",        "was ridiculous", "was the XXXX ridiculous ?", "Y"])
-nounsAndVerbsCompatible.append(["the child",           "the medic",          "rescued",    "made people happy",      "relieved everyone", "did the XXXX relieve everyone ?", "Y"])
-nounsAndVerbsCompatible.append(["the criminal",        "the officer",        "arrested",   "was refuted",        "was entirely bogus", "was the XXXX bogus ?", "Y"])
-nounsAndVerbsCompatible.append(["the student",         "the professor",      "hated",      "shocked his colleagues",       "made the professor happy", "did the XXXX make the professor happy ?", "Y"])
-nounsAndVerbsCompatible.append(["the mobster",         "the media",          "portrayed",  "calmed everyone down",    "turned out to be true", "did the XXXX turn out to be true ?", "Y"])
-nounsAndVerbsCompatible.append(["the actor",           "the star",        "loved",      "was quoted in newspapers",       "made her cry", "did the XXXX almost make her cry ?", "Y"])
-nounsAndVerbsCompatible.append(["the preacher",        "the parishioners",   "fired",      "was foolish",        "proved to be true", "did the XXXX prove to be true ?", "Y"])
-nounsAndVerbsCompatible.append(["the violinist",       "the sponsors",       "backed",     "made her cry",                       "is likely true", "was the XXXX likely true ?", "Y"])
-nounsAndVerbsCompatible.append(["the senator",         "the diplomat",       "opposed",    "annoyed him",                   "made him angry", "did the XXXX make him angry ?", "Y"])
-nounsAndVerbsCompatible.append(["the commander",       "the president",      "appointed",  "was dangerous",         "troubled people", "did the XXXX trouble people ?", "Y"])
-nounsAndVerbsCompatible.append(["the victim",         "the criminal",       "assaulted",  "remained hidden",         "calmed everyone down", "did the XXXX calm everyone down ?", "Y"])
-nounsAndVerbsCompatible.append(["the politician",      "the banker",         "bribed",     "was popular",         "came as a shock to his supporters", "did the XXXX come as a shock ?", "Y"])
-nounsAndVerbsCompatible.append(["the surgeon",         "the patient",        "thanked",    "was widely known",         "was not a surprise", "was the XXXX unsurprising ?", "Y"])
-nounsAndVerbsCompatible.append(["the extremist",       "the agent",          "caught",     "stunned everyone",         "was disconcerting", "was the XXXX disconcerting ?", "Y"])
-nounsAndVerbsCompatible.append(["the clerk",           "the customer",       "called",     "was dumb",         "seemed absurd", "did the XXXX seem absurd ?", "Y"])
-nounsAndVerbsCompatible.append(["the trader",          "the businessman",    "consulted",  "sounded hopeful",         "was confirmed", "was the XXXX confirmed ?", "Y"])
-nounsAndVerbsCompatible.append(["the ceo",             "the employee",       "impressed",  "hurt him",         "was entirely correct", "was the XXXX correct ?", "Y"])
-
-
-
-
-
-nounsAndVerbsCompatible.append(["the clerk", "the customer", "called", "was sad", "seemed absurd ."])
-nounsAndVerbsIncompatible.append(["the clerk", "the customer", "called", "was heroic", "seemed absurd ."])
-nounsAndVerbsCompatible.append(["the ceo", "the employee", "impressed", "deserved attention", "was entirely correct ."])
-nounsAndVerbsIncompatible.append(["the ceo", "the employee", "impressed", "was retiring", "was entirely correct ."])
-nounsAndVerbsCompatible.append(["the driver", "the tourist", "consulted", "was crazy", "seemed hard to believe ."])
-nounsAndVerbsIncompatible.append(["the driver", "the tourist", "consulted", "was lying", "seemed hard to believe ."])
-nounsAndVerbsCompatible.append(["the bookseller", "the thief", "robbed", "was a total fraud", "shocked his family ."])
-nounsAndVerbsIncompatible.append(["the bookseller", "the thief", "robbed", "got a heart attack", "shocked his family ."])
-nounsAndVerbsCompatible.append(["the neighbor", "the woman", "distrusted", "startled the child", "was a lie ."])
-nounsAndVerbsIncompatible.append(["the neighbor", "the woman", "distrusted", "killed the dog", "was a lie ."])
-nounsAndVerbsCompatible.append(["the scientist", "the mayor", "trusted", "could n't be trusted", "was only a malicious smear ."])
-nounsAndVerbsIncompatible.append(["the scientist", "the mayor", "trusted", "had faked data", "was only a malicious smear ."])
-nounsAndVerbsCompatible.append(["the lifeguard", "the swimmer", "called", "pleased the children", "impressed the whole city ."])
-nounsAndVerbsIncompatible.append(["the lifeguard", "the swimmer", "called", "saved the children", "impressed the whole city ."])
-nounsAndVerbsCompatible.append(["the entrepreneur", "the philanthropist", "funded", "hurt the nurse", "came as a disappointment ."])
-nounsAndVerbsIncompatible.append(["the entrepreneur", "the philanthropist", "funded", "wasted the money", "came as a disappointment ."])
-nounsAndVerbsCompatible.append(["the trickster", "the woman", "recognized", "was finally acknowledged", "calmed people down ."])
-nounsAndVerbsIncompatible.append(["the trickster", "the woman", "recognized", "was finally caught", "calmed people down ."])
-nounsAndVerbsCompatible.append(["the student", "the bully", "intimidated", "drove everyone crazy", "devastated his parents ."])
-nounsAndVerbsIncompatible.append(["the student", "the bully", "intimidated", "faked his homework", "devastated his parents ."])
-nounsAndVerbsCompatible.append(["the carpenter", "the craftsman", "carried", "confused the apprentice", "was acknowledged ."])
-nounsAndVerbsIncompatible.append(["the carpenter", "the craftsman", "carried", "hurt the apprentice", "was acknowledged ."])
-nounsAndVerbsCompatible.append(["the daughter", "the sister", "found", "frightened the grandmother", "seemed concerning ."])
-nounsAndVerbsIncompatible.append(["the daughter", "the sister", "found", "greeted the grandmother", "seemed concerning ."])
-nounsAndVerbsCompatible.append(["the tenant", "the foreman", "looked for", "annoyed the shepherd", "proved to be made up ."])
-nounsAndVerbsIncompatible.append(["the tenant", "the foreman", "looked for", "questioned the shepherd", "proved to be made up ."])
-nounsAndVerbsCompatible.append(["the musician", "the father", "missed", "displeased the artist", "confused the banker ."])
-nounsAndVerbsIncompatible.append(["the musician", "the father", "missed", "injured the artist", "confused the banker ."])
-nounsAndVerbsCompatible.append(["the pharmacist", "the stranger", "saw", "distracted the customer", "sounded surprising ."])
-nounsAndVerbsIncompatible.append(["the pharmacist", "the stranger", "saw", "questioned the customer", "sounded surprising ."])
-nounsAndVerbsCompatible.append(["the bureaucrat", "the guard", "shouted at", "disturbed the newscaster", "annoyed the neighbor ."])
-nounsAndVerbsIncompatible.append(["the bureaucrat", "the guard", "shouted at", "instructed the newscaster", "annoyed the neighbor ."])
-nounsAndVerbsCompatible.append(["the cousin", "the brother", "attacked", "troubled the uncle", "startled the mother ."])
-nounsAndVerbsIncompatible.append(["the cousin", "the brother", "attacked", "killed the uncle", "startled the mother ."])
-
-
-for x in VNnounsAndVerbsIncompatible:
-   x.append("v")
-for x in VNnounsAndVerbsCompatible:
-   x.append("v")
-
-for x in nounsAndVerbsIncompatible:
-   x.append("o")
-for x in nounsAndVerbsCompatible:
-   x.append("o")
-assert len(nounsAndVerbsCompatible) == len(nounsAndVerbsIncompatible)
-
-nounsAndVerbsCompatible += VNnounsAndVerbsCompatible
-nounsAndVerbsIncompatible += VNnounsAndVerbsIncompatible
-
-
-assert len(nounsAndVerbsCompatible) == len(nounsAndVerbsIncompatible)
-
-for x in [nounsAndVerbsCompatible, nounsAndVerbsIncompatible]:
+for x in [nounsAndVerbsCompatible]:
  for z in x:
   for y in z:
    for q in y.split(" "):
@@ -1178,152 +950,12 @@ for x in [nounsAndVerbsCompatible, nounsAndVerbsIncompatible]:
 #nounsAndVerbs = nounsAndVerbs[:1]
 
 topNouns = []
-topNouns.append("report")
-topNouns.append("story")       
-#topNouns.append("disclosure")
-topNouns.append("proof")
-topNouns.append("confirmation")  
-topNouns.append("information")
-topNouns.append("evidence")
-topNouns.append("reminder")
-topNouns.append("rumor")
-#topNouns.append("thought")
-topNouns.append("suggestion")
-topNouns.append( "revelation")  
-topNouns.append( "belief")
-topNouns.append( "fact")
-topNouns.append( "realization")
-topNouns.append( "suspicion")
-topNouns.append( "certainty")
-topNouns.append( "idea")
-topNouns.append( "admission") 
-topNouns.append( "confirmation")
-topNouns.append( "complaint"    )
-topNouns.append( "certainty"   )
-topNouns.append( "prediction"  )
-topNouns.append( "declaration")
-topNouns.append( "proof"   )
-topNouns.append( "suspicion")    
-topNouns.append( "allegation"   )
-topNouns.append( "revelation"   )
-topNouns.append( "realization")
-topNouns.append( "news")
-topNouns.append( "opinion" )
-topNouns.append( "idea")
-topNouns.append("myth")
-
-topNouns.append("announcement")
-topNouns.append("suspicion")
-topNouns.append("allegation")
-topNouns.append("realization")
-topNouns.append("indication")
-topNouns.append("remark")
-topNouns.append("speculation")
-topNouns.append("assurance")
-topNouns.append("presumption")
-topNouns.append("concern")
-topNouns.append("finding")
-topNouns.append("assertion")
-topNouns.append("feeling")
-topNouns.append("perception")
-topNouns.append("statement")
-topNouns.append("assumption")
-topNouns.append("conclusion")
-
-
-topNouns.append("report")
-topNouns.append("story")
-#topNouns.append("disclosure")
-topNouns.append("confirmation")   
-topNouns.append("information")
-topNouns.append("evidence")
-topNouns.append("reminder")
-topNouns.append("rumor")
-topNouns.append("thought")
-topNouns.append("suggestion")
-topNouns.append("revelation")    
-topNouns.append("belief")
-#topNouns.append("inkling") # this is OOV for the model
-topNouns.append("suspicion")
-topNouns.append("idea")
-topNouns.append("claim")
-topNouns.append("news")
-topNouns.append("proof")
-topNouns.append("admission")
-topNouns.append("declaration")
-
-topNouns.append("assessment")
-topNouns.append("truth")
-topNouns.append("declaration")
-topNouns.append("complaint")
-topNouns.append("admission")
-topNouns.append("disclosure")
-topNouns.append("confirmation")
-topNouns.append("guess")
-topNouns.append("remark")
-topNouns.append("news")
-topNouns.append("proof")
-topNouns.append("message")
-topNouns.append("announcement")
-topNouns.append("statement")
-topNouns.append("thought")
-topNouns.append("allegation")
-topNouns.append("indication")
-topNouns.append("recognition")
-topNouns.append("speculation")
-topNouns.append("accusation")
-topNouns.append("reminder")
-topNouns.append("rumor")
-topNouns.append("finding")
-topNouns.append("idea")
-topNouns.append("feeling")
-topNouns.append("conjecture")
-topNouns.append("perception")
-topNouns.append("certainty")
-topNouns.append("revelation")
-topNouns.append("understanding")
-topNouns.append("claim")
-topNouns.append("view")
-topNouns.append("observation")
-topNouns.append("conviction")
-topNouns.append("presumption")
-topNouns.append("intuition")
-topNouns.append("opinion")
-topNouns.append("conclusion")
-topNouns.append("notion")
-topNouns.append("suggestion")
-topNouns.append("sense")
-topNouns.append("suspicion")
-topNouns.append("assurance")
-topNouns.append("insinuation")
-topNouns.append("realization")
-topNouns.append("assertion")
-topNouns.append("impression")
-topNouns.append("contention")
-topNouns.append("assumption")
-topNouns.append("belief")
-topNouns.append("fact")
+for noun in [x[0] for x in grammar["N1"] + grammar["N2"]]:                                                                                                                                                                  
+   topNouns.append(noun)
 
 topNouns = list(set(topNouns))
 
 
-
-with open("../../../../forgetting/corpus_counts/wikipedia/results/counts4NEW_Processed.tsv", "r") as inFile:
-   counts = [x.replace('"', '').split("\t") for x in inFile.read().strip().split("\n")]
-   header = ["LineNum"] + counts[0]
-   assert len(header) == len(counts[1])
-   header = dict(list(zip(header, range(len(header)))))
-   counts = {line[header["Noun"]] : line for line in counts[1:]}
-
-
-print(len(topNouns))
-print([x for x in topNouns if x not in counts])
-topNouns = [x for x in topNouns if x in counts]
-
-def thatBias(noun):
-   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
-
-topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
 
 print(topNouns)
 print(len(topNouns))
@@ -1334,14 +966,9 @@ print(len(topNouns))
 random.shuffle(topNouns)
 
     
-#plain_lm = PlainLanguageModel()
-#plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
+    
+plain_lm = PlainLanguageModel()
 
-#if args.load_from_plain_lm is not None:
-#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
-#  for i in range(len(checkpoint["components"])):
-#      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
-#  del checkpoint
 
 
 # Helper Functions
@@ -1655,16 +1282,15 @@ def divideDicts(y, z):
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
-#    print(plain_lm) 
+    print(plain_lm) 
     surprisalsPerNoun = {}
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
     numberOfSamples = 12
-    import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
 #    topNouns = ["fact", "report"]
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
+    with open("output_rr/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
      print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat"]), file=outFile)
      with torch.no_grad():
       TRIALS_COUNT = 0
@@ -1766,24 +1392,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
-
-              resultNumeric_cpu = resultNumeric.detach().cpu()
-              batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
-              for h in range(len(batch)):
-                 batch[h] = batch[h][:1].upper() + batch[h][1:]
-                 assert batch[h][0] != " ", batch[h]
-#              print(batch)
-              totalSurprisal = scoreWithGPT2.scoreSentences(batch)
-              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
-              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
-
-#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
-#              assert resultNumeric.size()[0] == args.sequence_length+1
-#              assert totalSurprisal.size()[0] == args.sequence_length
-#              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
-#              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
-#              surprisals_past = totalSurprisal[:-1].sum(dim=0)
-#              surprisals_nextWord = totalSurprisal[-1]
+              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
+              assert resultNumeric.size()[0] == args.sequence_length+1
+              assert totalSurprisal.size()[0] == args.sequence_length
+              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
+              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
+              surprisals_past = totalSurprisal[:-1].sum(dim=0)
+              surprisals_nextWord = totalSurprisal[-1]
 
               # where numberOfSamples is how many samples we take from the noise model, and 24 is how many samples are drawn from the amortized posterior for each noised sample
               amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
@@ -1874,25 +1489,6 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-      print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
-      for noun in topNouns:
- #      assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
-#       assert "SCRC_compatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
-#       assert len(surprisalsPerNoun[noun]["SCRC_compatible"]) > 0
-       for condition in surprisalsPerNoun[noun]:
-#         assert "V1_0" in thatFractionsPerNoun[noun][condition], list(thatFractionsPerNoun[noun][condition])
-#         assert "V1_0" in surprisalsPerNoun[noun][condition], list(surprisalsPerNoun[noun][condition])
-         for region in surprisalsPerNoun[noun][condition]:
-           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], surprisalsReweightedPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", thatFractionsReweightedPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
-    # For sanity-checking: Prints correlations between surprisal and that-bias
-    for region in ["V2_0", "V2_1", "V1_0"]:
-      for condition in surprisalsPerNoun["fact"]:
-       if region not in surprisalsPerNoun["fact"][condition]:
-          continue
-       print(SANITY, condition, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsReweightedPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 , correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsReweightedPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 )
-       surprisals = torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])
-       print(condition, surprisals.mean(), "SD", math.sqrt(surprisals.pow(2).mean() - surprisals.mean().pow(2)))
 #    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["SC"][region] - surprisalsPerNoun[noun]["NoSC"][region] for region in surprisalsPerNoun[noun]["SC"]]) for noun in topNouns])
  #   print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
@@ -1928,11 +1524,21 @@ startTimePredictions = time.time()
 #getPerNounReconstructionsSanityVerb()
 startTimeTotal = time.time()
 
+
+def trainingIterator():
+   chunk = []
+   while True:
+     chunk += sample("S")
+     chunk.append("EOS")
+     if len(chunk) > 100000:
+      yield chunk[:100000]
+      chunk = chunk[100000:]
+
 for epoch in range(1000):
    print(epoch)
 
    # Get training data
-   training_data = corpusIteratorWikiWords.training(args.language)
+   training_data = trainingIterator()
    print("Got data")
    training_chars = prepareDatasetChunks(training_data, train=True)
 
@@ -1956,10 +1562,11 @@ for epoch in range(1000):
        #getTotalSentenceSurprisalsCalibration(SANITY="Model")
        
        # Record reconstructions and surprisals
-       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+       if True:
+#       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
          startTimePredictions = time.time()
 
-         sys.stdout = outFile
+#         sys.stdout = outFile
          print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
          print(args)
          print("=========================")
