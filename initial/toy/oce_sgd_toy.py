@@ -14,9 +14,10 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("--language", type=str, dest="language", default="Recursion")
 parser.add_argument("--horizon", type=int, dest="horizon", default=6)
-parser.add_argument("--code_number", type=int, dest="code_number", default=100)
+parser.add_argument("--code_number", type=int, dest="code_number", default=2000)
 parser.add_argument("--beta", type=float, dest="beta", default=0.1)
 parser.add_argument("--dirichlet", type=float, dest="dirichlet", default=0.00001)
+parser.add_argument("--samples", type=int, dest="samples", default=20000)
 
 args_names = ["language", "horizon", "code_number", "beta", "dirichlet"]
 args = parser.parse_args()
@@ -41,9 +42,9 @@ grammar["NP1"].append((("N1",), 0.1))
 grammar["NP1"].append((("N1", "SC",), 0.7))
 grammar["NP1"].append((("N1", "PP",), 0.2))
 
-grammar["NP2"].append((("N2",), 0.1))
-grammar["NP2"].append((("N2", "SC",), 0.2))
-grammar["NP2"].append((("N2", "PP",), 0.7))
+grammar["NP2"].append((("N2",), 0.4))
+grammar["NP2"].append((("N2", "SC",), 0.1))
+grammar["NP2"].append((("N2", "PP",), 0.5))
 
 grammar["NP3"].append((("N3",), 0.99))
 
@@ -99,7 +100,7 @@ def process(x):
    return x
 
 lastPosUni = ("EOS",)*(args.horizon-1)
-for _ in range(20000):
+for _ in range(args.samples):
  sentence = sample("S")
  for line in sentence:
    nextPosUni = line

@@ -23,4 +23,4 @@ for f in os.listdir("output/"):
           assert False, past
        surprisals[condition].append(float(prob))
      for cond in sorted(list(surprisals)):
-        print(args["beta"], " ".join(cond), -sum(surprisals[cond]) / len(surprisals[cond]))
+        print(args["beta"], " ".join(cond), -sum(surprisals[cond]) / len(surprisals[cond]), f)
