@@ -1,11 +1,11 @@
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
-tokenizer = GPT2Tokenizer.from_pretrained("gpt2-large", cache_dir="/u/scr/mhahn/cache/")
+tokenizer = GPT2Tokenizer.from_pretrained("gpt2-large", cache_dir="/u/scr/mhahn/CACHE/transformers/")
 
 
 # add the EOS token as PAD token to avoid warnings
-model = GPT2LMHeadModel.from_pretrained("gpt2-large", pad_token_id=tokenizer.eos_token_id, cache_dir="/u/scr/mhahn/cache/").cuda()
+model = GPT2LMHeadModel.from_pretrained("gpt2-large", pad_token_id=tokenizer.eos_token_id, cache_dir="/u/scr/mhahn/CACHE/transformers/").cuda()
 print("Finished loading GPT2")
 
 #text = "Replace me by any text you'd like."
