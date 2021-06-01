@@ -725,7 +725,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       contentWords = (CONTENT.view(-1, 1, 1) == target_tensor_onlyNoised[:-1].unsqueeze(0)).float().sum(dim=0)
   #    print(contentWords)
    #   print(autoencoder_lossTensor)
-      autoencoder_lossTensor = autoencoder_lossTensor + 6.907755 * contentWords
+      autoencoder_lossTensor = autoencoder_lossTensor + 9.21034 * contentWords
 #      print(autoencoder_lossTensor)
  #     quit()
       ##########################################
@@ -1554,7 +1554,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
      showAttention("annoyed0", stream=outFile)
      showAttention("that", stream=outFile)
      showAttention("about", stream=outFile)
-
+     print(args, file=outFile)
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")

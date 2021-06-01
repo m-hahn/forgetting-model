@@ -108,9 +108,9 @@ grammar["NP1"].append((("N1",), 0.1))
 grammar["NP1"].append((("N1", "SC",), 0.7))
 grammar["NP1"].append((("N1", "PP",), 0.2))
 
-grammar["NP2"].append((("N2",), 0.1))
-grammar["NP2"].append((("N2", "SC",), 0.2))
-grammar["NP2"].append((("N2", "PP",), 0.7))
+grammar["NP2"].append((("N2",), 0.4))
+grammar["NP2"].append((("N2", "SC",), 0.1))
+grammar["NP2"].append((("N2", "PP",), 0.5))
 
 grammar["NP3"].append((("N3",), 0.99))
 
@@ -725,7 +725,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       contentWords = (CONTENT.view(-1, 1, 1) == target_tensor_onlyNoised[:-1].unsqueeze(0)).float().sum(dim=0)
   #    print(contentWords)
    #   print(autoencoder_lossTensor)
-      autoencoder_lossTensor = autoencoder_lossTensor + 6.907755 * contentWords
+      autoencoder_lossTensor = autoencoder_lossTensor + 9.21034 * contentWords
 #      print(autoencoder_lossTensor)
  #     quit()
       ##########################################
@@ -1554,7 +1554,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
      showAttention("annoyed0", stream=outFile)
      showAttention("that", stream=outFile)
      showAttention("about", stream=outFile)
-
+     print(args, file=outFile)
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")

@@ -1,12 +1,8 @@
-#~/python-py37-mhahn resourceRational3.py --learning_rate_memory=0.00001 --learning_rate_autoencoder=0.1 --learning_rate_lm=0.1 --sequence_length=7 --deletion_rate=0.5
-
-
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
 # And (for the plain LM): ../autoencoder/autoencoder2_mlp_bidir_AND_languagemodel_sample.py
 print("Character aware!")
-import numpy as np
 import os
 # Character-aware version of the `Tabula Rasa' language model
 # char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop.py
@@ -17,6 +13,9 @@ from collections import defaultdict
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
+parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=964163553) # language model taking noised input # Amortized Prediction Posterior
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([647336050, 516252642, 709961927, 727001672, 712478284, 524811876])) # Amortized Reconstruction Posterior
+parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([27553360, 935649231])) # plain language model without noise (Prior)
 
 
 # Unique ID for this model run
@@ -24,19 +23,19 @@ parser.add_argument("--myID", type=int, default=random.randint(0,1000000000))
 
 
 # Sequence length
-parser.add_argument("--sequence_length", type=int, default=random.choice([6]))
+parser.add_argument("--sequence_length", type=int, default=random.choice([20]))
 
 # Parameters of the neural network models
-parser.add_argument("--batchSize", type=int, default=random.choice([1]))
-parser.add_argument("--NUMBER_OF_REPLICATES", type=int, default=random.choice([12,20]))
+parser.add_argument("--batchSize", type=int, default=random.choice([64]))
+parser.add_argument("--NUMBER_OF_REPLICATES", type=int, default=random.choice([1]))
 
 ## Layer size
-parser.add_argument("--word_embedding_size", type=int, default=random.choice([128]))
-parser.add_argument("--hidden_dim_lm", type=int, default=random.choice([128]))
-parser.add_argument("--hidden_dim_autoencoder", type=int, default=random.choice([128]))
+parser.add_argument("--word_embedding_size", type=int, default=random.choice([512]))
+parser.add_argument("--hidden_dim_lm", type=int, default=random.choice([1024]))
+parser.add_argument("--hidden_dim_autoencoder", type=int, default=random.choice([512]))
 
 ## Layer number
-parser.add_argument("--layer_num", type=int, default=random.choice([1]))
+parser.add_argument("--layer_num", type=int, default=random.choice([2]))
 
 ## Regularization
 parser.add_argument("--weight_dropout_in", type=float, default=random.choice([0.05]))
@@ -46,7 +45,6 @@ parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.
 ## Learning Rates
 parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.000002, 0.00001, 0.00002, 0.00005]))  # Can also use 0.0001, which leads to total convergence to deterministic solution withtin maximum iterations (March 25, 2021)   #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
 parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.2])) # 0.0001, 
-parser.add_argument("--learning_rate_lm", type = float, default= random.choice([0.001, 0.01, 0.1, 0.2])) # 0.0001, 
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
 parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.2, 0.3]))
@@ -61,11 +59,11 @@ parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.
 
 # Lambda and Delta Parameters
 parser.add_argument("--deletion_rate", type=float, default=0.5)
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.5]))
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
 
 
-TRAIN_LM = True
-#assert not TRAIN_LM
+TRAIN_LM = False
+assert not TRAIN_LM
 
 
 
@@ -79,16 +77,14 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.3
-#assert args.deletion_rate < 0.8
-
+assert args.deletion_rate > 0.0
+assert args.deletion_rate < 0.8
 
 
 
 #############################
 
 assert args.tuning in [0,1]
-assert args.batchSize == 1
 print(args.myID)
 import sys
 STDOUT = sys.stdout
@@ -99,62 +95,7 @@ print(args, file=sys.stderr)
 
 
 
-from collections import defaultdict
-grammar = defaultdict(list)
-grammar["S"].append((("NP1", "VP",), 0.5))
-grammar["S"].append((("NP2", "VP",), 0.5))
-
-grammar["NP1"].append((("N1",), 0.1))
-grammar["NP1"].append((("N1", "SC",), 0.7))
-grammar["NP1"].append((("N1", "PP",), 0.2))
-
-grammar["NP2"].append((("N2",), 0.1))
-grammar["NP2"].append((("N2", "SC",), 0.2))
-grammar["NP2"].append((("N2", "PP",), 0.7))
-
-grammar["NP3"].append((("N3",), 0.99))
-
-grammar["PP"].append((("about", "NP3",), 0.99))
-
-grammar["SC"].append((("that", "NP3", "VP",), 0.99))
-
-#grammar["VP"].append((("V",), 0.99))
-grammar["VP"].append((("V", "NP3",), 0.99))
-
-for q in range(1):
-   grammar["V"].append((("annoyed"+str(q),), 0.25))
-#   grammar["V"].append((("shocked"+str(q),), 0.25))
-#   grammar["V"].append((("surprised"+str(q),), 0.25))
-#   grammar["V"].append((("pleased"+str(q),), 0.25))
-   
-   
-   grammar["N1"].append((("fact"+str(q),), 0.33))
-#   grammar["N1"].append((("belief"+str(q),), 0.33))
-#   grammar["N1"].append((("reassurance"+str(q),), 0.33))
-   
-   grammar["N2"].append((("report"+str(q),), 0.33))
-#   grammar["N2"].append((("story"+str(q),), 0.33))
-#   grammar["N2"].append((("admission"+str(q),), 0.33))
-   
-   grammar["N3"].append((("doctor"+str(q),), 0.25))
-#   grammar["N3"].append((("patient"+str(q),), 0.25))
-#   grammar["N3"].append((("janitor"+str(q),), 0.25))
-#   grammar["N3"].append((("diplomat"+str(q),), 0.25))
-   
-
-def sample(cat):
-   if cat in grammar:
-      productions = grammar[cat]
-      probabilities = [x[1] for x in productions]
-      probabilities = [x/sum(probabilities) for x in probabilities]
-    
-      selected = np.random.choice(list(range(len(productions))), p=probabilities)
-      r = []
-      for x in productions[selected][0]:
-         r += sample(x)
-      return r
-   else:
-      return [cat]
+import corpusIteratorWikiWords
 
 
 
@@ -166,25 +107,16 @@ def plus(it1, it2):
 
 
 # Load Vocabulary
+char_vocab_path = "vocabularies/"+args.language.lower()+"-wiki-word-vocab-50000.txt"
 
-itos = set(["EOS"])
-
-for _, y in grammar.items():
-  for rule in y:
-   for rhs in rule[0]:
-      if rhs not in grammar:
-        itos.add(rhs)
-      print(y, rhs)
-itos = sorted(list(itos))
-
+with open(char_vocab_path, "r") as inFile:
+     itos = [x.split("\t")[0] for x in inFile.read().strip().split("\n")[:50000]]
 stoi = dict([(itos[i],i) for i in range(len(itos))])
 
 
 itos_total = ["<SOS>", "<EOS>", "OOV"] + itos
 stoi_total = dict([(itos_total[i],i) for i in range(len(itos_total))])
 
-assert "report0" in itos_total
-assert "fact0" in itos_total
 
 import random
 import torch
@@ -270,9 +202,9 @@ class PlainLanguageModel(torch.nn.Module):
 #           hidden2 = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroHidden, hidden2)
 #           self.hidden = (hidden1, hidden2)
 #           self.beginning = torch.where(forRestart.unsqueeze(0) == 1, zeroBeginning, self.beginning)
-#       print("BEGINNING", "NUMERIC", self.beginning.size(), numeric.size())
-       assert numeric.size()[1] == numberOfBatches, ("numberOfBatches", numberOfBatches, numeric.size())
-       assert numeric.size()[0] <= args.sequence_length+1
+       print("BEGINNING", "NUMERIC", self.beginning.size(), numeric.size())
+       assert numeric.size()[1] == numberOfBatches, ("numberOfBatches", numberOfBatches)
+       assert numeric.size()[0] == args.sequence_length+1
        self.beginning = numeric[numeric.size()[0]-1].view(1, numberOfBatches)
        input_tensor = Variable(numeric[:-1], requires_grad=False)
        target_tensor = Variable(numeric[1:], requires_grad=False)
@@ -297,10 +229,10 @@ class PlainLanguageModel(torch.nn.Module):
      
           lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, numberOfBatches)
    
-       #   if printHere:
-        #     lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, args.batchSize)
-         #    losses = lossTensor.data.cpu().numpy()
-          #   numericCPU = numeric.cpu().data.numpy()
+          if printHere:
+             lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, args.batchSize)
+             losses = lossTensor.data.cpu().numpy()
+             numericCPU = numeric.cpu().data.numpy()
              #print(("NONE", itos_total[numericCPU[0][0]]))
              #for i in range((args.sequence_length)):
              #   print((losses[i][0], itos_total[numericCPU[i+1][0]]))
@@ -343,7 +275,6 @@ class Autoencoder:
 
       input_tensor = Variable(numeric[:-1], requires_grad=False)
       input_tensor_noised = Variable(numeric_noised[:-1], requires_grad=False)
-      #target_tensor = Variable(numeric_onlyNoisedOnes[1:], requires_grad=False)
 
 
       input_tensor = Variable(numeric[:-1], requires_grad=False)
@@ -439,7 +370,7 @@ class LanguageModel:
       self.train_loss_chars = torch.nn.NLLLoss(ignore_index=0, reduction='sum')
       self.modules_lm = [self.rnn, self.output, self.word_embeddings]
    def forward(self, input_tensor_noised, target_tensor_full, NUMBER_OF_REPLICATES):
-       lm_embedded = self.word_embeddings(input_tensor_noised)
+       lm_embedded = input_tensor_noised
        lm_out, lm_hidden = self.rnn_drop(lm_embedded, None)
        lm_out = lm_out[-1:]
        lm_logits = self.output(lm_out) 
@@ -452,92 +383,6 @@ class LanguageModel:
 
 lm = LanguageModel()
 
-#character_embeddings = torch.nn.Embedding(num_embeddings = len(itos_chars_total)+3, embedding_dim=args.char_emb_dim).cuda()
-
-class MemoryModel():
-  """ Noise Model """
-  def __init__(self):
-     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
-     self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
-     self.sigmoid = torch.nn.Sigmoid()
-     self.relu = torch.nn.ReLU()
-     self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
-     self.positional_embeddings = torch.nn.Embedding(num_embeddings=args.sequence_length+2, embedding_dim=256).cuda()
-     self.memory_word_pos_inter = torch.nn.Linear(256, 1, bias=False).cuda()
-     self.memory_word_pos_inter.weight.data.fill_(0)
-     self.perword_baseline_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
-     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
-     self.memory_bilinear.weight.data.fill_(0)
-     self.memory_mlp_outer.weight.data.fill_(0)
-     self.memory_word_pos_inter.weight.data.fill_(0)
-     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear, self.word_embeddings]
-
-
-memory = MemoryModel()
-
-# This is not necessary here, but beneficial in large-scale settings
-#memory.word_embeddings.weight.data = lm.word_embeddings.weight.data.clone()
-
-
-plain_lm = PlainLanguageModel()
-
-
-
-def parameters_memory():
-   for module in memory.modules_memory:
-       for param in module.parameters():
-            yield param
-
-parameters_memory_cached = [x for x in parameters_memory()]
-
-
-# Set up optimization
-
-dual_weight = torch.cuda.FloatTensor([1.0])
-dual_weight.requires_grad=True
-
-
-
-
-
-
-def parameters_autoencoder():
-   for module in autoencoder.modules_autoencoder:
-       for param in module.parameters():
-            yield param
-
-
-def parameters_plain_lm():
-   for module in plain_lm.modules:
-       for param in module.parameters():
-            yield param
-
-
-def parameters_lm():
-   for module in lm.modules_lm:
-       for param in module.parameters():
-            yield param
-
-parameters_lm_cached = [x for x in parameters_lm()]
-
-
-assert  TRAIN_LM
-optim_plain_lm = torch.optim.SGD(parameters_plain_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
-optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
-optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
-
-###############################################3
-
-
-# Load pretrained prior and amortized posteriors
-
-# Amortized Reconstruction Posterior
-
-from torch.autograd import Variable
 
 
 
@@ -588,6 +433,143 @@ def prepareDatasetChunks(data, train=True):
 
 
 
+#character_embeddings = torch.nn.Embedding(num_embeddings = len(itos_chars_total)+3, embedding_dim=args.char_emb_dim).cuda()
+
+class MemoryModel():
+  """ Noise Model """
+  def __init__(self):
+     self.hiddenToLogSDHidden = torch.nn.Linear(2*args.word_embedding_size + 256, 2*args.word_embedding_size).cuda()
+     self.cellToMean = torch.nn.Linear(2*args.word_embedding_size + 256, 2*args.word_embedding_size).cuda()
+
+     self.hiddenToLogSDHidden.bias.data.fill_(0)
+     self.cellToMean.bias.data.fill_(0)
+
+     self.hiddenToLogSDHidden.weight.data.fill_(0)
+     self.cellToMean.weight.data.fill_(0)
+
+     self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
+
+     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+     self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
+     self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
+     self.sigmoid = torch.nn.Sigmoid()
+     self.relu = torch.nn.ReLU()
+     self.positional_embeddings = torch.nn.Embedding(num_embeddings=args.sequence_length+2, embedding_dim=256).cuda()
+     self.memory_word_pos_inter = torch.nn.Linear(256, 1, bias=False).cuda()
+     self.memory_word_pos_inter.weight.data.fill_(0)
+     self.perword_baseline_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+     self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
+     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
+     self.memory_bilinear.weight.data.fill_(0)
+     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
+
+  def forward(memory, numeric):
+      embedded_everything = memory.word_embeddings(numeric)
+
+      # Positional embeddings
+      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
+      embedded_positions = memory.positional_embeddings(numeric_positions)
+      numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
+
+      # Retention probabilities
+      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
+      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
+
+  #    print(embedded_positions.size(), embedded_everything.size())
+ #     print(memory.memory_bilinear(embedded_positions).size())
+#      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
+      print(embedded_positions.size(), embedded_everything.size())
+      embedded_everything = torch.cat([embedded_positions.expand(-1, embedded_everything.size()[1], -1), embedded_everything], dim=2)
+
+      encodedEpsilonForAllSteps = standardNormal.sample().view((args.sequence_length+1), args.batchSize, -1)
+
+      meanHidden = memory.cellToMean(embedded_everything)
+      logStandardDeviationHidden = memory.hiddenToLogSDHidden(embedded_everything)
+      scaleForDist = 1e-8 + torch.log(1+torch.exp(logStandardDeviationHidden))
+      encodedEpsilon = encodedEpsilonForAllSteps #standardNormalPerStep.sample()
+      sampled = meanHidden + scaleForDist * encodedEpsilon
+      print(sampled.size())
+
+      klLoss = 0
+
+      memoryDistribution = torch.distributions.Normal(loc=meanHidden, scale=scaleForDist)
+      logProbConditional = memoryDistribution.log_prob(sampled)
+
+      plainPriorLogProb = standardNormal.log_prob(sampled.view(21*64, 1024)).view(21, 64, 1024) #- (0.5 * torch.sum(sampled * sampled, dim=1))
+   
+      print(logProbConditional.size(), plainPriorLogProb.size())
+      klLoss = (logProbConditional - plainPriorLogProb)
+      print(klLoss.mean())
+
+      return sampled, klLoss
+
+
+memory = MemoryModel()
+
+def parameters_memory():
+   for module in memory.modules_memory:
+       for param in module.parameters():
+            yield param
+
+parameters_memory_cached = [x for x in parameters_memory()]
+
+
+# Set up optimization
+
+dual_weight = torch.cuda.FloatTensor([1.0])
+dual_weight.requires_grad=True
+
+
+
+
+
+
+def parameters_autoencoder():
+   for module in autoencoder.modules_autoencoder:
+       for param in module.parameters():
+            yield param
+
+
+
+def parameters_lm():
+   for module in lm.modules_lm:
+       for param in module.parameters():
+            yield param
+
+parameters_lm_cached = [x for x in parameters_lm()]
+
+
+assert not TRAIN_LM
+optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
+optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
+
+###############################################3
+
+
+# Load pretrained prior and amortized posteriors
+
+# Amortized Reconstruction Posterior
+if args.load_from_autoencoder is not None:
+  print(args.load_from_autoencoder)
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
+  for i in range(len(checkpoint["components"])):
+      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
+  del checkpoint
+ 
+# Amortized Prediction Posterior
+if args.load_from_lm is not None:
+  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(args.load_from_lm)+".txt")
+  for i in range(len(checkpoint["components"])):
+      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
+  del checkpoint
+
+from torch.autograd import Variable
+
+
+
+
 hidden = None
 
 zeroBeginning = torch.LongTensor([0 for _ in range(args.NUMBER_OF_REPLICATES*args.batchSize)]).cuda().view(1,args.NUMBER_OF_REPLICATES*args.batchSize)
@@ -626,78 +608,29 @@ def product(x):
      r *= i
    return r
 
-PUNCTUATION = torch.LongTensor([stoi_total[x] for x in ["EOS", "OOV"]]).cuda()
-CONTENT = torch.LongTensor([stoi_total[x] for x in ["annoyed0", "fact0", "report0", "doctor0"]]).cuda()
+PUNCTUATION = torch.LongTensor([stoi_total[x] for x in [".", "OOV", '"', "(", ")", "'", '"', ":", ",", "'s", "[", "]"]]).cuda()
 
-def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True):
+standardNormal = torch.distributions.Normal(loc=torch.FloatTensor([[0.0 for _ in range(1024)] for _ in range((args.sequence_length+1)*args.batchSize)]).cuda(), scale=torch.FloatTensor([[1.0 for _ in range(1024)] for _ in range((args.sequence_length+1)*args.batchSize)]).cuda())
+
+
+def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=False):
       """ Forward pass through the entire model
         @param numeric
       """
       global hidden
       global beginning
       global beginning_chars
-      if True:
-          hidden = None
-          beginning = zeroBeginning
 
       assert numeric.size()[0] == args.sequence_length+1, numeric.size()[0]
       ######################################################
       ######################################################
       # Run Loss Model
-      if expandReplicates:
-         numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
-#      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
-#      numeric = torch.cat([beginning, numeric], dim=0)
-      embedded_everything = memory.word_embeddings(numeric)
+      encoded_embeddings, klLoss = memory.forward(numeric)
 
-      # Positional embeddings
-      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
-      embedded_positions = memory.positional_embeddings(numeric_positions)
-      numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
-
-      # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
-      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
-
-  #    print(embedded_positions.size(), embedded_everything.size())
- #     print(memory.memory_bilinear(embedded_positions).size())
-#      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
-
-      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
-      memory_hidden = memory.sigmoid(memory_hidden_logit)
-      if provideAttention:
-         return memory_hidden
-
-      # Baseline predictions for prediction loss
-      baselineValues = 10*memory.sigmoid(memory.perword_baseline_outer(memory.relu(memory.perword_baseline_inner(embedded_everything[-1].detach())))).squeeze(1)
-      assert tuple(baselineValues.size()) == (NUMBER_OF_REPLICATES,)
-
-
-      # NOISE MEMORY ACCORDING TO MODEL
-      memory_filter = torch.bernoulli(input=memory_hidden)
-      bernoulli_logprob = torch.where(memory_filter == 1, torch.log(memory_hidden+1e-10), torch.log(1-memory_hidden+1e-10))
-      bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
-      if args.entropy_weight > 0:
-         entropy = -(memory_hidden * torch.log(memory_hidden+1e-10) + (1-memory_hidden) * torch.log(1-memory_hidden+1e-10)).mean()
-      else:
-         entropy=-1.0
-      memory_filter = memory_filter.squeeze(2)
-
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(2, 1, 1)).long().sum(dim=0)).bool())
-        
-      ####################################################################################
-      numeric_noised = torch.where(torch.logical_or(punctuation, memory_filter==1), numeric, 0*numeric) #[[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
-      numeric_onlyNoisedOnes = torch.where(memory_filter == 0, numeric, 0*numeric) # target is 0 in those places where no noise has happened
-
-      if onlyProvideMemoryResult:
-        return numeric, numeric_noised
 
       input_tensor_pure = Variable(numeric[:-1], requires_grad=False)
-      input_tensor_noised = Variable(numeric_noised[:-1], requires_grad=False)
       target_tensor_full = Variable(numeric[1:], requires_grad=False)
 
-      target_tensor_onlyNoised = Variable(numeric_onlyNoisedOnes[1:], requires_grad=False)
       #####################################################################################
 
 
@@ -705,11 +638,9 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       ##########################################
       # RUN AUTOENCODER (approximately inverting loss model)
       autoencoder_embedded = autoencoder.word_embeddings(input_tensor_pure[:-1])
-      autoencoder_embedded_noised = autoencoder.word_embeddings(input_tensor_noised[:-1])
-      autoencoder_out_encoder, _ = autoencoder.rnn_encoder(autoencoder_embedded_noised, None)
+      autoencoder_out_encoder, _ = autoencoder.rnn_encoder(encoded_embeddings[:-1], None)
       autoencoder_out_decoder, _ = autoencoder.rnn_decoder(autoencoder_embedded, None)
       assert autoencoder_embedded.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py. Would be good if they were unified.
-      assert autoencoder_embedded_noised.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py.
 
       autoencoder_attention = torch.bmm(autoencoder.attention_proj(autoencoder_out_encoder).transpose(0,1), autoencoder_out_decoder.transpose(0,1).transpose(1,2))
       autoencoder_attention = autoencoder.attention_softmax(autoencoder_attention).transpose(0,1)
@@ -721,23 +652,13 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       autoencoder_log_probs = autoencoder.logsoftmax(autoencoder_logits)
 
       # Prediction Loss 
-      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
-      contentWords = (CONTENT.view(-1, 1, 1) == target_tensor_onlyNoised[:-1].unsqueeze(0)).float().sum(dim=0)
-  #    print(contentWords)
-   #   print(autoencoder_lossTensor)
-      autoencoder_lossTensor = autoencoder_lossTensor + 6.907755 * contentWords
-#      print(autoencoder_lossTensor)
- #     quit()
+      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_full[:-1].contiguous().view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
+
       ##########################################
       ##########################################
       # RUN LANGUAGE MODEL (amortized prediction of next word)
       if args.predictability_weight > 0:
-       lm_lossTensor = lm.forward(input_tensor_noised, target_tensor_full, NUMBER_OF_REPLICATES)
-
-
-      plain_lm_lossTensor, _, _, _ = plain_lm.forward(numeric[:,:1], train=True, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=1)
-
-
+       lm_lossTensor = lm.forward(encoded_embeddings, target_tensor_full, NUMBER_OF_REPLICATES)
       ##########################################
       ##########################################
 
@@ -750,19 +671,15 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       # Reward, term 2
       # Regularization towards lower retention rates
-      negativeRewardsTerm2 = memory_filter.mean(dim=0)
-      retentionTarget = 1-args.deletion_rate
       loss = 0
 
       # Autoencoder Loss
-      loss += autoencoder_lossTensor.mean()
+      if args.predictability_weight > 0:
+         loss += (1-args.predictability_weight) * autoencoder_lossTensor.mean() + args.predictability_weight * lm_lossTensor.mean()
+      else:
+         loss += autoencoder_lossTensor.mean()
 
-      # Language Model Loss
-      loss += lm_lossTensor.mean()
-      loss += plain_lm_lossTensor.mean()
 
-      # Overall Reward
-      negativeRewardsTerm = negativeRewardsTerm1 + dual_weight * (negativeRewardsTerm2-retentionTarget)
       # for the dual weight
       loss += (dual_weight * (negativeRewardsTerm2-retentionTarget).detach()).mean()
       if printHere:
@@ -807,36 +724,20 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       runningAverageReward = factor * runningAverageReward + (1-factor) * float(negativeRewardsTerm.mean())
       ############################
 
-      numericCPU = numeric.cpu().data.numpy()
-#      print(itos_total[numericCPU[2][0]], itos_total[numericCPU[3][0]], itos_total[numericCPU[4][0]])
-      if (counter % 10 == 0) and  itos_total[numericCPU[3][0]] in ["that", "about"]:
-#      if printHere:
+      if printHere:
          if args.predictability_weight > 0:
           lm_losses = lm_lossTensor.data.cpu().numpy()
-          plain_lm_losses = plain_lm_lossTensor.data.cpu().numpy()
          autoencoder_losses = autoencoder_lossTensor.data.cpu().numpy()
 
+         numericCPU = numeric.cpu().data.numpy()
          numeric_noisedCPU = numeric_noised.cpu().data.numpy()
          memory_hidden_CPU = memory_hidden[:,0,0].cpu().data.numpy()
          memory_hidden_logit_per_wordtype_cpu = memory_hidden_logit_per_wordtype.cpu().data
          attention_bilinear_term = attention_bilinear_term.cpu().data
          numeric_embedded_cpu = numeric_embedded.cpu().data
-         print(("NONE", itos_total[numericCPU[0][0]]))
-         for i in range((args.sequence_length)):
-            summary = []
-#            print(autoencoder_lossTensor.size(), args.sequence_length, numeric.size())
- #           print(lm_lossTensor.size(), target_tensor_full.size())
-            summary.append(autoencoder_losses[i][0] if i < autoencoder_lossTensor.size()[0] else "--")
-            summary.append(lm_losses[0][0] if args.predictability_weight > 0 and i+1 == args.sequence_length else "---")
-            summary.append(plain_lm_losses[i][0] if args.predictability_weight > 0 and i < args.sequence_length else "---")
-            summary.append(itos_total[numericCPU[i+1][0]])
-            summary.append(itos_total[numeric_noisedCPU[i+1][0]])
-            summary.append(memory_hidden_CPU[i+1])
-#            summary.append(float(baselineValues[0]) if i == args.sequence_length else "")
- #           summary.append(float(numeric_embedded_cpu[i+1,0,0]))
-  #          summary.append(float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]))
-   #         summary.append(float(attention_bilinear_term[i+1,0,0]))
-            print("\t".join([str(q) for q in summary]))
+ #        print(("NONE", itos_total[numericCPU[0][0]]))
+#         for i in range((args.sequence_length+1)):
+            #print(autoencoder_losses[i][0] if i < args.sequence_length else "--", "\t", lm_losses[0][0] if args.predictability_weight > 0 and i == args.sequence_length else "---" , "\t", itos_total[numericCPU[i+1][0]],"\t", itos_total[numeric_noisedCPU[i+1][0]],"\t", memory_hidden_CPU[i+1],"\t", float(baselineValues[0]) if i == args.sequence_length else "","\t", float(numeric_embedded_cpu[i+1,0,0]),"\t", float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]),"\t", float(attention_bilinear_term[i+1,0,0]))
 #            print((, itos_total[numericCPU[i+1][0]], itos_total[numeric_noisedCPU[i+1][0]], memory_hidden_CPU[i+1]))
 
 
@@ -857,7 +758,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       return loss, product(target_tensor_full.size())
 
 
-def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True, computeProbabilityStartingFrom=0):
+def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=False, computeProbabilityStartingFrom=0):
       """ Forward pass through the entire model
         @param numeric
       """
@@ -909,7 +810,7 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
 #      print(memory_filter.size(), memory_hidden.size())
       bernoulli_logprob = torch.where(memory_filter, torch.log(memory_hidden.squeeze(2)+1e-10), torch.log(1-memory_hidden.squeeze(2)+1e-10))
 
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(2, 1, 1)).long().sum(dim=0)).bool())
+      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
 
       # Disregard likelihood computation on punctuation
       bernoulli_logprob = torch.where(punctuation, 0*bernoulli_logprob, bernoulli_logprob)
@@ -933,8 +834,6 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
 def backward(loss, printHere):
       """ An optimization step for the resource-rational objective function """
       # Set stored gradients to zero
-      optim_plain_lm.zero_grad()
-      optim_lm.zero_grad()
       optim_autoencoder.zero_grad()
       optim_memory.zero_grad()
 
@@ -947,18 +846,12 @@ def backward(loss, printHere):
       # Gradient clipping
       torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
       if TRAIN_LM:
+         assert False
          torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
 
       # Adapt parameters
-      optim_plain_lm.step()
-      optim_lm.step()
       optim_autoencoder.step()
-#      if (100.0*updatesCount)/maxUpdates > 50:
-
-      if updatesCount == 26050:
-         memory.word_embeddings.weight.data = lm.word_embeddings.weight.data.clone()
-      if updatesCount > 26050:
-         optim_memory.step()
+      optim_memory.step()
 
 #      print(dual_weight.grad)
       dual_weight.data.add_(args.dual_learning_rate*dual_weight.grad.data)
@@ -976,32 +869,180 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 100000 if args.tuning == 1 else 10000000000
+maxUpdates = 200000 if args.tuning == 1 else 10000000000
 
-def showAttention(word, stream=sys.stdout):
+def showAttention(word):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
     attention = attention[:,0,0]
-    print(*(["SCORES", word, "\t"]+[round(x,2) for x in list(attention.cpu().data.numpy())]), file=stream)
+    print(*(["SCORES", word, "\t"]+[round(x,2) for x in list(attention.cpu().data.numpy())]))
 
 
+
+
+
+
+
+nounsAndVerbsIncompatible = []
+#nounsAndVerbsIncompatible.append(["the principal",       "the teacher",        "kissed",      "was fired",                     "was quoted in the newspaper", "Was the XXXX quoted in the newspaper?", "Y"])
+#nounsAndVerbsIncompatible.append(["the sculptor",        "the painter",        "admired",    "was n't talented",   "was completely untrue", "Was the XXXX untrue?", "Y"])
+#nounsAndVerbsIncompatible.append(["the consultant",      "the artist",         "hired",      "was a fraud",       "shocked everyone", "Did the XXXX shock everyone?", "Y"])
+#nounsAndVerbsIncompatible.append(["the runner",          "the psychiatrist",   "treated",    "was doping",        "was ridiculous", "Was the XXXX ridiculous?", "Y"])
+#nounsAndVerbsIncompatible.append(["the child",           "the medic",          "rescued",    "was unharmed",      "relieved everyone", "Did the XXXX relieve everyone?", "Y"])
+#nounsAndVerbsIncompatible.append(["the criminal",        "the officer",        "arrested",   "was guilty",        "was entirely bogus", "Was the XXXX bogus?", "Y"])
+#nounsAndVerbsIncompatible.append(["the student",         "the professor",      "hated",      "dropped out",       "made the professor happy", "Did the XXXX make the professor happy?", "Y"])
+#nounsAndVerbsIncompatible.append(["the mobster",         "the media",          "portrayed",  "had disappeared",    "turned out to be true", "Did the XXXX turn out to be true?", "Y"])
+#nounsAndVerbsIncompatible.append(["the actor",           "the starlet",        "loved",      "was missing",       "made her cry", "Did the XXXX almost make her cry?", "Y"])
+#nounsAndVerbsIncompatible.append(["the preacher",        "the parishioners",   "fired",      "stole money",        "proved to be true", "Did the XXXX prove to be true?", "Y"])
+#nounsAndVerbsIncompatible.append(["the violinist",       "the sponsors",       "backed",     "abused drugs",                       "is likely true", "Was the XXXX likely true?", "Y"])
+#nounsAndVerbsIncompatible.append(["the senator",         "the diplomat",       "opposed",    "was winning",                   "really made him angry", "Did the XXXX make him angry?", "Y"])
+#nounsAndVerbsIncompatible.append(["the commander",       "the president",      "appointed",  "was corrupt",         "troubled people", "Did the XXXX trouble people?", "Y"])
+#nounsAndVerbsIncompatible.append(["the victim",         "the criminal",       "assaulted",  "were surviving",         "calmed everyone down", "Did the XXXX calm everyone down?", "Y"])
+#nounsAndVerbsIncompatible.append(["the politician",      "the banker",         "bribed",     "laundered money",         "came as a shock to his supporters", "Did the XXXX come as a shock?", "Y"])
+#nounsAndVerbsIncompatible.append(["the surgeon",         "the patient",        "thanked",    "had no degree",         "was not a surprise", "Was the XXXX unsurprising?", "Y"])
+#nounsAndVerbsIncompatible.append(["the extremist",       "the agent",          "caught",     "got an award",         "was disconcerting", "Was the XXXX disconcerting?", "Y"])
+#nounsAndVerbsIncompatible.append(["the clerk",           "the customer",       "called",     "was a hero",         "seemed absurd", "Did the XXXX seem absurd?", "Y"])
+#nounsAndVerbsIncompatible.append(["the trader",          "the businessman",    "consulted",  "had insider information",         "was confirmed", "Was the XXXX confirmed?", "Y"])
+#nounsAndVerbsIncompatible.append(["the CEO",             "the employee",       "impressed",  "was retiring",         "was entirely correct", "Was the XXXX correct?", "Y"])
+#
+#
 
 
 nounsAndVerbsCompatible = []
-nounsAndVerbsIncompatible = []
+#nounsAndVerbsCompatible.append(["the principal",       "the teacher",        "kissed",      "appeared on tv",                     "was quoted in the newspaper", "Was the XXXX quoted in the newspaper?", "Y"])
+#nounsAndVerbsCompatible.append(["the sculptor",        "the painter",        "admired",    "surprised the doctor",   "was completely untrue", "Was the XXXX untrue?", "Y"])
+#nounsAndVerbsCompatible.append(["the consultant",      "the artist",         "hired",      "was confirmed",       "shocked everyone", "Did the XXXX shock everyone?", "Y"])
+#nounsAndVerbsCompatible.append(["the runner",          "the psychiatrist",   "treated",    "was credible",        "was ridiculous", "Was the XXXX ridiculous?", "Y"])
+#nounsAndVerbsCompatible.append(["the child",           "the medic",          "rescued",    "made people happy",      "relieved everyone", "Did the XXXX relieve everyone?", "Y"])
+#nounsAndVerbsCompatible.append(["the criminal",        "the officer",        "arrested",   "was refuted",        "was entirely bogus", "Was the XXXX bogus?", "Y"])
+#nounsAndVerbsCompatible.append(["the student",         "the professor",      "hated",      "shocked his colleagues",       "made the professor happy", "Did the XXXX make the professor happy?", "Y"])
+#nounsAndVerbsCompatible.append(["the mobster",         "the media",          "portrayed",  "calmed everyone down",    "turned out to be true", "Did the XXXX turn out to be true?", "Y"])
+#nounsAndVerbsCompatible.append(["the actor",           "the starlet",        "loved",      "was quoted in newspapers",       "made her cry", "Did the XXXX almost make her cry?", "Y"])
+#nounsAndVerbsCompatible.append(["the preacher",        "the parishioners",   "fired",      "was foolish",        "proved to be true", "Did the XXXX prove to be true?", "Y"])
+#nounsAndVerbsCompatible.append(["the violinist",       "the sponsors",       "backed",     "made her cry",                       "is likely true", "Was the XXXX likely true?", "Y"])
+#nounsAndVerbsCompatible.append(["the senator",         "the diplomat",       "opposed",    "annoyed him",                   "really made him angry", "Did the XXXX make him angry?", "Y"])
+#nounsAndVerbsCompatible.append(["the commander",       "the president",      "appointed",  "was dangerous",         "troubled people", "Did the XXXX trouble people?", "Y"])
+#nounsAndVerbsCompatible.append(["the victim",         "the criminal",       "assaulted",  "remained hidden",         "calmed everyone down", "Did the XXXX calm everyone down?", "Y"])
+#nounsAndVerbsCompatible.append(["the politician",      "the banker",         "bribed",     "was popular",         "came as a shock to his supporters", "Did the XXXX come as a shock?", "Y"])
+#nounsAndVerbsCompatible.append(["the surgeon",         "the patient",        "thanked",    "was widely known",         "was not a surprise", "Was the XXXX unsurprising?", "Y"])
+#nounsAndVerbsCompatible.append(["the extremist",       "the agent",          "caught",     "stunned everyone",         "was disconcerting", "Was the XXXX disconcerting?", "Y"])
+#nounsAndVerbsCompatible.append(["the clerk",           "the customer",       "called",     "was idiotic",         "seemed absurd", "Did the XXXX seem absurd?", "Y"])
+#nounsAndVerbsCompatible.append(["the trader",          "the businessman",    "consulted",  "sounded hopeful",         "was confirmed", "Was the XXXX confirmed?", "Y"])
+#nounsAndVerbsCompatible.append(["the CEO",             "the employee",       "impressed",  "hurt him",         "was entirely correct", "Was the XXXX correct?", "Y"])
+#
+#
+#
+#
+#
+#nounsAndVerbsCompatible.append(["the clerk", "the customer", "called", "was sad", "seemed absurd."])
+#nounsAndVerbsIncompatible.append(["the clerk", "the customer", "called", "was heroic", "seemed absurd."])
+#nounsAndVerbsCompatible.append(["the CEO", "the employee", "impressed", "deserved attention", "was entirely correct."])
+#nounsAndVerbsIncompatible.append(["the CEO", "the employee", "impressed", "was retiring", "was entirely correct."])
+#nounsAndVerbsCompatible.append(["the driver", "the tourist", "consulted", "was crazy", "seemed hard to believe."])
+#nounsAndVerbsIncompatible.append(["the driver", "the tourist", "consulted", "was lying", "seemed hard to believe."])
+#nounsAndVerbsCompatible.append(["the bookseller", "the thief", "robbed", "was a total fraud", "shocked his family."])
+#nounsAndVerbsIncompatible.append(["the bookseller", "the thief", "robbed", "got a heart attack", "shocked his family."])
+#nounsAndVerbsCompatible.append(["the neighbor", "the woman", "distrusted", "startled the child", "was a lie."])
+#nounsAndVerbsIncompatible.append(["the neighbor", "the woman", "distrusted", "killed the dog", "was a lie."])
+#nounsAndVerbsCompatible.append(["the scientist", "the mayor", "trusted", "couldn't be trusted", "was only a malicious smear."])
+#nounsAndVerbsIncompatible.append(["the scientist", "the mayor", "trusted", "had faked data", "was only a malicious smear."])
+#nounsAndVerbsCompatible.append(["the lifesaver", "the swimmer", "called", "pleased the children", "impressed the whole city."])
+#nounsAndVerbsIncompatible.append(["the lifesaver", "the swimmer", "called", "saved the children", "impressed the whole city."])
+#nounsAndVerbsCompatible.append(["the entrepreneur", "the philanthropist", "funded", "exasperated the nurse", "came as a disappointment."])
+#nounsAndVerbsIncompatible.append(["the entrepreneur", "the philanthropist", "funded", "wasted the money", "came as a disappointment."])
+#nounsAndVerbsCompatible.append(["the trickster", "the woman", "recognized", "was finally acknowledged", "calmed people down."])
+#nounsAndVerbsIncompatible.append(["the trickster", "the woman", "recognized", "was finally caught", "calmed people down."])
+#nounsAndVerbsCompatible.append(["the student", "the bully", "intimidated", "drove everyone crazy", "devastated his parents."])
+#nounsAndVerbsIncompatible.append(["the student", "the bully", "intimidated", "plagiarized his homework", "devastated his parents."])
+#nounsAndVerbsCompatible.append(["the carpenter", "the craftsman", "carried", "confused the apprentice", "was acknowledged."])
+#nounsAndVerbsIncompatible.append(["the carpenter", "the craftsman", "carried", "hurt the apprentice", "was acknowledged."])
+#nounsAndVerbsCompatible.append(["the daughter", "the sister", "found", "frightened the grandmother", "seemed concerning."])
+#nounsAndVerbsIncompatible.append(["the daughter", "the sister", "found", "greeted the grandmother", "seemed concerning."])
+#nounsAndVerbsCompatible.append(["the tenant", "the foreman", "looked for", "annoyed the shepherd", "proved to be made up."])
+#nounsAndVerbsIncompatible.append(["the tenant", "the foreman", "looked for", "questioned the shepherd", "proved to be made up."])
+#nounsAndVerbsCompatible.append(["the musician", "the father", "missed", "displeased the artist", "confused the banker."])
+#nounsAndVerbsIncompatible.append(["the musician", "the father", "missed", "injured the artist", "confused the banker."])
+#nounsAndVerbsCompatible.append(["the pharmacist", "the stranger", "saw", "distracted the customer", "sounded surprising."])
+#nounsAndVerbsIncompatible.append(["the pharmacist", "the stranger", "saw", "questioned the customer", "sounded surprising."])
+#nounsAndVerbsCompatible.append(["the bureaucrat", "the guard", "shouted at", "disturbed the newscaster", "annoyed the neighbor."])
+#nounsAndVerbsIncompatible.append(["the bureaucrat", "the guard", "shouted at", "instructed the newscaster", "annoyed the neighbor."])
+#nounsAndVerbsCompatible.append(["the cousin", "the brother", "attacked", "troubled the uncle", "startled the mother."])
+#nounsAndVerbsIncompatible.append(["the cousin", "the brother", "attacked", "killed the uncle", "startled the mother."])
+#
 
-for verb in [x[0] for x in grammar["V"]]:                                                                                                                                                                  
-  for noun3 in [x[0] for x in grammar["N3"]]:                                                                                                                                                               
-   for verb2 in [x[0] for x in grammar["V"]]:                                                                                                                                                               
-     nounsAndVerbsCompatible.append([noun3[0], "NA", "NA", verb2[0]+" "+noun3[0], verb[0]])
+nounsAndVerbsIncompatible.append(["the teacher", "the principal", "liked", "failed the student", "was only a malicious smear ."])
+nounsAndVerbsCompatible.append(["the teacher", "the principal", "liked", "annoyed the student", "was only a malicious smear ."])
+nounsAndVerbsIncompatible.append(["the doctor", "the colleague", "distrusted", "cured the patients", "seemed hard to believe ."])
+nounsAndVerbsCompatible.append(["the doctor", "the colleague", "distrusted", "bothered the patients", "seemed hard to believe ."])
+nounsAndVerbsIncompatible.append(["the bully", "the children", "hated", "harassed the boy", "was entirely correct ."])
+nounsAndVerbsCompatible.append(["the bully", "the children", "hated", "shocked the boy", "was entirely correct ."])
+nounsAndVerbsIncompatible.append(["the agent", "the fbi", "sent", "arrested the criminal", "was acknowledged ."])
+nounsAndVerbsCompatible.append(["the agent", "the fbi", "sent", "confused the criminal", "was acknowledged ."])
+nounsAndVerbsIncompatible.append(["the senator", "the diplomat", "supported", "defeated the opponent", "deserved attention ."])
+nounsAndVerbsCompatible.append(["the senator", "the diplomat", "supported", "troubled the opponent", "deserved attention ."])
+nounsAndVerbsIncompatible.append(["the fiancé", "the author", "met", "married the bride", "did not surprise anyone ."])
+nounsAndVerbsCompatible.append(["the fiancé", "the author", "met", "startled the bride", "did not surprise anyone ."])
+nounsAndVerbsIncompatible.append(["the businessman", "the sponsor", "backed", "fired the employee", "came as a disappointment ."])
+nounsAndVerbsCompatible.append(["the businessman", "the sponsor", "backed", "hurt the employee", "came as a disappointment ."])
+nounsAndVerbsIncompatible.append(["the thief", "the detective", "caught", "robbed the woman", "shocked her family ."])
+nounsAndVerbsCompatible.append(["the thief", "the detective", "caught", "enraged the woman", "shocked her family ."])
+nounsAndVerbsIncompatible.append(["the criminal", "the stranger", "distracted", "killed the officer", "seemed concerning ."])
+nounsAndVerbsCompatible.append(["the criminal", "the stranger", "distracted", "surprised the officer", "seemed concerning ."])
+nounsAndVerbsIncompatible.append(["the customer", "the vendor", "welcomed", "called the clerk", "was very believable ."])
+nounsAndVerbsCompatible.append(["the customer", "the vendor", "welcomed", "horrified the clerk", "was very believable ."])
+nounsAndVerbsIncompatible.append(["the president", "the farmer", "admired", "appointed the commander", "was entirely bogus ."])
+nounsAndVerbsCompatible.append(["the president", "the farmer", "admired", "impressed the commander", "was entirely bogus ."])
+nounsAndVerbsIncompatible.append(["the victim", "the swimmer", "rescued", "sued the criminal", "appeared on tv ."])
+nounsAndVerbsCompatible.append(["the victim", "the swimmer", "rescued", "surprised the criminal", "appeared on tv ."])
+nounsAndVerbsIncompatible.append(["the guest", "the cousin", "invited", "visited the uncle calmed", "everyone down ."])
+nounsAndVerbsCompatible.append(["the guest", "the cousin", "invited", "pleased the uncle calmed", "everyone down ."])
+nounsAndVerbsIncompatible.append(["the psychiatrist", "the nurse", "assisted", "diagnosed the patient", "impressed the whole city ."])
+nounsAndVerbsCompatible.append(["the psychiatrist", "the nurse", "assisted", "pleased the patient", "impressed the whole city ."])
+nounsAndVerbsIncompatible.append(["the driver", "the guide", "called", "drove the tourist", "was absolutely true ."])
+nounsAndVerbsCompatible.append(["the driver", "the guide", "called", "amazed the tourist", "was absolutely true ."])
+nounsAndVerbsIncompatible.append(["the actor", "the fans", "loved", "greeted the director", "appeared to be true ."])
+nounsAndVerbsCompatible.append(["the actor", "the fans", "loved", "astonished the director", "appeared to be true ."])
+nounsAndVerbsIncompatible.append(["the banker", "the analyst", "deceived", "trusted the customer", "proved to be made up ."])
+nounsAndVerbsCompatible.append(["the banker", "the analyst", "deceived", "excited the customer", "proved to be made up ."])
+nounsAndVerbsIncompatible.append(["the judge", "the attorney", "hated", "convicted the defendant", "was a lie ."])
+nounsAndVerbsCompatible.append(["the judge", "the attorney", "hated", "vindicated the defendant", "was a lie ."])
+nounsAndVerbsIncompatible.append(["the captain", "the crew", "trusted", "commanded the sailor", "was nice to hear ."])
+nounsAndVerbsCompatible.append(["the captain", "the crew", "trusted", "encouraged the sailor", "was nice to hear ."])
+nounsAndVerbsIncompatible.append(["the manager", "the boss", "authorized", "hired the intern", "seemed absurd ."])
+nounsAndVerbsCompatible.append(["the manager", "the boss", "authorized", "saddened the intern", "seemed absurd ."])
+nounsAndVerbsIncompatible.append(["the plaintiff", "the jury", "interrogated", "attacked the witness", "made it into the news ."])
+nounsAndVerbsCompatible.append(["the plaintiff", "the jury", "interrogated", "startled the witness", "made it into the news ."])
+nounsAndVerbsIncompatible.append(["the guest", "the thug", "hit", "tricked the bartender", "sounded hilarious ."])
+nounsAndVerbsCompatible.append(["the guest", "the thug", "hit", "stunned the bartender", "sounded hilarious ."])
+nounsAndVerbsIncompatible.append(["the pediatrician", "the receptionist", "supported", "distrusted the parent", "troubled people ."])
+nounsAndVerbsCompatible.append(["the pediatrician", "the receptionist", "supported", "disturbed the parent", "troubled people ."])
+nounsAndVerbsIncompatible.append(["the medic", "the survivor", "thanked", "greeted the surgeon", "turned out to be untrue ."])
+nounsAndVerbsCompatible.append(["the medic", "the survivor", "thanked", "annoyed the surgeon", "turned out to be untrue ."])
+nounsAndVerbsIncompatible.append(["the lifeguard", "the soldier", "taught", "rescued the swimmer", "pleased the townspeople ."])
+nounsAndVerbsCompatible.append(["the lifeguard", "the soldier", "taught", "encouraged the swimmer", "pleased the townspeople ."])
+nounsAndVerbsIncompatible.append(["the fisherman", "the gardener", "helped", "admired the politician", "was interesting ."])
+nounsAndVerbsCompatible.append(["the fisherman", "the gardener", "helped", "delighted the politician", "was interesting ."])
+nounsAndVerbsIncompatible.append(["the janitor", "the organizer", "criticized", "ignored the audience", "was funny ."])
+nounsAndVerbsCompatible.append(["the janitor", "the organizer", "criticized", "amused the audience", "was funny ."])
+nounsAndVerbsIncompatible.append(["the investor", "the scientist", "hated", "deceived the entrepreneur", "taught everyone a lesson ."])
+nounsAndVerbsCompatible.append(["the investor", "the scientist", "hated", "disappointed the entrepreneur", "taught everyone a lesson ."])
+nounsAndVerbsIncompatible.append(["the firefighter", "the neighbor", "insulted", "rescued the resident", "struck john as implausible ."])
+nounsAndVerbsCompatible.append(["the firefighter", "the neighbor", "insulted", "disappointed the resident", "struck john as implausible ."])
+nounsAndVerbsIncompatible.append(["the vendor", "the salesman", "recruited", "welcomed the client", "excited the boss ."])
+nounsAndVerbsCompatible.append(["the vendor", "the salesman", "recruited", "enchanted the client", "excited the boss ."])
+nounsAndVerbsIncompatible.append(["the plumber", "the apprentice", "consulted", "assisted the woman", "was true ."])
+nounsAndVerbsCompatible.append(["the plumber", "the apprentice", "consulted", "puzzled the woman", "was true ."])
+nounsAndVerbsIncompatible.append(["the sponsor", "the musician", "entertained", "cheered the onlookers", "pleased everyone ."])
+nounsAndVerbsCompatible.append(["the sponsor", "the musician", "entertained", "captivated the onlookers", "pleased everyone ."])
 
-#random.shuffle(nounsAndVerbsCompatible)
-#nounsAndVerbsCompatible = nounsAndVerbsCompatible[:100]
 
-for x in [nounsAndVerbsCompatible]:
+
+assert len(nounsAndVerbsCompatible) == len(nounsAndVerbsIncompatible)
+
+for x in [nounsAndVerbsCompatible, nounsAndVerbsIncompatible]:
  for z in x:
   for y in z:
    for q in y.split(" "):
-    if q not in stoi_total and q not in ["X", "Y", "XXXX"]:
+    if q not in stoi_total:
      print("OOV WARNING", "#"+q+"#")
 #quit()
 
@@ -1011,24 +1052,168 @@ for x in [nounsAndVerbsCompatible]:
 #nounsAndVerbs = nounsAndVerbs[:1]
 
 topNouns = []
-for noun in [x[0] for x in grammar["N1"] + grammar["N2"]]:                                                   
-   topNouns.append(noun[0])
+topNouns.append("report")
+topNouns.append("story")       
+#topNouns.append("disclosure")
+topNouns.append("proof")
+topNouns.append("confirmation")  
+topNouns.append("information")
+topNouns.append("evidence")
+topNouns.append("reminder")
+topNouns.append("rumor")
+#topNouns.append("thought")
+topNouns.append("suggestion")
+topNouns.append( "revelation")  
+topNouns.append( "belief")
+topNouns.append( "fact")
+topNouns.append( "realization")
+topNouns.append( "suspicion")
+topNouns.append( "certainty")
+topNouns.append( "idea")
+topNouns.append( "admission") 
+topNouns.append( "confirmation")
+topNouns.append( "complaint"    )
+topNouns.append( "certainty"   )
+topNouns.append( "prediction"  )
+topNouns.append( "declaration")
+topNouns.append( "proof"   )
+topNouns.append( "suspicion")    
+topNouns.append( "allegation"   )
+topNouns.append( "revelation"   )
+topNouns.append( "realization")
+topNouns.append( "news")
+topNouns.append( "opinion" )
+topNouns.append( "idea")
+topNouns.append("myth")
+
+topNouns.append("announcement")
+topNouns.append("suspicion")
+topNouns.append("allegation")
+topNouns.append("realization")
+topNouns.append("indication")
+topNouns.append("remark")
+topNouns.append("speculation")
+topNouns.append("assurance")
+topNouns.append("presumption")
+topNouns.append("concern")
+topNouns.append("finding")
+topNouns.append("assertion")
+topNouns.append("feeling")
+topNouns.append("perception")
+topNouns.append("statement")
+topNouns.append("assumption")
+topNouns.append("conclusion")
+
+
+topNouns.append("report")
+topNouns.append("story")
+#topNouns.append("disclosure")
+topNouns.append("confirmation")   
+topNouns.append("information")
+topNouns.append("evidence")
+topNouns.append("reminder")
+topNouns.append("rumor")
+topNouns.append("thought")
+topNouns.append("suggestion")
+topNouns.append("revelation")    
+topNouns.append("belief")
+#topNouns.append("inkling") # this is OOV for the model
+topNouns.append("suspicion")
+topNouns.append("idea")
+topNouns.append("claim")
+topNouns.append("news")
+topNouns.append("proof")
+topNouns.append("admission")
+topNouns.append("declaration")
+
+topNouns.append("assessment")
+topNouns.append("truth")
+topNouns.append("declaration")
+topNouns.append("complaint")
+topNouns.append("admission")
+topNouns.append("disclosure")
+topNouns.append("confirmation")
+topNouns.append("guess")
+topNouns.append("remark")
+topNouns.append("news")
+topNouns.append("proof")
+topNouns.append("message")
+topNouns.append("announcement")
+topNouns.append("statement")
+topNouns.append("thought")
+topNouns.append("allegation")
+topNouns.append("indication")
+topNouns.append("recognition")
+topNouns.append("speculation")
+topNouns.append("accusation")
+topNouns.append("reminder")
+topNouns.append("rumor")
+topNouns.append("finding")
+topNouns.append("idea")
+topNouns.append("feeling")
+topNouns.append("conjecture")
+topNouns.append("perception")
+topNouns.append("certainty")
+topNouns.append("revelation")
+topNouns.append("understanding")
+topNouns.append("claim")
+topNouns.append("view")
+topNouns.append("observation")
+topNouns.append("conviction")
+topNouns.append("presumption")
+topNouns.append("intuition")
+topNouns.append("opinion")
+topNouns.append("conclusion")
+topNouns.append("notion")
+topNouns.append("suggestion")
+topNouns.append("sense")
+topNouns.append("suspicion")
+topNouns.append("assurance")
+topNouns.append("insinuation")
+topNouns.append("realization")
+topNouns.append("assertion")
+topNouns.append("impression")
+topNouns.append("contention")
+topNouns.append("assumption")
+topNouns.append("belief")
+topNouns.append("fact")
 
 topNouns = list(set(topNouns))
 
 
+
+with open("../../../../forgetting/corpus_counts/wikipedia/results/counts4NEW_Processed.tsv", "r") as inFile:
+   counts = [x.replace('"', '').split("\t") for x in inFile.read().strip().split("\n")]
+   header = ["LineNum"] + counts[0]
+   assert len(header) == len(counts[1])
+   header = dict(list(zip(header, range(len(header)))))
+   counts = {line[header["Noun"]] : line for line in counts[1:]}
+
+
+print(len(topNouns))
+print([x for x in topNouns if x not in counts])
+topNouns = [x for x in topNouns if x in counts]
+
+def thatBias(noun):
+   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
+
+topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
 
 print(topNouns)
 print(len(topNouns))
 #quit()
 
 
-# This is to ensure the tsv files are useful even when the script is stopped prematurely
-random.shuffle(topNouns)
-
     
     
+#plain_lm = PlainLanguageModel()
+#plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
 
+#if args.load_from_plain_lm is not None:
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
 
 
 # Helper Functions
@@ -1342,50 +1527,54 @@ def divideDicts(y, z):
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
-    print(plain_lm) 
+#    print(plain_lm) 
     surprisalsPerNoun = {}
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
     numberOfSamples = 12
+    import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
 #    topNouns = ["fact", "report"]
-    with open("output_rr/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat"]), file=outFile)
+    assert False
+    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
+     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted"]), file=outFile)
      with torch.no_grad():
       TRIALS_COUNT = 0
       TOTAL_TRIALS = len(topNouns) * 20 * 2 * 1
       for nounIndex, NOUN in enumerate(topNouns):
         print(NOUN, "Time:", time.time() - startTimePredictions, nounIndex/len(topNouns), file=sys.stderr)
-        thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalReweightedByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_compatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        for sentenceID in range(len(nounsAndVerbsCompatible)):
+        thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        surprisalReweightedByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_incompatible", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        for sentenceID in range(min(20,len(nounsAndVerbsCompatible))):
           print(sentenceID)
           context = None
-          for compatible in ["compatible"]:
-           for condition in ["SC","NoSC"]:
+          for compatible in ["compatible", "incompatible"]:
+           for condition in ["SC"]: #"SCRC", "SC","NoSC"]:
             TRIALS_COUNT += 1
-            print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS, condition)
+            print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceList = {"compatible" : nounsAndVerbsCompatible, "incompatible" : nounsAndVerbsIncompatible}[compatible][sentenceID]
             assert len(sentenceList) >= 5, sentenceList
+            if condition == "NoSC" and compatible == "compatible":
+               continue
             if condition == "SC":
-               context = f"{NOUN} that {sentenceList[0]}"
+               context = f"the {NOUN} that {sentenceList[0]}"
                regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
             elif condition == "NoSC":
-               context = f"{NOUN}"
+               context = f"the {NOUN}"
                regionsToDo = [(sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
             elif condition == "SCRC":
-               context = f"{NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
+               context = f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]} {sentenceList[2]}"
                regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
@@ -1397,7 +1586,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             for i in range(len(remainingInput)):
               if regions[i].startswith("V2"):
                 continue
-              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "fact0 annoyed0 doctor0 EOS fact0 annoyed0 doctor0 EOS " + context)
+              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = args.sequence_length - len(context.split(" ")) - i - 1
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
@@ -1415,7 +1604,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               else:
                  assert SANITY == "Model"
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
-                 numeric_noised = torch.where(numeric == stoi["EOS"]+3, numeric, numeric_noised)
+                 numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
               # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
               numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
               numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
@@ -1450,15 +1639,21 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
-#              print([[itos_total[x] for x in y] for y in resultNumeric[pointWhereToStart:]])
- #             quit()
-              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric[pointWhereToStart:], train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
-              assert resultNumeric.size()[0] == args.sequence_length+1
-              assert totalSurprisal.size()[0] <= args.sequence_length
-              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
-              totalSurprisal = totalSurprisal.view(-1, numberOfSamples, 24)
-              surprisals_past = totalSurprisal[:-1].sum(dim=0)
-              surprisals_nextWord = totalSurprisal[-1]
+
+              resultNumeric_cpu = resultNumeric.detach().cpu()
+              batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
+#              print(batch)
+              totalSurprisal = scoreWithGPT2.scoreSentences(batch)
+              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
+              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
+
+#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
+#              assert resultNumeric.size()[0] == args.sequence_length+1
+#              assert totalSurprisal.size()[0] == args.sequence_length
+#              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
+#              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
+#              surprisals_past = totalSurprisal[:-1].sum(dim=0)
+#              surprisals_nextWord = totalSurprisal[-1]
 
               # where numberOfSamples is how many samples we take from the noise model, and 24 is how many samples are drawn from the amortized posterior for each noised sample
               amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
@@ -1502,18 +1697,12 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 #                 print((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).size(), log_importance_weights.size(), log_importance_weights_sum.size())
  #                print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)))
   #               print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)).sum(dim=1))
-#                 print(surprisals_nextWord.size(), (((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) .size())))
-                 surprisalsWithThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] == stoi_total["that"]).view(-1, 24)].mean())
-                 surprisalsWithoutThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] != stoi_total["that"]).view(-1, 24)].mean())
-                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
                  thatFractionReweightedHere = float((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
                  thatFractionsReweighted[condition+"_"+compatible][regions[i]]+=thatFractionReweightedHere
    #              print((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
     #             print(((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().mean()))
      #            quit()
 
-              else:
-                 thatFractionReweightedHere = -1
 
 
               for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
@@ -1523,9 +1712,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               surprisalByRegions[condition+"_"+compatible][regions[i]] += float( surprisalOfNextWord)
               surprisalCountByRegions[condition+"_"+compatible][regions[i]] += 1
 
-              #assert sentenceList[-1] in ["o","v"]
-              print("\t".join([str(w) for w in [NOUN, (sentenceList[-1]+"_"+sentenceList[0]+"_"+sentenceList[1]).replace("the","").replace(" ", ""), regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere), surprisalsWithThat, surprisalsWithoutThat]]), file=outFile)
-#                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
+
+              print("\t".join([str(w) for w in [NOUN, (sentenceList[0]+"_"+sentenceList[1]).replace("the","").replace(" ", ""), regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere)]]), file=outFile)
 
 
            #   if compatible == "compatible":
@@ -1546,18 +1734,27 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         #quit()
         #quit()
         #assert hasSeenCompatible
-
-     print("=========================")
-     showAttention("fact0", stream=outFile)
-     showAttention("report0", stream=outFile)
-     showAttention("doctor0", stream=outFile)
-     showAttention("annoyed0", stream=outFile)
-     showAttention("that", stream=outFile)
-     showAttention("about", stream=outFile)
-
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
+    assert False
+    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
+      print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
+      for noun in topNouns:
+ #      assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
+#       assert "SCRC_compatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
+#       assert len(surprisalsPerNoun[noun]["SCRC_compatible"]) > 0
+       for condition in surprisalsPerNoun[noun]:
+#         assert "V1_0" in thatFractionsPerNoun[noun][condition], list(thatFractionsPerNoun[noun][condition])
+#         assert "V1_0" in surprisalsPerNoun[noun][condition], list(surprisalsPerNoun[noun][condition])
+         for region in surprisalsPerNoun[noun][condition]:
+           print(noun, region, condition, surprisalsPerNoun[noun][condition][region], surprisalsReweightedPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", thatFractionsReweightedPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
+    # For sanity-checking: Prints correlations between surprisal and that-bias
+    for region in ["V2_0", "V2_1", "V1_0"]:
+      for condition in surprisalsPerNoun["fact"]:
+       if region not in surprisalsPerNoun["fact"][condition]:
+          continue
+       print(SANITY, condition, "CORR", region, correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([surprisalsReweightedPerNoun[x][condition][region] for x in topNouns])), correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 , correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), torch.FloatTensor([thatFractionsReweightedPerNoun[x][condition][region] for x in topNouns])) if "NoSC" not in condition else 0 )
 #    overallSurprisalForCompletion = torch.FloatTensor([sum([surprisalsPerNoun[noun]["SC"][region] - surprisalsPerNoun[noun]["NoSC"][region] for region in surprisalsPerNoun[noun]["SC"]]) for noun in topNouns])
  #   print(SANITY, "CORR total", correlation(torch.FloatTensor([thatBias(x) for x in topNouns]), overallSurprisalForCompletion), "note this is inverted!")
 
@@ -1593,36 +1790,13 @@ startTimePredictions = time.time()
 #getPerNounReconstructionsSanityVerb()
 startTimeTotal = time.time()
 
-#getTotalSentenceSurprisals(SANITY="Model")
-#quit()
-
-
-def trainingIterator():
- while True:
-   s_samples = []
-   for _ in range(10000):
-     s_samples += (sample("S") + ["EOS"])
-   for _ in range(10000):
-     offset = random.randint(0, len(s_samples)-10)
-     q = s_samples[offset:offset+args.sequence_length+1]
-     q = [stoi_total[x] for x in q]
-     yield torch.LongTensor(q).view(args.sequence_length+1, 1).cuda(), None
-#
-#   chunk = []
-#   while True:
-#     chunk += sample("S")
-#     chunk.append("EOS")
-#     if len(chunk) > 100000:
-#      yield chunk[:100000]
-#      chunk = chunk[100000:]
-#
 for epoch in range(1000):
    print(epoch)
 
    # Get training data
-   training_chars = trainingIterator()
+   training_data = corpusIteratorWikiWords.training(args.language)
    print("Got data")
-#   training_chars = prepareDatasetChunks(training_data, train=True)
+   training_chars = prepareDatasetChunks(training_data, train=True)
 
 
    # Set the model up for training
@@ -1644,26 +1818,26 @@ for epoch in range(1000):
        #getTotalSentenceSurprisalsCalibration(SANITY="Model")
        
        # Record reconstructions and surprisals
-       if True:
-#       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+       assert False
+       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
          startTimePredictions = time.time()
 
-#         sys.stdout = outFile
+         sys.stdout = outFile
          print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
          print(args)
          print("=========================")
-#         showAttention("the")
-#         showAttention("was")
-#         showAttention("that")
-#         showAttention("fact")
-#         showAttention("information")
-#         showAttention("report")
-#         showAttention("belief")
-#         showAttention("finding")
-#         showAttention("prediction")
-#         showAttention("of")
-#         showAttention("by")
-#         showAttention("about")
+         showAttention("the")
+         showAttention("was")
+         showAttention("that")
+         showAttention("fact")
+         showAttention("information")
+         showAttention("report")
+         showAttention("belief")
+         showAttention("finding")
+         showAttention("prediction")
+         showAttention("of")
+         showAttention("by")
+         showAttention("about")
          getTotalSentenceSurprisals(SANITY="Model")
   #       getTotalSentenceSurprisals(SANITY="Sanity")
 
@@ -1679,18 +1853,18 @@ for epoch in range(1000):
 #         getPerNounReconstructionsVerb()
 #         getPerNounReconstructions2Verbs()
          print("=========================")
-#         showAttention("the")
-#         showAttention("was")
-#         showAttention("that")
-#         showAttention("fact")
-#         showAttention("information")
-#         showAttention("report")
-#         showAttention("belief")
-#         showAttention("finding")
-#         showAttention("prediction")
-#         showAttention("of")
-#         showAttention("by")
-#         showAttention("about")
+         showAttention("the")
+         showAttention("was")
+         showAttention("that")
+         showAttention("fact")
+         showAttention("information")
+         showAttention("report")
+         showAttention("belief")
+         showAttention("finding")
+         showAttention("prediction")
+         showAttention("of")
+         showAttention("by")
+         showAttention("about")
          sys.stdout = STDOUT
 
 #      if updatesCount % 10000 == 0:
@@ -1791,28 +1965,29 @@ for epoch in range(1000):
 #      global runningAveragePredictionLoss
 #
 
+assert False
 
-#with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.myID), "w") as outFile:
-#   print(args, file=outFile)
-#   print(runningAverageReward, file=outFile)
-#   print(expectedRetentionRate, file=outFile)
-#   print(runningAverageBaselineDeviation, file=outFile)
-#   print(runningAveragePredictionLoss, file=outFile)
-#   print(runningAverageReconstructionLoss, file=outFile)
-#
+with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.myID), "w") as outFile:
+   print(args, file=outFile)
+   print(runningAverageReward, file=outFile)
+   print(expectedRetentionRate, file=outFile)
+   print(runningAverageBaselineDeviation, file=outFile)
+   print(runningAveragePredictionLoss, file=outFile)
+   print(runningAverageReconstructionLoss, file=outFile)
 
-#print("=========================")
-#showAttention("the")
-#showAttention("was")
-#showAttention("that")
-#showAttention("fact")
-#showAttention("information")
-#showAttention("report")
-#showAttention("belief")
-#showAttention("finding")
-#showAttention("prediction")
-#showAttention("of")
-#showAttention("by")
-#showAttention("about")
-#
-#
+
+print("=========================")
+showAttention("the")
+showAttention("was")
+showAttention("that")
+showAttention("fact")
+showAttention("information")
+showAttention("report")
+showAttention("belief")
+showAttention("finding")
+showAttention("prediction")
+showAttention("of")
+showAttention("by")
+showAttention("about")
+
+
