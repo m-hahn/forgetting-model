@@ -13,7 +13,7 @@ from collections import defaultdict
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
-parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=964163553) # language model taking noised input # Amortized Prediction Posterior
+#parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=964163553) # language model taking noised input # Amortized Prediction Posterior
 parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([647336050, 516252642, 709961927, 727001672, 712478284, 524811876])) # Amortized Reconstruction Posterior
 parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([27553360, 935649231])) # plain language model without noise (Prior)
 
@@ -58,7 +58,7 @@ parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.00005, 0.0001, 0.0002, 0.0003, 0.0005, 0.0007, 0.0008, 0.001])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
 
 # Lambda and Delta Parameters
-parser.add_argument("--deletion_rate", type=float, default=0.5)
+parser.add_argument("--retentionTarget", type=float, default=10000)
 parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
 
 
@@ -77,9 +77,6 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.0
-assert args.deletion_rate < 0.8
-
 
 
 #############################
@@ -362,13 +359,12 @@ class LanguageModel:
       self.rnn = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_lm, args.layer_num).cuda()
       self.rnn_drop = self.rnn
       self.output = torch.nn.Linear(args.hidden_dim_lm, len(itos)+3).cuda()
-      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
       self.logsoftmax = torch.nn.LogSoftmax(dim=2)
       self.train_loss = torch.nn.NLLLoss(ignore_index=0)
       self.print_loss = torch.nn.NLLLoss(size_average=False, reduce=False, ignore_index=0)
       self.char_dropout = torch.nn.Dropout2d(p=args.char_dropout_prob)
       self.train_loss_chars = torch.nn.NLLLoss(ignore_index=0, reduction='sum')
-      self.modules_lm = [self.rnn, self.output, self.word_embeddings]
+      self.modules_lm = [self.rnn, self.output]
    def forward(self, input_tensor_noised, target_tensor_full, NUMBER_OF_REPLICATES):
        lm_embedded = input_tensor_noised
        lm_out, lm_hidden = self.rnn_drop(lm_embedded, None)
@@ -448,21 +444,23 @@ class MemoryModel():
      self.cellToMean.weight.data.fill_(0)
 
      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
-
-     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
-     self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
-     self.sigmoid = torch.nn.Sigmoid()
-     self.relu = torch.nn.ReLU()
      self.positional_embeddings = torch.nn.Embedding(num_embeddings=args.sequence_length+2, embedding_dim=256).cuda()
-     self.memory_word_pos_inter = torch.nn.Linear(256, 1, bias=False).cuda()
-     self.memory_word_pos_inter.weight.data.fill_(0)
-     self.perword_baseline_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
-     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
-     self.memory_bilinear.weight.data.fill_(0)
-     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
+
+     self.modules_memory = [self.word_embeddings, self.positional_embeddings, self.hiddenToLogSDHidden, self.cellToMean]
+
+#     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+#     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+#     self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
+#     self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
+#     self.sigmoid = torch.nn.Sigmoid()
+#     self.relu = torch.nn.ReLU()
+#     self.memory_word_pos_inter = torch.nn.Linear(256, 1, bias=False).cuda()
+#     self.memory_word_pos_inter.weight.data.fill_(0)
+#     self.perword_baseline_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+#     self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
+#     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
+#     self.memory_bilinear.weight.data.fill_(0)
+#     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
 
   def forward(memory, numeric):
       embedded_everything = memory.word_embeddings(numeric)
@@ -470,16 +468,11 @@ class MemoryModel():
       # Positional embeddings
       numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
       embedded_positions = memory.positional_embeddings(numeric_positions)
-      numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
       # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
-      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
+#      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
+ #     memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
 
-  #    print(embedded_positions.size(), embedded_everything.size())
- #     print(memory.memory_bilinear(embedded_positions).size())
-#      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      print(embedded_positions.size(), embedded_everything.size())
       embedded_everything = torch.cat([embedded_positions.expand(-1, embedded_everything.size()[1], -1), embedded_everything], dim=2)
 
       encodedEpsilonForAllSteps = standardNormal.sample().view((args.sequence_length+1), args.batchSize, -1)
@@ -489,7 +482,6 @@ class MemoryModel():
       scaleForDist = 1e-8 + torch.log(1+torch.exp(logStandardDeviationHidden))
       encodedEpsilon = encodedEpsilonForAllSteps #standardNormalPerStep.sample()
       sampled = meanHidden + scaleForDist * encodedEpsilon
-      print(sampled.size())
 
       klLoss = 0
 
@@ -498,9 +490,7 @@ class MemoryModel():
 
       plainPriorLogProb = standardNormal.log_prob(sampled.view(21*64, 1024)).view(21, 64, 1024) #- (0.5 * torch.sum(sampled * sampled, dim=1))
    
-      print(logProbConditional.size(), plainPriorLogProb.size())
       klLoss = (logProbConditional - plainPriorLogProb)
-      print(klLoss.mean())
 
       return sampled, klLoss
 
@@ -541,6 +531,7 @@ parameters_lm_cached = [x for x in parameters_lm()]
 
 
 assert not TRAIN_LM
+optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
 optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
 optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
 
@@ -558,12 +549,12 @@ if args.load_from_autoencoder is not None:
   del checkpoint
  
 # Amortized Prediction Posterior
-if args.load_from_lm is not None:
-  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(args.load_from_lm)+".txt")
-  for i in range(len(checkpoint["components"])):
-      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
+#if args.load_from_lm is not None:
+#  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(args.load_from_lm)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
 
 from torch.autograd import Variable
 
@@ -590,7 +581,7 @@ runningAverageReward = 5.0
 runningAverageBaselineDeviation = 2.0
 runningAveragePredictionLoss = 5.0
 runningAverageReconstructionLoss = 5.0
-expectedRetentionRate = 0.5
+expectedKLLoss = 0.5
 
 
 def getPunctuationMask(masks):
@@ -681,27 +672,10 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
 
       # for the dual weight
-      loss += (dual_weight * (negativeRewardsTerm2-retentionTarget).detach()).mean()
-      if printHere:
-          print(negativeRewardsTerm1.mean(), dual_weight, negativeRewardsTerm2.mean(), retentionTarget)
-      #print(loss)
-
-      # baselineValues: the baselines for the prediction loss (term 1)
-      # memory_hidden: baseline for term 2
-      # Important to detach all but the baseline values
-
-      # Reward Minus Baseline
-      # Detached surprisal and mean retention
-#      rewardMinusBaseline = (negativeRewardsTerm.detach() - baselineValues - args.RATE_WEIGHT * memory_hidden.mean(dim=0).squeeze(dim=1).detach())
-      rewardMinusBaseline = (negativeRewardsTerm.detach() - baselineValues - (dual_weight * (memory_hidden.mean(dim=0).squeeze(dim=1) - retentionTarget)).detach())
-
-      # Important to detach from the baseline!!! 
-      loss += (rewardMinusBaseline.detach() * bernoulli_logprob_perBatch.squeeze(1)).mean()
-      if args.entropy_weight > 0:
-         loss -= args.entropy_weight  * entropy
-
-      # Loss for trained baseline
-      loss += args.reward_multiplier_baseline * rewardMinusBaseline.pow(2).mean()
+#      retentionTarget = 10000.0
+      klLossAverage = klLoss.sum(dim=2).mean()
+#      print(klLossAverage, retentionTarget, dual_weight)
+      loss += (dual_weight.mean() * (klLossAverage.view(1) + (-args.retentionTarget)).mean())
 
 
       ############################
@@ -709,34 +683,28 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       factor = 0.9996 ** args.batchSize
 
       # Update running averages
-      global runningAverageBaselineDeviation
+      global runningAverageKLLoss
       global runningAveragePredictionLoss
       global runningAverageReconstructionLoss
       global runningAverageReward
-      global expectedRetentionRate
+      global expectedKLLoss
 
-      expectedRetentionRate = factor * expectedRetentionRate + (1-factor) * float(memory_hidden.mean())
-      runningAverageBaselineDeviation = factor * runningAverageBaselineDeviation + (1-factor) * float((rewardMinusBaseline).abs().mean())
+      expectedKLLoss = factor * expectedKLLoss + (1-factor) * float(klLossAverage.mean())
 
       if args.predictability_weight > 0:
        runningAveragePredictionLoss = factor * runningAveragePredictionLoss + (1-factor) * round(float(lm_lossTensor.mean()),3)
       runningAverageReconstructionLoss = factor * runningAverageReconstructionLoss + (1-factor) * round(float(autoencoder_lossTensor.mean()),3)
-      runningAverageReward = factor * runningAverageReward + (1-factor) * float(negativeRewardsTerm.mean())
       ############################
 
       if printHere:
          if args.predictability_weight > 0:
           lm_losses = lm_lossTensor.data.cpu().numpy()
          autoencoder_losses = autoencoder_lossTensor.data.cpu().numpy()
-
          numericCPU = numeric.cpu().data.numpy()
-         numeric_noisedCPU = numeric_noised.cpu().data.numpy()
-         memory_hidden_CPU = memory_hidden[:,0,0].cpu().data.numpy()
-         memory_hidden_logit_per_wordtype_cpu = memory_hidden_logit_per_wordtype.cpu().data
-         attention_bilinear_term = attention_bilinear_term.cpu().data
-         numeric_embedded_cpu = numeric_embedded.cpu().data
+      
  #        print(("NONE", itos_total[numericCPU[0][0]]))
-#         for i in range((args.sequence_length+1)):
+         for i in range((args.sequence_length)-1):
+            print(i, "\t", round(float(autoencoder_losses[i][0]), 2), "\t", itos_total[numericCPU[i+1][0]], "\t", round(float(klLoss[i,0].sum()), 3))
             #print(autoencoder_losses[i][0] if i < args.sequence_length else "--", "\t", lm_losses[0][0] if args.predictability_weight > 0 and i == args.sequence_length else "---" , "\t", itos_total[numericCPU[i+1][0]],"\t", itos_total[numeric_noisedCPU[i+1][0]],"\t", memory_hidden_CPU[i+1],"\t", float(baselineValues[0]) if i == args.sequence_length else "","\t", float(numeric_embedded_cpu[i+1,0,0]),"\t", float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]),"\t", float(attention_bilinear_term[i+1,0,0]))
 #            print((, itos_total[numericCPU[i+1][0]], itos_total[numeric_noisedCPU[i+1][0]], memory_hidden_CPU[i+1]))
 
@@ -747,93 +715,20 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
  #        if args.predictability_weight > 0:
 #          print("EMPIRICAL DEVIATION FROM BASELINE", (lm_lossTensor-baselineValues).abs().mean())
                
-         print("PREDICTION_LOSS", runningAveragePredictionLoss, "RECONSTRUCTION_LOSS", runningAverageReconstructionLoss, "\tTERM2", round(float(negativeRewardsTerm2.mean()),3), "\tAVERAGE_RETENTION", expectedRetentionRate, "\tDEVIATION FROM BASELINE", runningAverageBaselineDeviation, "\tREWARD", runningAverageReward, "\tENTROPY", float(entropy))
-         print(dual_weight)
+         print("PREDICTION_LOSS", runningAveragePredictionLoss, "RECONSTRUCTION_LOSS", runningAverageReconstructionLoss, "\tAVERAGE_KL", expectedKLLoss, "\tDUAL_WEIGHT", float(dual_weight))
       if updatesCount % 5000 == 0:
          print("updatesCount", updatesCount, updatesCount/maxUpdates)
-         print("\t".join([str(x) for x in ("PREDICTION_LOSS", runningAveragePredictionLoss, "RECONSTRUCTION_LOSS", runningAverageReconstructionLoss, "\tTERM2", round(float(negativeRewardsTerm2.mean()),3), "\tAVERAGE_RETENTION", expectedRetentionRate, "\tDEVIATION FROM BASELINE", runningAverageBaselineDeviation, "\tREWARD", runningAverageReward, "\tENTROPY", float(entropy))]), file=sys.stderr)
+         print("\t".join([str(x) for x in ("PREDICTION_LOSS", runningAveragePredictionLoss, "RECONSTRUCTION_LOSS", runningAverageReconstructionLoss, "\tAVERAGE_KL", expectedKLLoss)]), file=sys.stderr)
 
       #runningAveragePredictionLoss = 0.95 * runningAveragePredictionLoss + (1-0.95) * float(negativeRewardsTerm1.mean())
       
       return loss, product(target_tensor_full.size())
 
-
-def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=False, computeProbabilityStartingFrom=0):
-      """ Forward pass through the entire model
-        @param numeric
-      """
-      global hidden
-      global beginning
-      global beginning_chars
-      if True:
-          hidden = None
-          beginning = zeroBeginning
-
-      assert numeric.size() == numeric_noised.size(), (numeric.size(), numeric_noised.size())
-
-      ######################################################
-      ######################################################
-      # Run Loss Model
-      if expandReplicates:
-         assert False
-         numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
-#      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
-#      numeric = torch.cat([beginning, numeric], dim=0)
-      embedded_everything = lm.word_embeddings(numeric)
-
-      # Positional embeddings
-      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
-      embedded_positions = memory.positional_embeddings(numeric_positions)
-      numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
-
-      # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
-      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
-
-  #    print(embedded_positions.size(), embedded_everything.size())
- #     print(memory.memory_bilinear(embedded_positions).size())
-#      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
-
-      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
-      memory_hidden = memory.sigmoid(memory_hidden_logit)
- #     if provideAttention:
-#         return memory_hidden
-
-#      # Baseline predictions for prediction loss
- #     baselineValues = 10*memory.sigmoid(memory.perword_baseline_outer(memory.relu(memory.perword_baseline_inner(embedded_everything[-1].detach())))).squeeze(1)
-  #    assert tuple(baselineValues.size()) == (NUMBER_OF_REPLICATES,)
-
-
-      # NOISE MEMORY ACCORDING TO MODEL
-      memory_filter = (numeric_noised != 0)
-#      print(memory_filter.size(), memory_hidden.size())
-      bernoulli_logprob = torch.where(memory_filter, torch.log(memory_hidden.squeeze(2)+1e-10), torch.log(1-memory_hidden.squeeze(2)+1e-10))
-
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
-
-      # Disregard likelihood computation on punctuation
-      bernoulli_logprob = torch.where(punctuation, 0*bernoulli_logprob, bernoulli_logprob)
-      # Penalize forgotten punctuation
-      bernoulli_logprob = torch.where(torch.logical_and(punctuation, memory_filter==0), 0*bernoulli_logprob-10.0, bernoulli_logprob)
-
-#      bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
-
-     # Run the following lines as a sanity check
-#      print(numeric.size(), numeric_noised.size())
-#      for i in range(computeProbabilityStartingFrom, bernoulli_logprob.size()[0]):
-#        print(i, itos_total[int(numeric[i,0])], itos_total[int(numeric_noised[i,0])], bernoulli_logprob[i,0])
-
-
-      # SPECIFICALLY FOR THIS APPLICATION (where the last element in the sequence is the first future word) CUT OFF, TO REDUCE EXTRANEOUS VARIANCE, OR POTENTIALLY PRECLUDE WEIRRD VALUES AS THAT IS ALWAYS OBLIGATORILY NOISED: I'm cutting of the final value by restricting up to -1.
-      return bernoulli_logprob[computeProbabilityStartingFrom:-1].sum(dim=0)
-
-
-
-
 def backward(loss, printHere):
       """ An optimization step for the resource-rational objective function """
       # Set stored gradients to zero
+      if args.predictability_weight> 0:
+         optim_lm.zero_grad()
       optim_autoencoder.zero_grad()
       optim_memory.zero_grad()
 
@@ -850,6 +745,8 @@ def backward(loss, printHere):
          torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
 
       # Adapt parameters
+      if args.predictability_weight> 0:
+         optim_lm.step()
       optim_autoencoder.step()
       optim_memory.step()
 
@@ -1970,7 +1867,7 @@ assert False
 with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.myID), "w") as outFile:
    print(args, file=outFile)
    print(runningAverageReward, file=outFile)
-   print(expectedRetentionRate, file=outFile)
+   print(expectedKLLoss, file=outFile)
    print(runningAverageBaselineDeviation, file=outFile)
    print(runningAveragePredictionLoss, file=outFile)
    print(runningAverageReconstructionLoss, file=outFile)
