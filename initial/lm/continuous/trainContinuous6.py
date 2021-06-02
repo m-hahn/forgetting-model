@@ -1,4 +1,3 @@
-assert False, "Focus on trainContinuous2.py"
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -44,13 +43,13 @@ parser.add_argument("--weight_dropout_out", type=float, default=random.choice([0
 parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.01]))
 
 ## Learning Rates
-parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.1, 0.01, 0.01, 0.001]))  # Can also use 0.0001, which leads to total convergence to deterministic solution withtin maximum iterations (March 25, 2021)   #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
-parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.2, 0.1, 0.1, 0.1, 0.01])) # 0.0001, 
+parser.add_argument("--learning_rate_adam", type = float, default= random.choice([ 0.0001]))  # Can also use 0.0001, which leads to total convergence to deterministic solution withtin maximum iterations (March 25, 2021)   #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
-parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.1, 0.1, 0.1, 0.2, 0.3]))
+#parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.001, 0.01, 0.02, 0.05, 0.1, 0.1, 0.2, 0.3]))
 parser.add_argument("--momentum", type=float, default=random.choice([0.0])) 
 parser.add_argument("--entropy_weight", type=float, default=random.choice([0.0])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
 
+parser.add_argument("--clip_memory", type=bool, default=random.choice([True, False])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
 
 
 # Control
@@ -58,7 +57,7 @@ parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.00005, 0.0001, 0.0002, 0.0003, 0.0005, 0.0007, 0.0008, 0.001])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
 
 # Lambda and Delta Parameters
-parser.add_argument("--retentionTarget", type=float, default=1000)
+parser.add_argument("--tradeoffFactor", type=float, default=random.choice([0.0001, 0.00001, 0.001, 0.000001]))
 parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0]))
 
 
@@ -434,8 +433,8 @@ def prepareDatasetChunks(data, train=True):
 class MemoryModel():
   """ Noise Model """
   def __init__(self):
-     self.hiddenToLogSDHidden = torch.nn.Linear(2*args.word_embedding_size + 256, 2*args.word_embedding_size).cuda()
-     self.cellToMean = torch.nn.Linear(2*args.word_embedding_size + 256, 2*args.word_embedding_size).cuda()
+     self.hiddenToLogSDHidden = torch.nn.Linear(2*args.word_embedding_size, 2*args.word_embedding_size).cuda()
+     self.cellToMean = torch.nn.Linear(2*args.word_embedding_size, 2*args.word_embedding_size).cuda()
 
      self.hiddenToLogSDHidden.bias.data.fill_(0)
      self.cellToMean.bias.data.fill_(0)
@@ -444,9 +443,8 @@ class MemoryModel():
      self.cellToMean.weight.data.fill_(0)
 
      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
-     self.positional_embeddings = torch.nn.Embedding(num_embeddings=args.sequence_length+2, embedding_dim=256).cuda()
 
-     self.modules_memory = [self.word_embeddings, self.positional_embeddings, self.hiddenToLogSDHidden, self.cellToMean]
+     self.modules_memory = [self.word_embeddings, self.hiddenToLogSDHidden, self.cellToMean]
 
 #     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
 #     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
@@ -467,13 +465,11 @@ class MemoryModel():
 
       # Positional embeddings
       numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
-      embedded_positions = memory.positional_embeddings(numeric_positions)
 
       # Retention probabilities
 #      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
  #     memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
 
-      embedded_everything = torch.cat([embedded_positions.expand(-1, embedded_everything.size()[1], -1), embedded_everything], dim=2)
 
       encodedEpsilonForAllSteps = standardNormal.sample().view((args.sequence_length+1), args.batchSize, -1)
 
@@ -507,8 +503,8 @@ parameters_memory_cached = [x for x in parameters_memory()]
 
 # Set up optimization
 
-dual_weight = torch.cuda.FloatTensor([1.0])
-dual_weight.requires_grad=True
+#dual_weight = torch.cuda.FloatTensor([1.0])
+#dual_weight.requires_grad=True
 
 
 
@@ -519,6 +515,13 @@ def parameters_autoencoder():
    for module in autoencoder.modules_autoencoder:
        for param in module.parameters():
             yield param
+
+def parameters_autoencoder_memory():
+  for modules in [autoencoder.modules_autoencoder, memory.modules_memory]:
+    for module in modules:
+       for param in module.parameters():
+            yield param
+
 
 
 
@@ -531,10 +534,7 @@ parameters_lm_cached = [x for x in parameters_lm()]
 
 
 assert not TRAIN_LM
-optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
-
+optim_autoencoder_memory = torch.optim.Adam(parameters_autoencoder_memory(), lr=args.learning_rate_adam) # 0.02, 0.9
 ###############################################3
 
 
@@ -675,7 +675,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 #      retentionTarget = 10000.0
       klLossAverage = klLoss.sum(dim=2).mean()
 #      print(klLossAverage, retentionTarget, dual_weight)
-      loss += (dual_weight.mean() * (klLossAverage.view(1) + (-args.retentionTarget)).mean())
+      loss += args.tradeoffFactor * klLossAverage
 
 
       ############################
@@ -715,7 +715,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
  #        if args.predictability_weight > 0:
 #          print("EMPIRICAL DEVIATION FROM BASELINE", (lm_lossTensor-baselineValues).abs().mean())
                
-         print("PREDICTION_LOSS", runningAveragePredictionLoss, "RECONSTRUCTION_LOSS", runningAverageReconstructionLoss, "\tAVERAGE_KL", expectedKLLoss, "\tDUAL_WEIGHT", float(dual_weight))
+         print("PREDICTION_LOSS", runningAveragePredictionLoss, "RECONSTRUCTION_LOSS", runningAverageReconstructionLoss, "\tAVERAGE_KL", expectedKLLoss)
       if updatesCount % 5000 == 0:
          print("updatesCount", updatesCount, updatesCount/maxUpdates)
          print("\t".join([str(x) for x in ("PREDICTION_LOSS", runningAveragePredictionLoss, "RECONSTRUCTION_LOSS", runningAverageReconstructionLoss, "\tAVERAGE_KL", expectedKLLoss)]), file=sys.stderr)
@@ -729,17 +729,15 @@ def backward(loss, printHere):
       # Set stored gradients to zero
       if args.predictability_weight> 0:
          optim_lm.zero_grad()
-      optim_autoencoder.zero_grad()
-      optim_memory.zero_grad()
+      optim_autoencoder_memory.zero_grad()
 
-      if dual_weight.grad is not None:
-         dual_weight.grad.data.fill_(0.0)
       if printHere:
          print(loss)
       # Calculate new gradients
       loss.backward()
       # Gradient clipping
-      torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
+      if args.clip_memory:
+         torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
       if TRAIN_LM:
          assert False
          torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
@@ -747,14 +745,8 @@ def backward(loss, printHere):
       # Adapt parameters
       if args.predictability_weight> 0:
          optim_lm.step()
-      optim_autoencoder.step()
-      optim_memory.step()
+      optim_autoencoder_memory.step()
 
-#      print(dual_weight.grad)
-      dual_weight.data.add_(args.dual_learning_rate*dual_weight.grad.data)
- #     print("W", dual_weight)
-      dual_weight.data.clamp_(min=0)
-  #    print("W", dual_weight)
 
 lossHasBeenBad = 0
 
@@ -1798,7 +1790,6 @@ for epoch in range(1000):
           print("Dev losses")
           print(devLosses)
           print("Words per sec "+str(trainChars/(time.time()-startTime)))
-          print(args.learning_rate_memory, args.learning_rate_autoencoder)
           print("Slurm", os.environ["SLURM_JOB_ID"])
           print(lastSaved)
           print(__file__)

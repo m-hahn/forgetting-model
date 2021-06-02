@@ -1,4 +1,3 @@
-assert False, "Focus on trainContinuous2.py"
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -44,13 +43,13 @@ parser.add_argument("--weight_dropout_out", type=float, default=random.choice([0
 parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.01]))
 
 ## Learning Rates
-parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.1, 0.01, 0.01, 0.001]))  # Can also use 0.0001, which leads to total convergence to deterministic solution withtin maximum iterations (March 25, 2021)   #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
-parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.2, 0.1, 0.1, 0.1, 0.01])) # 0.0001, 
+parser.add_argument("--learning_rate_adam", type = float, default= random.choice([0.00001, 0.0001, 0.0001, 0.0001, 0.001]))  # Can also use 0.0001, which leads to total convergence to deterministic solution withtin maximum iterations (March 25, 2021)   #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.1, 0.1, 0.1, 0.2, 0.3]))
 parser.add_argument("--momentum", type=float, default=random.choice([0.0])) 
 parser.add_argument("--entropy_weight", type=float, default=random.choice([0.0])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
 
+parser.add_argument("--clip_memory", type=bool, default=random.choice([True, False])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
 
 
 # Control
@@ -520,6 +519,13 @@ def parameters_autoencoder():
        for param in module.parameters():
             yield param
 
+def parameters_autoencoder_memory():
+  for modules in [autoencoder.modules_autoencoder, memory.modules_memory]:
+    for module in modules:
+       for param in module.parameters():
+            yield param
+
+
 
 
 def parameters_lm():
@@ -531,10 +537,7 @@ parameters_lm_cached = [x for x in parameters_lm()]
 
 
 assert not TRAIN_LM
-optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
-
+optim_autoencoder_memory = torch.optim.Adam(parameters_autoencoder_memory(), lr=args.learning_rate_adam) # 0.02, 0.9
 ###############################################3
 
 
@@ -729,8 +732,7 @@ def backward(loss, printHere):
       # Set stored gradients to zero
       if args.predictability_weight> 0:
          optim_lm.zero_grad()
-      optim_autoencoder.zero_grad()
-      optim_memory.zero_grad()
+      optim_autoencoder_memory.zero_grad()
 
       if dual_weight.grad is not None:
          dual_weight.grad.data.fill_(0.0)
@@ -739,7 +741,8 @@ def backward(loss, printHere):
       # Calculate new gradients
       loss.backward()
       # Gradient clipping
-      torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
+      if args.clip_memory:
+         torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
       if TRAIN_LM:
          assert False
          torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
@@ -747,8 +750,7 @@ def backward(loss, printHere):
       # Adapt parameters
       if args.predictability_weight> 0:
          optim_lm.step()
-      optim_autoencoder.step()
-      optim_memory.step()
+      optim_autoencoder_memory.step()
 
 #      print(dual_weight.grad)
       dual_weight.data.add_(args.dual_learning_rate*dual_weight.grad.data)
@@ -1798,7 +1800,6 @@ for epoch in range(1000):
           print("Dev losses")
           print(devLosses)
           print("Words per sec "+str(trainChars/(time.time()-startTime)))
-          print(args.learning_rate_memory, args.learning_rate_autoencoder)
           print("Slurm", os.environ["SLURM_JOB_ID"])
           print(lastSaved)
           print(__file__)
