@@ -1,16 +1,22 @@
+
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(lme4)
+
+
+
 gulo = read.csv("/u/scr/mhahn/log-gulordava.tsv", sep="\t")
+
+
+
+write.table(gulo %>% group_by(Noun, Region, Condition) %>% summarise(Surprisal = mean(Surprisal)), file="output/gulordava-means.tsv")
 
 txl = read.csv("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN2Stims_3_W_TXL_ZERO.py_858805767_ZeroLoss", sep="\t")
 
 gpt2m = read.csv("/sailhome/mhahn/scr/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN2Stims_3_W_GPT2M_ZERO.py_503159126_ZeroLoss", sep="\t")
 
 gpt2xl = read.csv("/sailhome/mhahn/scr/reinforce-logs-both-short/full-logs-tsv-perItem/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN2Stims_3_W_GPT2XL_ZERO.py_931606655_ZeroLoss", sep="\t")
-
-
-library(ggplot2)
-library(tidyr)
-library(dplyr)
-library(lme4)
 
 
 model = lmer(SurprisalReweighted ~ RC + compatible + (1|Noun) + (1+compatible|Item), data=gulo %>% filter(!grepl("NoSC", Condition)) %>% mutate(RC= grepl("RC", Condition), compatible = grepl("_co", Condition)))
