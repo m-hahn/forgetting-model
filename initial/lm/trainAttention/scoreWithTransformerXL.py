@@ -38,6 +38,8 @@ print("Finished loading TransformerXL")
 #with open("/jagupard27/scr0/mhahn/memory/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_CondTransformerXL.py_749792590_Model.txt_SURP", "w") as outFile:
 #  for w in range(20):
 def scoreSentences(batch):
+       #print("RECEIVING INPUT")
+       #print(batch[0])
        tensors = [tokenizer.encode(" "+text, return_tensors='pt', add_space_before_punct_symbol=True) for text in batch] # below using bos, so should be no need for adding "<|endoftext|> "+
    #    print(tensors)
 #       print(tokenizer.decode(50256))
@@ -50,14 +52,15 @@ def scoreSentences(batch):
        tensors = torch.cat(tensors, dim=0)
        predictions, _ = model(tensors.cuda())
 #       print(predictions.size())      
-       surprisals = torch.nn.CrossEntropyLoss(reduction='none')(predictions[:,:-1].contiguous().view(-1, 50257), tensors[:,1:].contiguous().view(-1).cuda()).view(len(batch), -1)
+       #print(predictions.size())
+       surprisals = torch.nn.CrossEntropyLoss(reduction='none')(predictions[:,:-1].contiguous().view(-1, 267735), tensors[:,1:].contiguous().view(-1).cuda()).view(len(batch), -1)
        surprisals = surprisals.detach().cpu()
  #      print(surprisals, surprisals.size())
        surprisalsCollected = []
        for batchElem in range(len(batch)):
          #print(tensors[batchElem])
          words = [[]]
-         for q in range(1, maxLength):
+         for q in range(1, maxLength+1):
             word = tokenizer.decode(int(tensors[batchElem][q]))
             if word == '<|endoftext|>':
                 break
@@ -72,6 +75,8 @@ def scoreSentences(batch):
          surprisalsPast = sum([sum(x[1] for x in y) for y in words[:-1]])
          surprisalsFirstFutureWord = sum(x[1] for x in words[-1])
          surprisalsCollected.append({"past" : surprisalsPast, "next" : surprisalsFirstFutureWord})
+       print(words[0])
+#       quit()
        return surprisalsCollected
 #         print("\t".join([batch[batchElem], str( sum([sum(x[1] for x in y) for y in words[:-1]])), str(sum(x[1] for x in words[-1]))]))
  #      quit()  
