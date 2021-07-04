@@ -1580,6 +1580,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
               surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 2)
               surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 2)
+              assert (surprisals_nextWord < 50).all(), totalSurprisal
 
 #              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*2)
 #              assert resultNumeric.size()[0] == args.sequence_length+1
@@ -1648,7 +1649,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               for q in range(0, min(3*2, resultNumeric.size()[1]),  2):
                   print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//2]))
               print("SURPRISAL", NOUN, sentenceList[0], condition+"_"+compatible, i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
+              assert reweightedSurprisalsMean < 50, reweightedSurprisalsMean
               surprisalReweightedByRegions[condition+"_"+compatible][regions[i]] += float( reweightedSurprisalsMean)
+              assert surprisalOfNextWord < 50, surprisalOfNextWord
               surprisalByRegions[condition+"_"+compatible][regions[i]] += float( surprisalOfNextWord)
               surprisalCountByRegions[condition+"_"+compatible][regions[i]] += 1
 

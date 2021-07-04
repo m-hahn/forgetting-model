@@ -65,7 +65,7 @@ def scoreSentences(batch):
             if word == '<|endoftext|>':
                 break
          #   print(word)
-            if word.startswith(" ") or q == 0:
+            if True: #word.startswith(" ") or q == 0: # TransformerXL has a word-level vocabulary, not subwords
                 words.append([])
             words[-1].append((word, float(surprisals[batchElem][q-1])))
         #    print(q, "#"+word+"#", surprisals[batchElem][q-1])
@@ -75,8 +75,9 @@ def scoreSentences(batch):
          surprisalsPast = sum([sum(x[1] for x in y) for y in words[:-1]])
          surprisalsFirstFutureWord = sum(x[1] for x in words[-1])
          surprisalsCollected.append({"past" : surprisalsPast, "next" : surprisalsFirstFutureWord})
-       print(words[0])
-#       quit()
+ #      print(words[0])
+  #     print(surprisalsCollected[0])
+   #    quit()
        return surprisalsCollected
 #         print("\t".join([batch[batchElem], str( sum([sum(x[1] for x in y) for y in words[:-1]])), str(sum(x[1] for x in words[-1]))]))
  #      quit()  

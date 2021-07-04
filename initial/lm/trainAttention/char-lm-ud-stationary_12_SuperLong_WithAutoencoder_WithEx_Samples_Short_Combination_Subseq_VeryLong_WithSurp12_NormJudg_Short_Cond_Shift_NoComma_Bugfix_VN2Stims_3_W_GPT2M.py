@@ -1652,7 +1652,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               surprisalByRegions[condition+"_"+compatible][regions[i]] += float( surprisalOfNextWord)
               surprisalCountByRegions[condition+"_"+compatible][regions[i]] += 1
 
-              assert sentenceList[-1] in ["o","v"]
+              #assert sentenceList[-1] in ["o","v"]
               print("\t".join([str(w) for w in [NOUN, (sentenceList[-1]+"_"+sentenceList[0]+"_"+sentenceList[1]).replace("the","").replace(" ", ""), regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere), surprisalsWithThat, surprisalsWithoutThat]]), file=outFile)
 #                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
 

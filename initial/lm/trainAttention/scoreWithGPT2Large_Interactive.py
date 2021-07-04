@@ -74,7 +74,7 @@ for text in sys.stdin:
          surprisalsPast = sum([sum(x[1] for x in y) for y in words[:-1]])
          surprisalsFirstFutureWord = sum(x[1] for x in words[-1])
          if batchElem == 0:
-            print(words)
+            print(words, "Total", surprisalsPast+surprisalsFirstFutureWord)
          else:
             assert False
 #         surprisalsCollected.append({"past" : surprisalsPast, "next" : surprisalsFirstFutureWord})
