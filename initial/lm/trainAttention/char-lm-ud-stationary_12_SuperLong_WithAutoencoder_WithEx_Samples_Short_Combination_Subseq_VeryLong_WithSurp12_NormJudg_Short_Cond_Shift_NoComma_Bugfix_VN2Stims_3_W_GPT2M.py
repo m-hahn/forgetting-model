@@ -77,7 +77,7 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate > 0.0
+assert args.deletion_rate > 0.4
 assert args.deletion_rate < 0.8
 
 
@@ -868,10 +868,10 @@ updatesCount = 0
 
 maxUpdates = 200000 if args.tuning == 1 else 10000000000
 
-def showAttention(word):
+def showAttention(word, POS=""):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
     attention = attention[:,0,0]
-    print(*(["SCORES", word, "\t"]+[round(x,2) for x in list(attention.cpu().data.numpy())]))
+    print(*(["SCORES", word, "\t"]+[round(x,2) for x in list(attention.cpu().data.numpy())] + (["POS="+POS] if POS != "" else [])))
 
 
 
@@ -1794,18 +1794,71 @@ for epoch in range(1000):
 #         getPerNounReconstructionsVerb()
 #         getPerNounReconstructions2Verbs()
          print("=========================")
-         showAttention("the")
+         # Determiner
+         showAttention("the", POS="Det")
+         showAttention("a", POS="Det")
+         # Verbs
          showAttention("was")
-         showAttention("that")
-         showAttention("fact")
-         showAttention("information")
-         showAttention("report")
-         showAttention("belief")
-         showAttention("finding")
-         showAttention("prediction")
-         showAttention("of")
-         showAttention("by")
-         showAttention("about")
+         showAttention("pleased", POS="Verb")
+         showAttention("invited", POS="Verb")
+         showAttention("annoyed", POS="Verb")
+         showAttention("did", POS="Verb")
+         showAttention("failed", POS="Verb")
+         showAttention("trusted", POS="Verb")
+         showAttention("bothered", POS="Verb")
+         showAttention("admired", POS="Verb")
+         showAttention("impressed", POS="Verb")
+         showAttention("shocked", POS="Verb")
+         showAttention("appointed", POS="Verb")
+         showAttention("supported", POS="Verb")
+         showAttention("looked", POS="Verb")
+         # that
+         showAttention("that", POS="that")
+         # Noun
+         showAttention("fact", POS="Verb")
+         showAttention("information", POS="Verb")
+         showAttention("report", POS="Noun")
+         showAttention("belief", POS="Noun")
+         showAttention("finding", POS="Noun")
+         showAttention("prediction", POS="Noun")
+         showAttention("musician", POS="Noun")
+         showAttention("surgeon", POS="Noun")
+         showAttention("survivor", POS="Noun")
+         showAttention("guide", POS="Noun")
+         showAttention("fans", POS="Noun")
+         showAttention("sponsor", POS="Noun")
+         showAttention("detective", POS="Noun")
+         showAttention("time", POS="Noun")
+         showAttention("years", POS="Noun")
+         showAttention("name", POS="Noun")
+         showAttention("country", POS="Noun")
+         showAttention("school", POS="Noun")
+         showAttention("agreement", POS="Noun")
+         showAttention("series", POS="Noun")
+         showAttention("producers", POS="Noun")
+         showAttention("concerts", POS="Noun")
+         showAttention("classification", POS="Noun")
+         showAttention("house", POS="Noun")
+         showAttention("circle", POS="Noun")
+         showAttention("balance", POS="Noun")
+         showAttention("cartoon", POS="Noun")
+         showAttention("dancers", POS="Noun")
+         showAttention("immigrant", POS="Noun")
+         showAttention("teacher", POS="Noun")
+         showAttention("doctor", POS="Noun")
+         showAttention("patient", POS="Noun")
+         # Preposition
+         showAttention("of", POS="Prep")
+         showAttention("for", POS="Prep")
+         showAttention("to", POS="Prep")
+         showAttention("in", POS="Prep")
+         showAttention("by", POS="Prep")
+         showAttention("about", POS="Prep")
+         # Pronouns
+         showAttention("you", POS="Pron")
+         showAttention("we", POS="Pron")
+         showAttention("he", POS="Pron")
+         showAttention("she", POS="Pron")
          sys.stdout = STDOUT
 
 #      if updatesCount % 10000 == 0:
