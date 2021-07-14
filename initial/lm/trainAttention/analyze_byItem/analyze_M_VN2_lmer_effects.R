@@ -54,6 +54,9 @@ for(pred in unique(data$predictability_weight)) {
       sink("analyze_M_VN2_lmer_effects.R.txt", append=TRUE)
        cat(paste(pred, del, coef(summary(model2))[2,1], coef(summary(model2))[3,1], coef(summary(model2))[4,1], coef(summary(model2))[5,1], coef(summary(model2))[6,1], coef(summary(model2))[7,1], "\n", sep="\t"))
        sink()
+      sink("analyze_M_VN2_lmer_effects.R_tvalues.txt", append=TRUE)
+       cat(paste(pred, del, coef(summary(model2))[2,3], coef(summary(model2))[3,3], coef(summary(model2))[4,3], coef(summary(model2))[5,3], coef(summary(model2))[6,3], coef(summary(model2))[7,3], "\n", sep="\t"))
+       sink()
     }
   }
 }
