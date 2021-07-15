@@ -390,10 +390,10 @@ lm = LanguageModel()
 class MemoryModel():
   """ Noise Model """
   def __init__(self):
-     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
-     self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
-     self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
+#     self.memory_mlp_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+ #    self.memory_mlp_inner_bilinear = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
+#     self.memory_mlp_inner_from_pos = torch.nn.Linear(256, 500).cuda()
+ #    self.memory_mlp_outer = torch.nn.Linear(500, 1).cuda()
      self.sigmoid = torch.nn.Sigmoid()
      self.relu = torch.nn.ReLU()
      self.positional_embeddings = torch.nn.Embedding(num_embeddings=args.sequence_length+2, embedding_dim=256).cuda()
@@ -401,9 +401,9 @@ class MemoryModel():
      self.memory_word_pos_inter.weight.data.fill_(0)
      self.perword_baseline_inner = torch.nn.Linear(2*args.word_embedding_size, 500).cuda()
      self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
-     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
-     self.memory_bilinear.weight.data.fill_(0)
-     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
+#     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
+ #    self.memory_bilinear.weight.data.fill_(0)
+     self.modules_memory = [self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter]
 
 
 memory = MemoryModel()
@@ -584,15 +584,15 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
       # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
-      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
+#      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
+#      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
 
   #    print(embedded_positions.size(), embedded_everything.size())
  #     print(memory.memory_bilinear(embedded_positions).size())
 #      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
+#      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
 
-      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
+      memory_hidden_logit = numeric_embedded 
       memory_hidden = memory.sigmoid(memory_hidden_logit)
       if provideAttention:
          return memory_hidden
@@ -728,10 +728,10 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
          numericCPU = numeric.cpu().data.numpy()
          numeric_noisedCPU = numeric_noised.cpu().data.numpy()
-         memory_hidden_CPU = memory_hidden[:,0,0].cpu().data.numpy()
-         memory_hidden_logit_per_wordtype_cpu = memory_hidden_logit_per_wordtype.cpu().data
-         attention_bilinear_term = attention_bilinear_term.cpu().data
-         numeric_embedded_cpu = numeric_embedded.cpu().data
+ #        memory_hidden_CPU = memory_hidden[:,0,0].cpu().data.numpy()
+#         memory_hidden_logit_per_wordtype_cpu = memory_hidden_logit_per_wordtype.cpu().data
+#         attention_bilinear_term = attention_bilinear_term.cpu().data
+#         numeric_embedded_cpu = numeric_embedded.cpu().data
  #        print(("NONE", itos_total[numericCPU[0][0]]))
 #         for i in range((args.sequence_length+1)):
             #print(autoencoder_losses[i][0] if i < args.sequence_length else "--", "\t", lm_losses[0][0] if args.predictability_weight > 0 and i == args.sequence_length else "---" , "\t", itos_total[numericCPU[i+1][0]],"\t", itos_total[numeric_noisedCPU[i+1][0]],"\t", memory_hidden_CPU[i+1],"\t", float(baselineValues[0]) if i == args.sequence_length else "","\t", float(numeric_embedded_cpu[i+1,0,0]),"\t", float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]),"\t", float(attention_bilinear_term[i+1,0,0]))
@@ -784,15 +784,15 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
       numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
 
       # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
-      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
+#      memory_byword_inner = memory.memory_mlp_inner(embedded_everything.detach())
+ #     memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
 
   #    print(embedded_positions.size(), embedded_everything.size())
  #     print(memory.memory_bilinear(embedded_positions).size())
 #      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
+#      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2)).transpose(1,2)
 
-      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
+      memory_hidden_logit = numeric_embedded #+ memory_hidden_logit_per_wordtype + attention_bilinear_term
       memory_hidden = memory.sigmoid(memory_hidden_logit)
  #     if provideAttention:
 #         return memory_hidden
@@ -1465,7 +1465,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
     numberOfSamples = 12
-    import scoreWithGPT2Large as scoreWithGPT2
+    import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
 #    topNouns = ["fact", "report"]
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
