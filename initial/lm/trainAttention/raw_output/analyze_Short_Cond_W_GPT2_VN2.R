@@ -50,18 +50,26 @@ data$HasSCHasRC = (paste(data$HasSC, data$HasRC, sep="_"))
 plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(predictability_weight~deletion_rate) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
                                 "TRUE_FALSE"="#00BA38",
                                 "TRUE_TRUE"="#619CFF")) 
-ggsave(plot, file="figures/predictions-surprisal.pdf", width=5, height=5)
+ggsave(plot, file="figures/predictions-surprisal_VN.pdf", width=5, height=5)
 
 plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC,  predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted)) %>% mutate(ThatFractionReweighted=ifelse(HasSC, ThatFractionReweighted, NA)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(predictability_weight~deletion_rate) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Posterior Belief Recovering 'that'") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
                                 "TRUE_FALSE"="#00BA38",
                                 "TRUE_TRUE"="#619CFF")) 
-ggsave(plot, file="figures/predictions-that.pdf", width=5, height=5)
+ggsave(plot, file="figures/predictions-that_VN.pdf", width=5, height=5)
 
 
-plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
+plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + theme_bw() + theme(legend.position = "none") + xlab("Embedding Bias") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
                                 "TRUE_FALSE"="#00BA38",
                                 "TRUE_TRUE"="#619CFF")) 
-ggsave(plot, file="figures/conceptual-predictions-surprisal.pdf", width=3, height=3)
+ggsave(plot, file="figures/conceptual-predictions-surprisal_VN.pdf", width=2, height=2)
+
+
+plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC,  Condition, Noun, Ratio) %>% summarise(ThatFractionReweighted=mean(ThatFractionReweighted)) %>% mutate(ThatFractionReweighted=ifelse(HasSC, ThatFractionReweighted, NA)), aes(x=Ratio, y=ThatFractionReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Posterior Belief Recovering 'that'") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
+                                "TRUE_FALSE"="#00BA38",
+                                "TRUE_TRUE"="#619CFF")) 
+ggsave(plot, file="figures/conceptual-predictions-that_VN.pdf", width=5, height=5)
+
+
 
 
 plot = ggplot(unique(data %>% filter(Region == "V1_0") %>% select(predictability_weight, deletion_rate, ID)) %>% group_by(predictability_weight, deletion_rate) %>% summarise(Models=NROW(ID)), aes(x=deletion_rate, y=predictability_weight, fill=Models)) + geom_tile() + scale_fill_gradient2()
