@@ -1288,7 +1288,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
-              pointWhereToStart = args.sequence_length - len(context.split(" ")) - i - 1
+              pointWhereToStart = max(0, args.sequence_length - len(context.split(" ")) - i - 1) # some sentences are too long
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
      #         print(i, " ########### ", SANITY, VERBS)
@@ -1704,7 +1704,7 @@ for epoch in range(1000):
       if updatesCount == maxUpdates:
 
        # Record calibration for the acceptability judgments
-       #getTotalSentenceSurprisalsCalibration(SANITY="Model")
+       getTotalSentenceSurprisalsCalibration(SANITY="Model")
        
        # Record reconstructions and surprisals
        with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
