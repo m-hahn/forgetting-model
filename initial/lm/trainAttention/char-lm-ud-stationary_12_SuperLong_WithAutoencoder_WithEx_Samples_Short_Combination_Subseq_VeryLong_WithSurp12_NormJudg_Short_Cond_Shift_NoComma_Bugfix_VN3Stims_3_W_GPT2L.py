@@ -1273,7 +1273,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
     assert VERBS in [1,2]
 #    print(plain_lm) 
     numberOfSamples = 12
-    import scoreWithGPT2Medium as scoreWithGPT2
+    import scoreWithGPT2Large as scoreWithGPT2
     with torch.no_grad():
      with open("/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
       print("\t".join(["Sentence", "Region", "Word", "Surprisal", "SurprisalReweighted"]), file=outFile)
@@ -1405,7 +1405,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
     numberOfSamples = 12
-    import scoreWithGPT2Medium as scoreWithGPT2
+    import scoreWithGPT2Large as scoreWithGPT2
     global topNouns
 #    topNouns = ["fact", "report"]
     with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") if SANITY != "ModelTmp" else sys.stdout as outFile:
