@@ -1200,7 +1200,7 @@ def encodeContextCrop(inp, context):
      print(len(numerified))
      numerified = numerified[-args.sequence_length-1:]
      numerified = torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
-     return numerified
+     return numerified, sentence.split(" ")[-args.sequence_length-1:]
 
 def flatten(x):
    l = []
@@ -1209,66 +1209,29 @@ def flatten(x):
         l.append(z)
    return l
 
+with open("/u/scr/mhahn/Dundee/DundeeTreebankTokenized.csv", "r") as inFile:
+   dundee = [x.split("\t") for x in inFile.read().strip().split("\n")]
+   header = dundee[0]
+   header = dict(zip(header, list(range(len(header)))))
+   dundee = dundee[1:]
+
 
 calibrationSentences = []
 
-calibrationSentences.append("The divorcee has come to love her life ever since she got divorced.") 
-calibrationSentences.append("The mathematician at the banquet baffled the philosopher although she rarely needed anyone else's help.")
-calibrationSentences.append("The showman travels to different cities every month.")
-calibrationSentences.append("The roommate takes out the garbage every week.")
-calibrationSentences.append("The dragon wounded the knight although he was far too crippled to protect the princess.")
-calibrationSentences.append("The office-worker worked through the stack of files on his desk quickly.")
-calibrationSentences.append("The firemen at the scene apprehended the arsonist because there was a great deal of evidence pointing to his guilt.")
-calibrationSentences.append("During the season, the choir holds rehearsals in the church regularly.")
-calibrationSentences.append("The speaker who the historian offended kicked a chair after the talk was over and everyone had left the room.")
-calibrationSentences.append("The milkman punctually delivers the milk at the door every day.")
-calibrationSentences.append("The quarterback dated the cheerleader although this hurt her reputation around school.")
-calibrationSentences.append("The citizens of France eat oysters.")
-calibrationSentences.append("The bully punched the kid after all the kids had to leave to go to class.")
-calibrationSentences.append("After the argument, the husband ignored his wife.")
-calibrationSentences.append("The engineer who the lawyer who was by the elevator scolded blamed the secretary but nobody listened to his complaints.")
-calibrationSentences.append("The librarian put the book onto the shelf.")
-calibrationSentences.append("The photographer processed the film on time.")
-calibrationSentences.append("The spider that the boy who was in the yard captured scared the dog since it was larger than the average spider.")
-calibrationSentences.append("The sportsman goes jogging in the park regularly.")
-calibrationSentences.append("The customer who was on the phone contacted the operator because the new long-distance pricing plan was extremely inconvenient.")
-calibrationSentences.append("The private tutor explained the assignment carefully.")
-calibrationSentences.append("The audience who was at the club booed the singer before the owner of the bar could remove him from the stage.")
-calibrationSentences.append("The defender is constantly scolding the keeper.")
-calibrationSentences.append("The hippies who the police at the concert arrested complained to the officials while the last act was going on stage.")
-calibrationSentences.append("The natives on the island captured the anthropologist because she had information that could help the tribe.")
-calibrationSentences.append("The trainee knew that the task which the director had set for him was impossible to finish within a week.")
-calibrationSentences.append("The administrator who the nurse from the clinic supervised scolded the medic while a patient was brought into the emergency room.")
-calibrationSentences.append("The company was sure that its new product, which its researchers had developed, would soon be sold out.")
-calibrationSentences.append("The astronaut that the journalists who were at the launch worshipped criticized the administrators after he discovered a potential leak in the fuel tank.")
-calibrationSentences.append("The janitor who the doorman who was at the hotel chatted with bothered a guest but the manager decided not to fire him for it.")
-calibrationSentences.append("The technician at the show repaired the robot while people were taking a break for coffee.")
-calibrationSentences.append("The salesman feared that the printer which the customer bought was damaged.")
-calibrationSentences.append("The students studied the surgeon whenever he performed an important operation.")
-calibrationSentences.append("The locksmith can crack the safe easily.")
-calibrationSentences.append("The woman who was in the apartment hired the plumber despite the fact that he couldn't fix the toilet.")
-calibrationSentences.append("Yesterday the swimmer saw only a turtle at the beach.")
-calibrationSentences.append("The surgeon who the detective who was on the case consulted questioned the coroner because the markings on the body were difficult to explain.")
-calibrationSentences.append("The gangster who the detective at the club followed implicated the waitress because the police suspected he had murdered the shopkeeper.")
-calibrationSentences.append("During the party everybody was dancing to rock music.")
-calibrationSentences.append("The fans at the concert loved the guitarist because he played with so much energy.")
-calibrationSentences.append("The intern comforted the patient because he was in great pain.")
-calibrationSentences.append("The casino hired the daredevil because he was confident that everything would go according to plan.")
-calibrationSentences.append("The beggar is often scrounging for cigarettes.")
-calibrationSentences.append("The cartoonist who the readers supported pressured the dean because she thought that censorship was never appropriate.")
-calibrationSentences.append("The prisoner who the guard attacked tackled the warden although he had no intention of trying to escape.")
-calibrationSentences.append("The passer-by threw the cardboard box into the trash-can with great force.")
-calibrationSentences.append("The biker who the police arrested ran a light since he was driving under the influence of alcohol.")
-calibrationSentences.append("The scientists who were in the lab studied the alien while the blood sample was run through the computer.")
-calibrationSentences.append("The student quickly finished his homework assignments.")
-calibrationSentences.append("The environmentalist who the demonstrators at the rally supported calmed the crowd until security came and sent everyone home.")
-calibrationSentences.append("The producer shoots a new movie every year.")
-calibrationSentences.append("The rebels who were in the jungle captured the diplomat after they threatened to kill his family for not complying with their demands.")
-calibrationSentences.append("Dinosaurs ate other reptiles during the stone age.")
-calibrationSentences.append("The manager who the baker loathed spoke to the new pastry chef because he had instituted a new dress code for all employees.")
-calibrationSentences.append("The teacher doubted that the test that had taken him a long time to design would be easy to answer.")
-calibrationSentences.append("The cook who the servant in the kitchen hired offended the butler and then left the mansion early to see a movie at the local theater.")
+for i in range(len(dundee)):
+    line = dundee[i]
+    Itemno, WNUM, SentenceID, ID, WORD, Token = line
+    SentenceID = (SentenceID)
+    if i == 0 or SentenceID != dundee[i-1][header["SentenceID"]]:
+        calibrationSentences.append([])
+        print(SentenceID, dundee[i-1][header["SentenceID"]])
 
+    if i > 0 and SentenceID == dundee[i-1][header["SentenceID"]] and ID == dundee[i-1][header["ID"]]:
+        continue
+    else:
+        calibrationSentences[-1].append(WORD.strip(".").strip(",").strip("?").strip(":").strip(";").replace("’", "'").lower())
+#    else:
+         
 
 #in and is the it
 #time maintain metal commercially the was salt cut as two-year college flavorings solutions
@@ -1288,15 +1251,18 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
       print("\t".join(["Sentence", "Region", "Word", "Surprisal", "SurprisalReweighted"]), file=outFile)
       TRIALS_COUNT = 0
       for sentenceID in range(len(calibrationSentences)):
-          print(sentenceID)
-          sentence = calibrationSentences[sentenceID].lower().replace(".", "").replace(",", "").replace("n't", " n't").split(" ")
+          print(sentenceID, len(calibrationSentences))
+          sentence = calibrationSentences[sentenceID] #.lower().replace(".", "").replace(",", "").replace("n't", " n't").split(" ")
+          print(sentence)
           context = sentence[0]
           remainingInput = sentence[1:]
           regions = range(len(sentence))
           print("INPUT", context, remainingInput)
+          if len(sentence) < 2:
+             continue
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
-              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
+              numerified, encoded_cropped = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = max(0, args.sequence_length - len(context.split(" ")) - i - 1) # some sentences are too long
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
@@ -1338,7 +1304,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               # Evaluate the prior on these samples to estimate next-word surprisal
 
               resultNumeric_cpu = resultNumeric.detach().cpu()
-              batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
+              batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] if itos_total[resultNumeric_cpu[r,s]] != "OOV" else encoded_cropped[r] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
               for h in range(len(batch)):
                  batch[h] = batch[h][:1].upper() + batch[h][1:]
                  assert batch[h][0] != " ", batch[h]
@@ -1472,7 +1438,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             for i in range(len(remainingInput)):
               if regions[i] not in ["V2_0", "V1_0"]: #.startswith("V2"):
                 continue
-              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
+              numerified, encoded_cropped = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = args.sequence_length - len(context.split(" ")) - i - 1
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
@@ -1714,112 +1680,112 @@ for epoch in range(1000):
 
        # Record calibration for the acceptability judgments
        getTotalSentenceSurprisalsCalibration(SANITY="Model")
-       
-       # Record reconstructions and surprisals
-       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
-         startTimePredictions = time.time()
-
-         sys.stdout = outFile
-         print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
-         print(args)
-         print("=========================")
-         showAttention("the")
-         showAttention("was")
-         showAttention("that")
-         showAttention("fact")
-         showAttention("information")
-         showAttention("report")
-         showAttention("belief")
-         showAttention("finding")
-         showAttention("prediction")
-         showAttention("of")
-         showAttention("by")
-         showAttention("about")
-         getTotalSentenceSurprisals(SANITY="Model")
-  #       getTotalSentenceSurprisals(SANITY="Sanity")
-
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
- #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
- #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
-#  
-
-#         getPerNounReconstructionsSanity()
-#         getPerNounReconstructionsSanityVerb()
-#         getPerNounReconstructions()
-#         getPerNounReconstructionsVerb()
-#         getPerNounReconstructions2Verbs()
-         print("=========================")
-         # Determiner
-         showAttention("the", POS="Det")
-         showAttention("a", POS="Det")
-         # Verbs
-         showAttention("was")
-         showAttention("pleased", POS="Verb")
-         showAttention("invited", POS="Verb")
-         showAttention("annoyed", POS="Verb")
-         showAttention("did", POS="Verb")
-         showAttention("failed", POS="Verb")
-         showAttention("trusted", POS="Verb")
-         showAttention("bothered", POS="Verb")
-         showAttention("admired", POS="Verb")
-         showAttention("impressed", POS="Verb")
-         showAttention("shocked", POS="Verb")
-         showAttention("appointed", POS="Verb")
-         showAttention("supported", POS="Verb")
-         showAttention("looked", POS="Verb")
-         # that
-         showAttention("that", POS="that")
-         # Noun
-         showAttention("fact", POS="Verb")
-         showAttention("information", POS="Verb")
-         showAttention("report", POS="Noun")
-         showAttention("belief", POS="Noun")
-         showAttention("finding", POS="Noun")
-         showAttention("prediction", POS="Noun")
-         showAttention("musician", POS="Noun")
-         showAttention("surgeon", POS="Noun")
-         showAttention("survivor", POS="Noun")
-         showAttention("guide", POS="Noun")
-         showAttention("fans", POS="Noun")
-         showAttention("sponsor", POS="Noun")
-         showAttention("detective", POS="Noun")
-         showAttention("time", POS="Noun")
-         showAttention("years", POS="Noun")
-         showAttention("name", POS="Noun")
-         showAttention("country", POS="Noun")
-         showAttention("school", POS="Noun")
-         showAttention("agreement", POS="Noun")
-         showAttention("series", POS="Noun")
-         showAttention("producers", POS="Noun")
-         showAttention("concerts", POS="Noun")
-         showAttention("classification", POS="Noun")
-         showAttention("house", POS="Noun")
-         showAttention("circle", POS="Noun")
-         showAttention("balance", POS="Noun")
-         showAttention("cartoon", POS="Noun")
-         showAttention("dancers", POS="Noun")
-         showAttention("immigrant", POS="Noun")
-         showAttention("teacher", POS="Noun")
-         showAttention("doctor", POS="Noun")
-         showAttention("patient", POS="Noun")
-         # Preposition
-         showAttention("of", POS="Prep")
-         showAttention("for", POS="Prep")
-         showAttention("to", POS="Prep")
-         showAttention("in", POS="Prep")
-         showAttention("by", POS="Prep")
-         showAttention("about", POS="Prep")
-         # Pronouns
-         showAttention("you", POS="Pron")
-         showAttention("we", POS="Pron")
-         showAttention("he", POS="Pron")
-         showAttention("she", POS="Pron")
-         sys.stdout = STDOUT
-
-#      if updatesCount % 10000 == 0:
-#         optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-#         optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
+        
+#       # Record reconstructions and surprisals
+#       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+#         startTimePredictions = time.time()
+#
+#         sys.stdout = outFile
+#         print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
+#         print(args)
+#         print("=========================")
+#         showAttention("the")
+#         showAttention("was")
+#         showAttention("that")
+#         showAttention("fact")
+#         showAttention("information")
+#         showAttention("report")
+#         showAttention("belief")
+#         showAttention("finding")
+#         showAttention("prediction")
+#         showAttention("of")
+#         showAttention("by")
+#         showAttention("about")
+#         getTotalSentenceSurprisals(SANITY="Model")
+#  #       getTotalSentenceSurprisals(SANITY="Sanity")
+#
+##         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
+# #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+# #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
+##         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
+##  
+#
+##         getPerNounReconstructionsSanity()
+##         getPerNounReconstructionsSanityVerb()
+##         getPerNounReconstructions()
+##         getPerNounReconstructionsVerb()
+##         getPerNounReconstructions2Verbs()
+#         print("=========================")
+#         # Determiner
+#         showAttention("the", POS="Det")
+#         showAttention("a", POS="Det")
+#         # Verbs
+#         showAttention("was")
+#         showAttention("pleased", POS="Verb")
+#         showAttention("invited", POS="Verb")
+#         showAttention("annoyed", POS="Verb")
+#         showAttention("did", POS="Verb")
+#         showAttention("failed", POS="Verb")
+#         showAttention("trusted", POS="Verb")
+#         showAttention("bothered", POS="Verb")
+#         showAttention("admired", POS="Verb")
+#         showAttention("impressed", POS="Verb")
+#         showAttention("shocked", POS="Verb")
+#         showAttention("appointed", POS="Verb")
+#         showAttention("supported", POS="Verb")
+#         showAttention("looked", POS="Verb")
+#         # that
+#         showAttention("that", POS="that")
+#         # Noun
+#         showAttention("fact", POS="Verb")
+#         showAttention("information", POS="Verb")
+#         showAttention("report", POS="Noun")
+#         showAttention("belief", POS="Noun")
+#         showAttention("finding", POS="Noun")
+#         showAttention("prediction", POS="Noun")
+#         showAttention("musician", POS="Noun")
+#         showAttention("surgeon", POS="Noun")
+#         showAttention("survivor", POS="Noun")
+#         showAttention("guide", POS="Noun")
+#         showAttention("fans", POS="Noun")
+#         showAttention("sponsor", POS="Noun")
+#         showAttention("detective", POS="Noun")
+#         showAttention("time", POS="Noun")
+#         showAttention("years", POS="Noun")
+#         showAttention("name", POS="Noun")
+#         showAttention("country", POS="Noun")
+#         showAttention("school", POS="Noun")
+#         showAttention("agreement", POS="Noun")
+#         showAttention("series", POS="Noun")
+#         showAttention("producers", POS="Noun")
+#         showAttention("concerts", POS="Noun")
+#         showAttention("classification", POS="Noun")
+#         showAttention("house", POS="Noun")
+#         showAttention("circle", POS="Noun")
+#         showAttention("balance", POS="Noun")
+#         showAttention("cartoon", POS="Noun")
+#         showAttention("dancers", POS="Noun")
+#         showAttention("immigrant", POS="Noun")
+#         showAttention("teacher", POS="Noun")
+#         showAttention("doctor", POS="Noun")
+#         showAttention("patient", POS="Noun")
+#         # Preposition
+#         showAttention("of", POS="Prep")
+#         showAttention("for", POS="Prep")
+#         showAttention("to", POS="Prep")
+#         showAttention("in", POS="Prep")
+#         showAttention("by", POS="Prep")
+#         showAttention("about", POS="Prep")
+#         # Pronouns
+#         showAttention("you", POS="Pron")
+#         showAttention("we", POS="Pron")
+#         showAttention("he", POS="Pron")
+#         showAttention("she", POS="Pron")
+#         sys.stdout = STDOUT
+#
+##      if updatesCount % 10000 == 0:
+##         optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
+##         optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
 #
       # Get a batch from the training set
       try:
