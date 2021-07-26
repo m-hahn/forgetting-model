@@ -1,8 +1,8 @@
 import codecs
 import os
 
-header = "Sentence Region Word Surprisal SurprisalReweighted".split(" ")
-header += ["Script", "ID", "predictability_weight", "deletion_rate", "autoencoder", "lm"]
+header0 = "Sentence Region Word Surprisal SurprisalReweighted Copy".split(" ")
+header =  header0 + ["Script", "ID", "predictability_weight", "deletion_rate", "autoencoder", "lm"]
 
 PATH = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs/"
 PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/"
@@ -41,6 +41,8 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
              data = [x.split("\t") for x in inFile.read().strip().split("\n")]
              data = data[1:]
              for line in data:
+                 if len(line) < len(header0):
+                     line.append("NA")
                  print("\t".join(line + [suffix, arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], arguments["load_from_autoencoder"], arguments["load_from_plain_lm"]]), file=outFile)
           except FileNotFoundError:
              pass

@@ -1712,6 +1712,12 @@ for epoch in range(1000):
       # Get model predictions at the end of optimization
       if updatesCount == maxUpdates:
 
+
+       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+         print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"], file=outFile)
+         print(args, file=outFile)
+
+
        # Record calibration for the acceptability judgments
        getTotalSentenceSurprisalsCalibration(SANITY="Model")
        

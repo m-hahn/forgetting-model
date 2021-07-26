@@ -1678,10 +1678,20 @@ for epoch in range(1000):
       updatesCount += 1
       # Get model predictions at the end of optimization
       if updatesCount == maxUpdates:
+       with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.myID), "w") as outFile:
+           print(args, file=outFile)
+           print(runningAverageReward, file=outFile)
+           print(expectedRetentionRate, file=outFile)
+           print(runningAverageBaselineDeviation, file=outFile)
+           print(runningAveragePredictionLoss, file=outFile)
+           print(runningAverageReconstructionLoss, file=outFile)
+        
 
        # Record calibration for the acceptability judgments
        getTotalSentenceSurprisalsCalibration(SANITY="Model")
-        
+       quit() 
+
+
 #       # Record reconstructions and surprisals
 #       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
 #         startTimePredictions = time.time()
