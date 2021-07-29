@@ -77,8 +77,8 @@ args=parser.parse_args()
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
-assert args.deletion_rate == 0.0
-assert args.deletion_rate < 0.8
+assert args.deletion_rate > 0.0
+assert args.deletion_rate < 0.95
 
 
 
@@ -1221,18 +1221,18 @@ calibrationSentences = []
 for i in range(len(dundee)):
     line = dundee[i]
     Itemno, WNUM, SentenceID, ID, WORD, Token = line
-#    print(Token)
+    print(Token)
     Itemno = (Itemno)
     if i == 0 or Itemno != dundee[i-1][header["Itemno"]]:
         print(calibrationSentences[-1:])
         calibrationSentences.append([])
-#        print(Itemno, dundee[i-1][header["Itemno"]])
+        print(Itemno, dundee[i-1][header["Itemno"]])
 
     if False: #i > 0 and Itemno == dundee[i-1][header["Itemno"]] and ID == dundee[i-1][header["ID"]]:
         continue
     else:
         calibrationSentences[-1].append(Token.lower())
-print(calibrationSentences[-1:])
+#print(calibrationSentences[-1:])
 #quit()
 
 #    else:
@@ -1249,14 +1249,13 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
     assert SANITY in ["ModelTmp", "Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
 #    print(plain_lm) 
-    numberOfSamples = 12
+    numberOfSamples = 6
     import scoreWithGPT2Medium as scoreWithGPT2
     with torch.no_grad():
      with open("/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-      print("\t".join(["Sentence", "Region", "Word", "Surprisal", "SurprisalReweighted"]), file=outFile)
+      print("\t".join(["Sentence", "Region", "Word", "Surprisal", "SurprisalReweighted", "Repetition"]), file=outFile)
       TRIALS_COUNT = 0
       for sentenceID in range(len(calibrationSentences)):
-          print(sentenceID, len(calibrationSentences), file=sys.stderr)
           print(sentenceID, len(calibrationSentences))
           sentence = calibrationSentences[sentenceID] #.lower().replace(".", "").replace(",", "").replace("n't", " n't").split(" ")
           print(sentence)
@@ -1268,8 +1267,8 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
              continue
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
+            for repetition in range(2):
               numerified, encoded_cropped = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
-              #continue
               pointWhereToStart = max(0, args.sequence_length - len(context.split(" ")) - i - 1) # some sentences are too long
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
@@ -1288,13 +1287,13 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
                  assert SANITY in ["Model", "ModelTmp"]
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
-              # Next, expand the tensor to get 2 samples from the reconstruction posterior for each replicate
-              numeric = numeric.unsqueeze(2).expand(-1, -1, 2).view(-1, numberOfSamples*2)
-              numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 2).contiguous().view(-1, numberOfSamples*2)
+              # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
+              numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
+              numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
               numeric_noised[args.sequence_length] = 0 # A simple hack for dealing with the issue that the last word 
               # Now get samples from the amortized reconstruction posterior
               print("NOISED: ", " ".join([itos_total[int(x)] for x in numeric_noised[:,0].cpu()]))
-              result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*2, fillInBefore=pointWhereToStart)
+              result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24, fillInBefore=pointWhereToStart)
               # get THAT fractions
 
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
@@ -1306,7 +1305,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 
 
 
-              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*2)]).unsqueeze(0).cuda()
+              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
 
@@ -1321,10 +1320,10 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               batch = [" ".join(x) for x in batch_tokens]
 #              print(batch)
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
-              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 2)
-              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 2)
+              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
+              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
 
-#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*2)
+#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
 #              assert resultNumeric.size()[0] == args.sequence_length+1
 #              assert totalSurprisal.size()[0] == args.sequence_length
 #              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
@@ -1332,9 +1331,9 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 #              surprisals_past = totalSurprisal[:-1].sum(dim=0)
 #              surprisals_nextWord = totalSurprisal[-1]
 
-              # where numberOfSamples is how many samples we take from the noise model, and 2 is how many samples are drawn from the amortized posterior for each noised sample
-              amortizedPosterior = amortizedPosterior.view(numberOfSamples, 2)
-              likelihood = likelihood.view(numberOfSamples, 2)
+              # where numberOfSamples is how many samples we take from the noise model, and 24 is how many samples are drawn from the amortized posterior for each noised sample
+              amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
+              likelihood = likelihood.view(numberOfSamples, 24)
     #          print(surprisals_past.size(), surprisals_nextWord.size(), amortizedPosterior.size(), likelihood.size())
    #           print(amortizedPosterior.mean(), likelihood.mean(), surprisals_past.mean(), surprisals_nextWord.mean())
               unnormalizedLogTruePosterior = likelihood - surprisals_past
@@ -1346,7 +1345,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               log_importance_weights_maxima, _ = log_importance_weights.max(dim=1, keepdim=True)
 #              assert False, "the importance weights seem wacky"
               print(log_importance_weights[0])
-              for j in range(2): # TODO the importance weights seem wacky
+              for j in range(24): # TODO the importance weights seem wacky
                  if j % 3 != 0:
                     continue
                  print(j, "@@", result[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
@@ -1371,10 +1370,10 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 #              print(nextWordSurprisal_cpu.size())
 
 
-              for q in range(0, min(3*2, resultNumeric.size()[1]),  2):
-                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//2]))
+              for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
+                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//24]))
               print("SURPRISAL", i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
-              print("\t".join([str(w) for w in [sentenceID, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3)]]), file=outFile)
+              print("\t".join([str(w) for w in [sentenceID, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
 
 def divideDicts(y, z):
    r = {}
@@ -1468,13 +1467,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                  assert SANITY in ["Model", "ModelTmp"]
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
-              # Next, expand the tensor to get 2 samples from the reconstruction posterior for each replicate
-              numeric = numeric.unsqueeze(2).expand(-1, -1, 2).view(-1, numberOfSamples*2)
-              numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 2).contiguous().view(-1, numberOfSamples*2)
+              # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
+              numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
+              numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
               numeric_noised[args.sequence_length] = 0 # A simple hack for dealing with the issue that the last word 
               # Now get samples from the amortized reconstruction posterior
               print("NOISED: ", " ".join([itos_total[int(x)] for x in numeric_noised[:,0].cpu()]))
-              result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*2, fillInBefore=pointWhereToStart)
+              result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, NOUN, 2, numberOfBatches=numberOfSamples*24, fillInBefore=pointWhereToStart)
               # get THAT fractions
               if "NoSC" not in condition: # and i == 0:
                  resultNumericPrevious = resultNumeric
@@ -1499,7 +1498,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
 
 
-              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*2)]).unsqueeze(0).cuda()
+              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
 
@@ -1510,20 +1509,20 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                  assert batch[h][0] != " ", batch[h]
 #              print(batch)
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
-              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 2)
-              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 2)
+              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
+              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
 
-#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*2)
+#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
 #              assert resultNumeric.size()[0] == args.sequence_length+1
 #              assert totalSurprisal.size()[0] == args.sequence_length
 #              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
-#              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 2)
+#              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
 #              surprisals_past = totalSurprisal[:-1].sum(dim=0)
 #              surprisals_nextWord = totalSurprisal[-1]
 
-              # where numberOfSamples is how many samples we take from the noise model, and 2 is how many samples are drawn from the amortized posterior for each noised sample
-              amortizedPosterior = amortizedPosterior.view(numberOfSamples, 2)
-              likelihood = likelihood.view(numberOfSamples, 2)
+              # where numberOfSamples is how many samples we take from the noise model, and 24 is how many samples are drawn from the amortized posterior for each noised sample
+              amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
+              likelihood = likelihood.view(numberOfSamples, 24)
     #          print(surprisals_past.size(), surprisals_nextWord.size(), amortizedPosterior.size(), likelihood.size())
    #           print(amortizedPosterior.mean(), likelihood.mean(), surprisals_past.mean(), surprisals_nextWord.mean())
               unnormalizedLogTruePosterior = likelihood - surprisals_past
@@ -1535,7 +1534,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               log_importance_weights_maxima, _ = log_importance_weights.max(dim=1, keepdim=True)
 #              assert False, "the importance weights seem wacky"
               print(log_importance_weights[0])
-              for j in range(2): # TODO the importance weights seem wacky
+              for j in range(24): # TODO the importance weights seem wacky
                  if j % 3 != 0:
                     continue
                  print(j, "@@", result[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
@@ -1563,13 +1562,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 #                 print((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).size(), log_importance_weights.size(), log_importance_weights_sum.size())
  #                print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)))
   #               print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)).sum(dim=1))
-#                 print(surprisals_nextWord.size(), (((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 2) .size())))
-                 surprisalsWithThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] == stoi_total["that"]).view(-1, 2)].mean())
-                 surprisalsWithoutThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] != stoi_total["that"]).view(-1, 2)].mean())
+#                 print(surprisals_nextWord.size(), (((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) .size())))
+                 surprisalsWithThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] == stoi_total["that"]).view(-1, 24)].mean())
+                 surprisalsWithoutThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] != stoi_total["that"]).view(-1, 24)].mean())
                  print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
-                 thatFractionReweightedHere = float((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 2) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
+                 thatFractionReweightedHere = float((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
                  thatFractionsReweighted[condition+"_"+compatible][regions[i]]+=thatFractionReweightedHere
-   #              print((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 2) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
+   #              print((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
     #             print(((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().mean()))
      #            quit()
 
@@ -1577,8 +1576,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                  thatFractionReweightedHere = -1
 
 
-              for q in range(0, min(3*2, resultNumeric.size()[1]),  2):
-                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//2]))
+              for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
+                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//24]))
               print("SURPRISAL", NOUN, sentenceList[0], condition+"_"+compatible, i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
               surprisalReweightedByRegions[condition+"_"+compatible][regions[i]] += float( reweightedSurprisalsMean)
               surprisalByRegions[condition+"_"+compatible][regions[i]] += float( surprisalOfNextWord)
@@ -1687,12 +1686,21 @@ for epoch in range(1000):
       counter += 1
       updatesCount += 1
       # Get model predictions at the end of optimization
-      if True:
+      if updatesCount == maxUpdates:
+       with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.myID), "w") as outFile:
+           print(args, file=outFile)
+           print(runningAverageReward, file=outFile)
+           print(expectedRetentionRate, file=outFile)
+           print(runningAverageBaselineDeviation, file=outFile)
+           print(runningAveragePredictionLoss, file=outFile)
+           print(runningAverageReconstructionLoss, file=outFile)
+        
 
        # Record calibration for the acceptability judgments
-       getTotalSentenceSurprisalsCalibration(SANITY="ZeroLoss")
-       quit()
-     
+       getTotalSentenceSurprisalsCalibration(SANITY="Model")
+       quit() 
+
+
 #       # Record reconstructions and surprisals
 #       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
 #         startTimePredictions = time.time()
