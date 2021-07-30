@@ -1,0 +1,1 @@
+predictability_weight	deletion_rate	beta_TwoThree	beta_Comp	beta_EmbRate	beta_TwoThree:comp	beta_TwoThree:EmbRate	beta_comp:EmbRate	
