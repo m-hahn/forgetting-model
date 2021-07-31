@@ -40,7 +40,10 @@ data = data %>% filter(Item245)
 #crash()
 
 sink("analyze_M_VN3_245_lmer_effects.R.txt")
-cat(paste("predictability_weight", "deletion_rate", "beta_TwoThree", "beta_Comp", "beta_EmbRate", "beta_TwoThree:comp", "beta_TwoThree:EmbRate", "beta_comp:EmbRate", "\n", sep="\t"))
+cat(paste("predictability_weight", "deletion_rate", "beta_EmbRate", "beta_TwoThree", "beta_TwoThree:EmbRate", "\n", sep="\t"))
+sink()                                                              
+sink("analyze_M_VN3_245_lmer_effects.R_tvalues.txt")                
+cat(paste("predictability_weight", "deletion_rate", "beta_EmbRate", "beta_TwoThree", "beta_TwoThree:EmbRate", "\n", sep="\t"))
 sink()
 
 
@@ -51,7 +54,7 @@ for(pred in unique(data$predictability_weight)) {
 #       if(length(unique(data2$ID)) == 1) {
  #         model2 = lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C * True_Minus_False.C + compatible.C + (1|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0))
   #     } else {
-          model2 = lmer(SurprisalReweighted ~ HasRC.C + HasRC.C * True_Minus_False.C + True_Minus_False.C + (1|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0) %>% group_by(HasRC.C, True_Minus_False.C, Item, Noun) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)))
+          model2 = lmer(SurprisalReweighted ~ True_Minus_False.C + HasRC.C + HasRC.C * True_Minus_False.C + True_Minus_False.C + (1+True_Minus_False.C|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0) %>% group_by(HasRC.C, True_Minus_False.C, Item, Noun) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)))
 #          model2 = lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C * True_Minus_False.C + compatible.C + (1+compatible.C+True_Minus_False.C|Item) + (1|Noun) + (1+compatible.C+True_Minus_False.C|ID), data=data2 %>% filter(HasSC.C>0))
    #    }
 #crash()
