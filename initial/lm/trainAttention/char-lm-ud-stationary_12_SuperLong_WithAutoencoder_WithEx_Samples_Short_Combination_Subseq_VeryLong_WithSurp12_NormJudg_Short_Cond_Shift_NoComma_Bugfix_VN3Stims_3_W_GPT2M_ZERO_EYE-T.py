@@ -1196,7 +1196,7 @@ def rindex(x, y):
 def encodeContextCrop(inp, context):
      sentence = context.strip() + " " + inp.strip()
      print("ENCODING", sentence)
-     numerified = [stoi_total[char] if char in stoi_total else 2 for char in sentence.split(" ")]
+     numerified = [stoi_total[char.lower()] if char.lower() in stoi_total else 2 for char in sentence.split(" ")]
      print(len(numerified))
      numerified = numerified[-args.sequence_length-1:]
      numerified = torch.LongTensor([numerified for _ in range(args.batchSize)]).t().cuda()
@@ -1218,6 +1218,8 @@ with open("/u/scr/mhahn/Dundee/DundeeTreebankTokenized.csv", "r") as inFile:
 
 calibrationSentences = []
 
+lastWNUM = -1
+tokenInWord = 0
 for i in range(len(dundee)):
     line = dundee[i]
     Itemno, WNUM, SentenceID, ID, WORD, Token = line
@@ -1231,7 +1233,14 @@ for i in range(len(dundee)):
     if False: #i > 0 and Itemno == dundee[i-1][header["Itemno"]] and ID == dundee[i-1][header["ID"]]:
         continue
     else:
-        calibrationSentences[-1].append(Token.lower())
+        if WNUM == lastWNUM:
+          tokenInWord += 1
+        else:
+          tokenInWord = 1
+        if WORD[0] == WORD[0].upper():
+          Token = Token[0].upper() + Token[1:]
+        calibrationSentences[-1].append([Token, Itemno, WNUM, SentenceID, ID, WORD, tokenInWord])
+        lastWNUM = WNUM
 print(calibrationSentences[-1:])
 #quit()
 
@@ -1253,14 +1262,14 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
     import scoreWithGPT2Medium as scoreWithGPT2
     with torch.no_grad():
      with open("/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-      print("\t".join(["Sentence", "Region", "Word", "Surprisal", "SurprisalReweighted"]), file=outFile)
+      print("\t".join(["Sentence", "Region", "TokenLower", "Itemno", "WNUM", "SentenceID", "ID", "WORD", "tokenInWord", "Surprisal", "SurprisalReweighted"]), file=outFile)
       TRIALS_COUNT = 0
       for sentenceID in range(len(calibrationSentences)):
           print(sentenceID, len(calibrationSentences), file=sys.stderr)
           print(sentenceID, len(calibrationSentences))
           sentence = calibrationSentences[sentenceID] #.lower().replace(".", "").replace(",", "").replace("n't", " n't").split(" ")
           print(sentence)
-          context = sentence[0]
+          context = sentence[0][0]
           remainingInput = sentence[1:]
           regions = range(len(sentence))
           print("INPUT", context, remainingInput)
@@ -1268,7 +1277,18 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
              continue
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
-              numerified, encoded_cropped = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
+
+              lastWord = remainingInput[i]
+              if any([ord(x) < 65 or ord(x) > 122 for x in lastWord[0]]): # do not derive predictions for tokens that include punctuation
+                 continue
+              if lastWord[-2] == "UNKNOWN": # no predictions needed for words absent from the eyetracking record
+                continue
+#              print(remainingInput)
+ #             print([x[0] for x in remainingInput[:i+1]])
+  #            print(" ".join([x[0] for x in remainingInput[:i+1]]))
+   #           print(context)
+              numerified, encoded_cropped = encodeContextCrop(" ".join([x[0] for x in remainingInput[:i+1]]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
+    #          quit()
               #continue
               pointWhereToStart = max(0, args.sequence_length - len(context.split(" ")) - i - 1) # some sentences are too long
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
@@ -1306,7 +1326,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 
 
 
-              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*2)]).unsqueeze(0).cuda()
+              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i][0], stoi_total["OOV"]) for _ in range(numberOfSamples*2)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
 
@@ -1319,6 +1339,23 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
                      if batch_tokens[h][wordInBatch-1] in [".", "?", "!"]:
                          batch_tokens[h][wordInBatch] = batch_tokens[h][wordInBatch][:1].upper() + batch_tokens[h][wordInBatch][1:]
               batch = [" ".join(x) for x in batch_tokens]
+              for h in range(len(batch)):
+                 # detokenize
+                 batch[h] = batch[h].replace(" 'll ", "'ll ")
+                 batch[h] = batch[h].replace(" 's ", "'s ")
+                 batch[h] = batch[h].replace(" 've ", "'ve ")
+                 batch[h] = batch[h].replace(" 'd ", "'d ")
+                 batch[h] = batch[h].replace(" 're ", "'re ")
+                 batch[h] = batch[h].replace(" 'm ", "'m ")
+                 batch[h] = batch[h].replace(" n't ", "n't ")
+                 batch[h] = batch[h].replace(" . ", ". ")
+                 batch[h] = batch[h].replace(" , ", ", ")
+                 batch[h] = batch[h].replace(" ) ", ") ")
+                 batch[h] = batch[h].replace(" ) ", " (")
+                 batch[h] = batch[h].replace(" ; ", "; ")
+                 batch[h] = batch[h].replace(" ? ", "? ")
+                 batch[h] = batch[h].replace(" ! ", "! ")
+                 batch[h] = batch[h].replace(" : ", ": ")
 #              print(batch)
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
               surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 2)
@@ -1374,7 +1411,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               for q in range(0, min(3*2, resultNumeric.size()[1]),  2):
                   print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//2]))
               print("SURPRISAL", i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
-              print("\t".join([str(w) for w in [sentenceID, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3)]]), file=outFile)
+              print("\t".join([str(w) for w in [sentenceID, regions[i]] + remainingInput[i] + [round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3)]]), file=outFile)
 
 def divideDicts(y, z):
    r = {}

@@ -874,7 +874,17 @@ def showAttention(word, POS=""):
     print(*(["SCORES", word, "\t"]+[round(x,2) for x in list(attention.cpu().data.numpy())] + (["POS="+POS] if POS != "" else [])))
 
 
-
+# OOVs replaced (July 20, 2021)
+#OOV WARNING #starlet# -> actress
+#OOV WARNING #mistrusted#->distrusted
+#OOV WARNING #baffled#->startled
+#OOV WARNING #defrauded#->cheated
+#OOV WARNING #outwitted#->defeated
+#OOV WARNING #drunkard#->drinker
+#OOV WARNING #lifesaver#->lifeguard
+#OOV WARNING #detested#->hated
+#OOV WARNING #houseowner#->homeowner
+#
 
 
 
@@ -891,7 +901,7 @@ nounsAndVerbs.append({"item" : "245_3",             "compatible" : 1, "s" : "tha
 nounsAndVerbs.append({"item" : "245_4",             "compatible" : 1, "s" : "that the politician who the farmer supported /was refuted /did not bother the farmer.", })
 nounsAndVerbs.append({"item" : "245_5",             "compatible" : 1, "s" : "that the surgeon who the patient thanked /shocked his colleagues /was ridiculous."})
 nounsAndVerbs.append({"item" : "245_6",             "compatible" : 1, "s" : "that the principal who the teacher liked /calmed everyone down /was false."})
-nounsAndVerbs.append({"item" : "245_7",             "compatible" : 1, "s" : "that the actor who the starlet loved /made her cry /was sad to hear about."})
+nounsAndVerbs.append({"item" : "245_7",             "compatible" : 1, "s" : "that the actor who the actress loved /made her cry /was sad to hear about."})
 nounsAndVerbs.append({"item" : "245_8",             "compatible" : 1, "s" : "that the senator who the diplomat opposed /annoyed Bill /was absolutely true."})
 nounsAndVerbs.append({"item" : "245_9",             "compatible" : 1, "s" : "that the criminal who the officer arrested /stunned everyone /was disconcerting."})
 nounsAndVerbs.append({"item" : "245_10",            "compatible" : 1, "s" : "that the violinist who the sponsors backed /sounded hopeful /pleased everyone."})
@@ -902,6 +912,8 @@ nounsAndVerbs.append({"item" : "245_14",            "compatible" : 1, "s" : "tha
 nounsAndVerbs.append({"item" : "245_15",            "compatible" : 1, "s" : "that the CEO who the employee impressed /deserved attention /was entirely correct."})
 nounsAndVerbs.append({"item" : "245_16",            "compatible" : 1, "s" : "that the politician who the banker bribed /was credible /seemed bogus."})
 nounsAndVerbs.append({"item" : "245_17",            "compatible" : 1, "s" : "that the child who the medic rescued /was quoted in newspapers /startled the parents."})
+nounsAndVerbs.append({"item" : "245_18",            "compatible" : 1, "s" : "that the runner who the psychiatrist treated /was widely known /turned out to be incorrect."})
+nounsAndVerbs.append({"item" : "245_19",            "compatible" : 1, "s" : "that the preacher who the parishioners fired /was idiotic /had been gaining traction."})
 nounsAndVerbs.append({"item" : "238_Critical_VN1",  "compatible" : 1, "s" : "that the carpenter who the craftsman carried /confused the apprentice /was acknowledged."})
 nounsAndVerbs.append({"item" : "238_Critical_VN1",  "compatible" : 2, "s" : "that the carpenter who the craftsman carried /hurt the apprentice /was acknowledged."})
 nounsAndVerbs.append({"item" : "238_Critical_VN2",  "compatible" : 1, "s" : "that the daughter who the sister found /frightened the grandmother /seemed concerning."})
@@ -930,8 +942,8 @@ nounsAndVerbs.append({"item" : "238_Critical_Vadv9","compatible" : 1, "s" : "tha
 nounsAndVerbs.append({"item" : "238_Critical_Vadv9","compatible" : 2, "s" : "that the child who the medic rescued /wrote articles in newspapers /seemed very interesting."})
 nounsAndVerbs.append({"item" : "232_Critical_0",    "compatible" : 2, "s" : "that the teacher who the principal liked /failed the student /was only a malicious smear."})
 nounsAndVerbs.append({"item" : "232_Critical_0",    "compatible" : 1, "s" : "that the teacher who the principal liked /annoyed the student /was only a malicious smear."})
-nounsAndVerbs.append({"item" : "232_Critical_1",    "compatible" : 2, "s" : "that the doctor who the colleague mistrusted /cured the patients /seemed hard to believe."})
-nounsAndVerbs.append({"item" : "232_Critical_1",    "compatible" : 1, "s" : "that the doctor who the colleague mistrusted /bothered the patients /seemed hard to believe."})
+nounsAndVerbs.append({"item" : "232_Critical_1",    "compatible" : 2, "s" : "that the doctor who the colleague distrusted /cured the patients /seemed hard to believe."})
+nounsAndVerbs.append({"item" : "232_Critical_1",    "compatible" : 1, "s" : "that the doctor who the colleague distrusted /bothered the patients /seemed hard to believe."})
 nounsAndVerbs.append({"item" : "232_Critical_2",    "compatible" : 2, "s" : "that the bully who the children hated /harassed the boy /was entirely correct."})
 nounsAndVerbs.append({"item" : "232_Critical_2",    "compatible" : 1, "s" : "that the bully who the children hated /shocked the boy /was entirely correct."})
 nounsAndVerbs.append({"item" : "232_Critical_3",    "compatible" : 2, "s" : "that the agent who the FBI sent /arrested the criminal /was acknowledged."})
@@ -945,7 +957,7 @@ nounsAndVerbs.append({"item" : "232_Critical_6",    "compatible" : 1, "s" : "tha
 nounsAndVerbs.append({"item" : "232_Critical_7",    "compatible" : 2, "s" : "that the thief who the detective caught /robbed the woman /broke her family's heart."})
 nounsAndVerbs.append({"item" : "232_Critical_7",    "compatible" : 1, "s" : "that the thief who the detective caught /enraged the woman /broke her family's heart."})
 nounsAndVerbs.append({"item" : "232_Critical_8",    "compatible" : 2, "s" : "that the criminal who the stranger distracted /abducted the officer /seemed concerning."})
-nounsAndVerbs.append({"item" : "232_Critical_8",    "compatible" : 1, "s" : "that the criminal who the stranger distracted /baffled the officer /seemed concerning."})
+nounsAndVerbs.append({"item" : "232_Critical_8",    "compatible" : 1, "s" : "that the criminal who the stranger distracted /startled the officer /seemed concerning."})
 nounsAndVerbs.append({"item" : "232_Critical_9",    "compatible" : 2, "s" : "that the customer who the vendor welcomed /contacted the clerk /was very believable."})
 nounsAndVerbs.append({"item" : "232_Critical_9",    "compatible" : 1, "s" : "that the customer who the vendor welcomed /terrified the clerk /was very believable."})
 nounsAndVerbs.append({"item" : "232_Critical_10",   "compatible" : 2, "s" : "that the president who the farmer admired /appointed the commander /was entirely bogus."})
@@ -960,8 +972,8 @@ nounsAndVerbs.append({"item" : "232_Critical_14",   "compatible" : 2, "s" : "tha
 nounsAndVerbs.append({"item" : "232_Critical_14",   "compatible" : 1, "s" : "that the driver who the guide called /amazed the tourist /was absolutely true."})
 nounsAndVerbs.append({"item" : "232_Critical_15",   "compatible" : 2, "s" : "that the actor who the fans loved /greeted the director /appeared to be true."})
 nounsAndVerbs.append({"item" : "232_Critical_15",   "compatible" : 1, "s" : "that the actor who the fans loved /astonished the director /appeared to be true."})
-nounsAndVerbs.append({"item" : "232_Critical_16",   "compatible" : 2, "s" : "that the banker who the analyst defrauded /trusted the customer /proved to be made up."})
-nounsAndVerbs.append({"item" : "232_Critical_16",   "compatible" : 1, "s" : "that the banker who the analyst defrauded /excited the customer /proved to be made up."})
+nounsAndVerbs.append({"item" : "232_Critical_16",   "compatible" : 2, "s" : "that the banker who the analyst cheated /trusted the customer /proved to be made up."})
+nounsAndVerbs.append({"item" : "232_Critical_16",   "compatible" : 1, "s" : "that the banker who the analyst cheated /excited the customer /proved to be made up."})
 nounsAndVerbs.append({"item" : "232_Critical_17",   "compatible" : 2, "s" : "that the judge who the attorney hated /acquitted the defendant /was a lie."})
 nounsAndVerbs.append({"item" : "232_Critical_17",   "compatible" : 1, "s" : "that the judge who the attorney hated /vindicated the defendant /was a lie."})
 nounsAndVerbs.append({"item" : "232_Critical_18",   "compatible" : 2, "s" : "that the captain who the crew trusted /commanded the sailor /was nice to hear."})
@@ -970,20 +982,20 @@ nounsAndVerbs.append({"item" : "232_Critical_19",   "compatible" : 2, "s" : "tha
 nounsAndVerbs.append({"item" : "232_Critical_19",   "compatible" : 1, "s" : "that the manager who the boss authorized /saddened the intern /seemed absurd."})
 nounsAndVerbs.append({"item" : "232_Critical_20",   "compatible" : 2, "s" : "that the plaintiff who the jury interrogated /interrupted the witness /made it into the news."})
 nounsAndVerbs.append({"item" : "232_Critical_20",   "compatible" : 1, "s" : "that the plaintiff who the jury interrogated /startled the witness /made it into the news."})
-nounsAndVerbs.append({"item" : "232_Critical_21",   "compatible" : 2, "s" : "that the drunkard who the thug hit /outwitted the bartender /sounded hilarious."})
-nounsAndVerbs.append({"item" : "232_Critical_21",   "compatible" : 1, "s" : "that the drunkard who the thug hit /stunned the bartender /sounded hilarious."})
+nounsAndVerbs.append({"item" : "232_Critical_21",   "compatible" : 2, "s" : "that the drinker who the thug hit /defeated the bartender /sounded hilarious."})
+nounsAndVerbs.append({"item" : "232_Critical_21",   "compatible" : 1, "s" : "that the drinker who the thug hit /stunned the bartender /sounded hilarious."})
 nounsAndVerbs.append({"item" : "232_Critical_23",   "compatible" : 2, "s" : "that the medic who the survivor thanked /greeted the surgeon /turned out to be untrue."})
 nounsAndVerbs.append({"item" : "232_Critical_23",   "compatible" : 1, "s" : "that the medic who the survivor thanked /surprised the surgeon /turned out to be untrue."})
-nounsAndVerbs.append({"item" : "232_Critical_24",   "compatible" : 2, "s" : "that the lifesaver who the soldier taught /rescued the swimmer /took the townspeople by surprise."})
-nounsAndVerbs.append({"item" : "232_Critical_24",   "compatible" : 1, "s" : "that the lifesaver who the soldier taught /encouraged the swimmer /took the townspeople by surprise."})
+nounsAndVerbs.append({"item" : "232_Critical_24",   "compatible" : 2, "s" : "that the lifeguard who the soldier taught /rescued the swimmer /took the townspeople by surprise."})
+nounsAndVerbs.append({"item" : "232_Critical_24",   "compatible" : 1, "s" : "that the lifeguard who the soldier taught /encouraged the swimmer /took the townspeople by surprise."})
 nounsAndVerbs.append({"item" : "232_Critical_25",   "compatible" : 2, "s" : "that the fisherman who the gardener helped /admired the politician /was interesting."})
 nounsAndVerbs.append({"item" : "232_Critical_25",   "compatible" : 1, "s" : "that the fisherman who the gardener helped /delighted the politician /was interesting."})
 nounsAndVerbs.append({"item" : "232_Critical_26",   "compatible" : 2, "s" : "that the janitor who the organizer criticized /ignored the audience /was funny."})
 nounsAndVerbs.append({"item" : "232_Critical_26",   "compatible" : 1, "s" : "that the janitor who the organizer criticized /amused the audience /was funny."})
-nounsAndVerbs.append({"item" : "232_Critical_27",   "compatible" : 2, "s" : "that the investor who the scientist detested /deceived the entrepreneur /drove everyone crazy."})
-nounsAndVerbs.append({"item" : "232_Critical_27",   "compatible" : 1, "s" : "that the investor who the scientist detested /disappointed the entrepreneur /drove everyone crazy."})
-nounsAndVerbs.append({"item" : "232_Critical_28",   "compatible" : 2, "s" : "that the firefighter who the neighbor insulted /rescued the houseowner /went unnoticed."})
-nounsAndVerbs.append({"item" : "232_Critical_28",   "compatible" : 1, "s" : "that the firefighter who the neighbor insulted /discouraged the houseowner /went unnoticed."})
+nounsAndVerbs.append({"item" : "232_Critical_27",   "compatible" : 2, "s" : "that the investor who the scientist hated /deceived the entrepreneur /drove everyone crazy."})
+nounsAndVerbs.append({"item" : "232_Critical_27",   "compatible" : 1, "s" : "that the investor who the scientist hated /disappointed the entrepreneur /drove everyone crazy."})
+nounsAndVerbs.append({"item" : "232_Critical_28",   "compatible" : 2, "s" : "that the firefighter who the neighbor insulted /rescued the homeowner /went unnoticed."})
+nounsAndVerbs.append({"item" : "232_Critical_28",   "compatible" : 1, "s" : "that the firefighter who the neighbor insulted /discouraged the homeowner /went unnoticed."})
 nounsAndVerbs.append({"item" : "232_Critical_30",   "compatible" : 2, "s" : "that the plumber who the apprentice consulted /assisted the woman /was true."})
 nounsAndVerbs.append({"item" : "232_Critical_30",   "compatible" : 1, "s" : "that the plumber who the apprentice consulted /puzzled the woman /was true."})
 
