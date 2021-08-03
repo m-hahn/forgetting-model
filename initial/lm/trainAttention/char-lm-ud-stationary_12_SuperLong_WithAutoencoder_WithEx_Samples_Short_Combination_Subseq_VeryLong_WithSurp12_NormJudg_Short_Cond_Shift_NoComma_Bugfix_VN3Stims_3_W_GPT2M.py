@@ -912,6 +912,8 @@ nounsAndVerbs.append({"item" : "245_14",            "compatible" : 1, "s" : "tha
 nounsAndVerbs.append({"item" : "245_15",            "compatible" : 1, "s" : "that the CEO who the employee impressed /deserved attention /was entirely correct."})
 nounsAndVerbs.append({"item" : "245_16",            "compatible" : 1, "s" : "that the politician who the banker bribed /was credible /seemed bogus."})
 nounsAndVerbs.append({"item" : "245_17",            "compatible" : 1, "s" : "that the child who the medic rescued /was quoted in newspapers /startled the parents."})
+nounsAndVerbs.append({"item" : "245_18",            "compatible" : 1, "s" : "that the runner who the psychiatrist treated /was widely known /turned out to be incorrect."})
+nounsAndVerbs.append({"item" : "245_19",            "compatible" : 1, "s" : "that the preacher who the parishioners fired /was idiotic /had been gaining traction."})
 nounsAndVerbs.append({"item" : "238_Critical_VN1",  "compatible" : 1, "s" : "that the carpenter who the craftsman carried /confused the apprentice /was acknowledged."})
 nounsAndVerbs.append({"item" : "238_Critical_VN1",  "compatible" : 2, "s" : "that the carpenter who the craftsman carried /hurt the apprentice /was acknowledged."})
 nounsAndVerbs.append({"item" : "238_Critical_VN2",  "compatible" : 1, "s" : "that the daughter who the sister found /frightened the grandmother /seemed concerning."})

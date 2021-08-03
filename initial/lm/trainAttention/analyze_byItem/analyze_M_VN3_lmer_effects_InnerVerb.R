@@ -3,7 +3,7 @@ library(dplyr)
 library(lme4)
 
 
-data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/collect12_NormJudg_Short_Cond_W_GPT2_ByTrial_VN3.py.tsv", sep="\t")  %>% filter(Region == "V1_0")
+data = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/collect12_NormJudg_Short_Cond_W_GPT2_ByTrial_VN3.py.tsv", sep="\t")  %>% filter(Region == "V2_0")
 
 
 
@@ -29,21 +29,18 @@ data$compatible.C = (grepl("_co", data$Condition)-0.5)
 data$HasRC.C = (grepl("SCRC", data$Condition)-0.5)
 data$HasSC.C = (0.5-grepl("NoSC", data$Condition))
 
-data[data$HasSC.C < 0,]$compatible.C = 0
-data[data$HasSC.C < 0,]$HasRC.C = 0
+#data[data$HasSC.C < 0,]$compatible.C = 0
+#data[data$HasSC.C < 0,]$HasRC.C = 0
 
 
-data$Item245 = grepl("245_", data$Item)
+data$Item248 = !grepl("245_", data$Item)
 
 
-data = data %>% filter(Item245)
+data = data %>% filter(Item248)
 #crash()
 
-sink("analyze_M_VN3_245_lmer_effects.R.txt")
-cat(paste("predictability_weight", "deletion_rate", "beta_EmbRate", "beta_TwoThree", "beta_TwoThree:EmbRate", "\n", sep="\t"))
-sink()                                                              
-sink("analyze_M_VN3_245_lmer_effects.R_tvalues.txt")                
-cat(paste("predictability_weight", "deletion_rate", "beta_EmbRate", "beta_TwoThree", "beta_TwoThree:EmbRate", "\n", sep="\t"))
+sink("analyze_M_VN3_248_InnerVerb_lmer_effects.R.txt")
+cat(paste("predictability_weight", "deletion_rate", "beta_TwoThree", "beta_Comp", "beta_EmbRate", "beta_TwoThree:Comp", "beta_Comp:EmbRate", "beta_TwoThree:EmbRate", "\n", sep="\t"))
 sink()
 
 
@@ -54,16 +51,16 @@ for(pred in unique(data$predictability_weight)) {
 #       if(length(unique(data2$ID)) == 1) {
  #         model2 = lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C * True_Minus_False.C + compatible.C + (1|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0))
   #     } else {
-          model2 = lmer(SurprisalReweighted ~ True_Minus_False.C + HasRC.C + HasRC.C * True_Minus_False.C + True_Minus_False.C + (1+True_Minus_False.C|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0) %>% group_by(HasRC.C, True_Minus_False.C, Item, Noun) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)))
+          model2 = lmer(SurprisalReweighted ~ compatible.C * HasRC.C + compatible.C * True_Minus_False.C + HasRC.C + HasRC.C * True_Minus_False.C + True_Minus_False.C + (1|Item) + (1|Noun), data=data2 %>% filter(HasSC.C>0) %>% group_by(HasRC.C, True_Minus_False.C, compatible.C, Item, Noun) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)))
 #          model2 = lmer(SurprisalReweighted ~ HasRC.C * compatible.C + HasRC.C * True_Minus_False.C + compatible.C + (1+compatible.C+True_Minus_False.C|Item) + (1|Noun) + (1+compatible.C+True_Minus_False.C|ID), data=data2 %>% filter(HasSC.C>0))
    #    }
 #crash()
-       cat(paste(pred, del, coef(summary(model2))[2,1], coef(summary(model2))[3,1], coef(summary(model2))[4,1], "\n", sep="\t"))
-      sink("analyze_M_VN3_245_lmer_effects.R.txt", append=TRUE)
-       cat(paste(pred, del, coef(summary(model2))[2,1], coef(summary(model2))[3,1], coef(summary(model2))[4,1], "\n", sep="\t"))
+       cat(paste(pred, del, coef(summary(model2))[2,1], coef(summary(model2))[3,1], coef(summary(model2))[4,1], coef(summary(model2))[5,1], coef(summary(model2))[6,1], coef(summary(model2))[7,1], "\n", sep="\t"))
+      sink("analyze_M_VN3_248_InnerVerb_lmer_effects.R.txt", append=TRUE)
+       cat(paste(pred, del, coef(summary(model2))[2,1], coef(summary(model2))[3,1], coef(summary(model2))[4,1], coef(summary(model2))[5,1], coef(summary(model2))[6,1], coef(summary(model2))[7,1], "\n", sep="\t"))
        sink()
-      sink("analyze_M_VN3_245_lmer_effects.R_tvalues.txt", append=TRUE)
-       cat(paste(pred, del, coef(summary(model2))[2,3], coef(summary(model2))[3,3], coef(summary(model2))[4,3], "\n", sep="\t"))
+      sink("analyze_M_VN3_248_InnerVerb_lmer_effects.R_tvalues.txt", append=TRUE)
+       cat(paste(pred, del, coef(summary(model2))[2,3], coef(summary(model2))[3,3], coef(summary(model2))[4,3], coef(summary(model2))[5,3], coef(summary(model2))[6,3], coef(summary(model2))[7,3], "\n", sep="\t"))
        sink()
     }
   }

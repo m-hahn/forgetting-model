@@ -9,6 +9,10 @@ corpus = read.csv("/u/scr/mhahn/Dundee/DundeeMerged.csv", sep="\t")
 
 matching = read.csv("matchData_EYE.py.tsv", sep="\t")
 
+wordfreq = read.csv("dundee-bnc-frequencies.tsv", sep="\t")
+
+matching = merge(matching, wordfreq %>% rename(Word = LowerCaseToken, BNCFrequency=Frequency), all.x=TRUE)
+
 model_ids = c("EYE2.py_626041227", "EYE2.py_289477725", "EYE2.py_850742927", "EYE.py_792802677", "EYE2.py_520356935", "EYE2.py_954110712")
 
 # 520356935 deletion_rate=0.5 predictability_weight=0.75
@@ -32,7 +36,7 @@ for(model_id in model_ids) {
    
    model = merge(model, matching, by=c("Sentence", "Region", "Word"))
    
-   data = merge(model, corpus, by=c("Itemno", "WNUM", "SentenceID", "ID" )) #, all.x=TRUE)
+   data = merge(model, corpus, by=c("Itemno", "WNUM", "SentenceID", "ID" )) %>% filter(FPASSD > 0) #, all.x=TRUE)
    
    data$Identifier = paste(data$Sentence, data$Region)
    library(lme4)
