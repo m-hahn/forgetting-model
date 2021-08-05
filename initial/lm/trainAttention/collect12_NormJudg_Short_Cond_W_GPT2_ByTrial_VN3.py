@@ -38,9 +38,11 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
           deletion_rate = arguments["deletion_rate"]
           try:
            with open(PATH2+f+"_Model", "r") as inFile:
+             print("Opened", PATH2+f+"_Model")
              data = [x.split("\t") for x in inFile.read().strip().split("\n")]
              data = data[1:]
              for line in data:
                  print("\t".join(line + [suffix, arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], arguments["load_from_autoencoder"], arguments["load_from_plain_lm"]]), file=outFile)
           except FileNotFoundError:
+             print("Couldn't open", PATH2+f+"_Model")
              pass
