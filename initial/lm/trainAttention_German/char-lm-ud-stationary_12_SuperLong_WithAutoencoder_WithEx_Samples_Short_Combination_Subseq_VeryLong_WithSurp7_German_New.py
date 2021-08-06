@@ -1,3 +1,7 @@
+# German code constructed using English  code
+# ...bination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_W.py
+
+
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -12,10 +16,10 @@ import random
 from collections import defaultdict
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--language", dest="language", type=str, default="english")
-parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=964163553) # language model taking noised input # Amortized Prediction Posterior
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([647336050, 516252642, 709961927, 727001672, 712478284, 524811876])) # Amortized Reconstruction Posterior
-parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([27553360, 935649231])) # plain language model without noise (Prior)
+parser.add_argument("--language", dest="language", type=str, default="german")
+parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=random.choice([522622844])) # language model taking noised input
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([188436350, 518982544])) #518982544, 188436350, 518982544, 310179465, 12916800])) # 310179465, has a corrupted file
+parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([67760999, 977691881])) #, 129313017])) #136525999])) #244706489, 273846868])) # plain language model without noise
 
 
 # Unique ID for this model run
@@ -453,7 +457,7 @@ optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory
 # Amortized Reconstruction Posterior
 if args.load_from_autoencoder is not None:
   print(args.load_from_autoencoder)
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss_WithoutComma.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
   for i in range(len(checkpoint["components"])):
       autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
   del checkpoint
@@ -479,13 +483,11 @@ def prepareDatasetChunks(data, train=True):
       for chunk in data:
        #print(len(chunk))
        for char in chunk:
-#         if char == " ":
- #          continue
+         if char == ",":
+           continue
          count += 1
 #         if count % 100000 == 0:
 #             print(count/len(data))
-         if char == ",": # Skip commas
-           continue
          numerified.append((stoi[char]+3 if char in stoi else 2))
 #         numerified_chars.append([0] + [stoi_chars[x]+3 if x in stoi_chars else 2 for x in char])
 
@@ -874,313 +876,135 @@ def showAttention(word, POS=""):
     print(*(["SCORES", word, "\t"]+[round(x,2) for x in list(attention.cpu().data.numpy())] + (["POS="+POS] if POS != "" else [])))
 
 
-# OOVs replaced (July 20, 2021)
-#OOV WARNING #starlet# -> actress
-#OOV WARNING #mistrusted#->distrusted
-#OOV WARNING #baffled#->startled
-#OOV WARNING #defrauded#->cheated
-#OOV WARNING #outwitted#->defeated
-#OOV WARNING #drunkard#->drinker
-#OOV WARNING #lifesaver#->lifeguard
-#OOV WARNING #detested#->hated
-#OOV WARNING #houseowner#->homeowner
-#
 
 
 
 
 nounsAndVerbs = []
-
-
-
-
-nounsAndVerbs.append({"item" : "245_0",             "compatible" : 1, "s" : "that the analyst who the banker admired /appeared on TV /was very believable."})
-nounsAndVerbs.append({"item" : "245_1",             "compatible" : 1, "s" : "that the consultant who the artist hired /surprised the janitor /shocked everyone.", })
-nounsAndVerbs.append({"item" : "245_2",             "compatible" : 1, "s" : "that the commander who the president appointed /was confirmed /troubled people.", })
-nounsAndVerbs.append({"item" : "245_3",             "compatible" : 1, "s" : "that the dancer who the audience loved /made people happy /was exciting.", })
-nounsAndVerbs.append({"item" : "245_4",             "compatible" : 1, "s" : "that the politician who the farmer supported /was refuted /did not bother the farmer.", })
-nounsAndVerbs.append({"item" : "245_5",             "compatible" : 1, "s" : "that the surgeon who the patient thanked /shocked his colleagues /was ridiculous."})
-nounsAndVerbs.append({"item" : "245_6",             "compatible" : 1, "s" : "that the principal who the teacher liked /calmed everyone down /was false."})
-nounsAndVerbs.append({"item" : "245_7",             "compatible" : 1, "s" : "that the actor who the actress loved /made her cry /was sad to hear about."})
-nounsAndVerbs.append({"item" : "245_8",             "compatible" : 1, "s" : "that the senator who the diplomat opposed /annoyed Bill /was absolutely true."})
-nounsAndVerbs.append({"item" : "245_9",             "compatible" : 1, "s" : "that the criminal who the officer arrested /stunned everyone /was disconcerting."})
-nounsAndVerbs.append({"item" : "245_10",            "compatible" : 1, "s" : "that the violinist who the sponsors backed /sounded hopeful /pleased everyone."})
-nounsAndVerbs.append({"item" : "245_11",            "compatible" : 1, "s" : "that the trader who the businessman consulted /frightened Mary /was unnerving."})
-nounsAndVerbs.append({"item" : "245_12",            "compatible" : 1, "s" : "that the neighbor who the woman distrusted /startled the child /was a lie."})
-nounsAndVerbs.append({"item" : "245_13",            "compatible" : 1, "s" : "that the student who the bully intimidated /drove everyone crazy /devastated his parents."})
-nounsAndVerbs.append({"item" : "245_14",            "compatible" : 1, "s" : "that the carpenter who the craftsman carried /confused the apprentice /was acknowledged."})
-nounsAndVerbs.append({"item" : "245_15",            "compatible" : 1, "s" : "that the CEO who the employee impressed /deserved attention /was entirely correct."})
-nounsAndVerbs.append({"item" : "245_16",            "compatible" : 1, "s" : "that the politician who the banker bribed /was credible /seemed bogus."})
-nounsAndVerbs.append({"item" : "245_17",            "compatible" : 1, "s" : "that the child who the medic rescued /was quoted in newspapers /startled the parents."})
-nounsAndVerbs.append({"item" : "245_18",            "compatible" : 1, "s" : "that the runner who the psychiatrist treated /was widely known /turned out to be incorrect."})
-nounsAndVerbs.append({"item" : "245_19",            "compatible" : 1, "s" : "that the preacher who the parishioners fired /was idiotic /had been gaining traction."})
-nounsAndVerbs.append({"item" : "238_Critical_VN1",  "compatible" : 1, "s" : "that the carpenter who the craftsman carried /confused the apprentice /was acknowledged."})
-nounsAndVerbs.append({"item" : "238_Critical_VN1",  "compatible" : 2, "s" : "that the carpenter who the craftsman carried /hurt the apprentice /was acknowledged."})
-nounsAndVerbs.append({"item" : "238_Critical_VN2",  "compatible" : 1, "s" : "that the daughter who the sister found /frightened the grandmother /seemed concerning."})
-nounsAndVerbs.append({"item" : "238_Critical_VN2",  "compatible" : 2, "s" : "that the daughter who the sister found /greeted the grandmother /seemed concerning."})
-nounsAndVerbs.append({"item" : "238_Critical_VN3",  "compatible" : 1, "s" : "that the tenant who the foreman looked for /annoyed the shepherd /proved to be made up."})
-nounsAndVerbs.append({"item" : "238_Critical_VN3",  "compatible" : 2, "s" : "that the tenant who the foreman looked for /questioned the shepherd /proved to be made up."})
-nounsAndVerbs.append({"item" : "238_Critical_VN5",  "compatible" : 1, "s" : "that the pharmacist who the stranger saw /distracted the customer /sounded surprising."})
-nounsAndVerbs.append({"item" : "238_Critical_VN5",  "compatible" : 2, "s" : "that the pharmacist who the stranger saw /questioned the customer /sounded surprising."})
-nounsAndVerbs.append({"item" : "Critical_6",        "compatible" : 1, "s" : "that the surgeon who the patient thanked /shocked his colleagues /was ridiculous."})
-nounsAndVerbs.append({"item" : "Critical_6",        "compatible" : 2, "s" : "that the surgeon who the patient thanked /cured his colleagues /was ridiculous."})
-nounsAndVerbs.append({"item" : "238_Critical_VAdv1","compatible" : 1, "s" : "that the commander who the president appointed /was confirmed yesterday /troubled people."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv1","compatible" : 2, "s" : "that the commander who the president appointed /was fired yesterday /troubled people."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv2","compatible" : 1, "s" : "that the trickster who the woman recognized /was acknowledged by the police /calmed people down."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv2","compatible" : 2, "s" : "that the trickster who the woman recognized /was arrested by the police /calmed people down."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv3","compatible" : 1, "s" : "that the politician who the farmer trusted /was refuted three days ago /did not bother the farmer."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv3","compatible" : 2, "s" : "that the politician who the farmer trusted /was elected three days ago /did not bother the farmer."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv5","compatible" : 1, "s" : "that the politician who the banker bribed /seemed credible to everyone /gave Josh the chills."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv5","compatible" : 2, "s" : "that the politician who the banker bribed /seemed corrupt to everyone /gave Josh the chills."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv6","compatible" : 1, "s" : "that the sculptor who the painter admired /made headlines in the US /did not surprise anyone."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv6","compatible" : 2, "s" : "that the sculptor who the painter admired /made sculptures in the US /did not surprise anyone."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv7","compatible" : 1, "s" : "that the runner who the psychiatrist treated /was widely known in France /turned out to be incorrect."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv7","compatible" : 2, "s" : "that the runner who the psychiatrist treated /won the marathon in France /turned out to be incorrect."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv8","compatible" : 1, "s" : "that the analyst who the banker trusted /appeared on TV this morning /was very believable."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv8","compatible" : 2, "s" : "that the analyst who the banker trusted /repaired the TV this morning /was very believable."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv9","compatible" : 1, "s" : "that the child who the medic rescued /was mentioned in newspapers /seemed very interesting."})
-nounsAndVerbs.append({"item" : "238_Critical_Vadv9","compatible" : 2, "s" : "that the child who the medic rescued /wrote articles in newspapers /seemed very interesting."})
-nounsAndVerbs.append({"item" : "232_Critical_0",    "compatible" : 2, "s" : "that the teacher who the principal liked /failed the student /was only a malicious smear."})
-nounsAndVerbs.append({"item" : "232_Critical_0",    "compatible" : 1, "s" : "that the teacher who the principal liked /annoyed the student /was only a malicious smear."})
-nounsAndVerbs.append({"item" : "232_Critical_1",    "compatible" : 2, "s" : "that the doctor who the colleague distrusted /cured the patients /seemed hard to believe."})
-nounsAndVerbs.append({"item" : "232_Critical_1",    "compatible" : 1, "s" : "that the doctor who the colleague distrusted /bothered the patients /seemed hard to believe."})
-nounsAndVerbs.append({"item" : "232_Critical_2",    "compatible" : 2, "s" : "that the bully who the children hated /harassed the boy /was entirely correct."})
-nounsAndVerbs.append({"item" : "232_Critical_2",    "compatible" : 1, "s" : "that the bully who the children hated /shocked the boy /was entirely correct."})
-nounsAndVerbs.append({"item" : "232_Critical_3",    "compatible" : 2, "s" : "that the agent who the FBI sent /arrested the criminal /was acknowledged."})
-nounsAndVerbs.append({"item" : "232_Critical_3",    "compatible" : 1, "s" : "that the agent who the FBI sent /confused the criminal /was acknowledged."})
-nounsAndVerbs.append({"item" : "232_Critical_4",    "compatible" : 2, "s" : "that the senator who the diplomat supported /defeated the opponent /deserved attention."})
-nounsAndVerbs.append({"item" : "232_Critical_4",    "compatible" : 1, "s" : "that the senator who the diplomat supported /troubled the opponent /deserved attention."})
-nounsAndVerbs.append({"item" : "232_Critical_5",    "compatible" : 2, "s" : "that the fiancé who the author met /married the bride /did not surprise anyone."})
-nounsAndVerbs.append({"item" : "232_Critical_5",    "compatible" : 1, "s" : "that the fiancé who the author met /startled the bride /did not surprise anyone."})
-nounsAndVerbs.append({"item" : "232_Critical_6",    "compatible" : 2, "s" : "that the businessman who the sponsor backed /fired the employee /came as a disappointment."})
-nounsAndVerbs.append({"item" : "232_Critical_6",    "compatible" : 1, "s" : "that the businessman who the sponsor backed /surprised the employee /came as a disappointment."})
-nounsAndVerbs.append({"item" : "232_Critical_7",    "compatible" : 2, "s" : "that the thief who the detective caught /robbed the woman /broke her family's heart."})
-nounsAndVerbs.append({"item" : "232_Critical_7",    "compatible" : 1, "s" : "that the thief who the detective caught /enraged the woman /broke her family's heart."})
-nounsAndVerbs.append({"item" : "232_Critical_8",    "compatible" : 2, "s" : "that the criminal who the stranger distracted /abducted the officer /seemed concerning."})
-nounsAndVerbs.append({"item" : "232_Critical_8",    "compatible" : 1, "s" : "that the criminal who the stranger distracted /startled the officer /seemed concerning."})
-nounsAndVerbs.append({"item" : "232_Critical_9",    "compatible" : 2, "s" : "that the customer who the vendor welcomed /contacted the clerk /was very believable."})
-nounsAndVerbs.append({"item" : "232_Critical_9",    "compatible" : 1, "s" : "that the customer who the vendor welcomed /terrified the clerk /was very believable."})
-nounsAndVerbs.append({"item" : "232_Critical_10",   "compatible" : 2, "s" : "that the president who the farmer admired /appointed the commander /was entirely bogus."})
-nounsAndVerbs.append({"item" : "232_Critical_10",   "compatible" : 1, "s" : "that the president who the farmer admired /impressed the commander /was entirely bogus."})
-nounsAndVerbs.append({"item" : "232_Critical_11",   "compatible" : 2, "s" : "that the victim who the swimmer rescued /sued the criminal /appeared on TV."})
-nounsAndVerbs.append({"item" : "232_Critical_11",   "compatible" : 1, "s" : "that the victim who the swimmer rescued /surprised the criminal /appeared on TV."})
-nounsAndVerbs.append({"item" : "232_Critical_12",   "compatible" : 2, "s" : "that the guest who the cousin invited /visited the uncle /drove Jill crazy."})
-nounsAndVerbs.append({"item" : "232_Critical_12",   "compatible" : 1, "s" : "that the guest who the cousin invited /pleased the uncle /drove Jill crazy."})
-nounsAndVerbs.append({"item" : "232_Critical_13",   "compatible" : 2, "s" : "that the psychiatrist who the nurse assisted /diagnosed the patient /became widely known."})
-nounsAndVerbs.append({"item" : "232_Critical_13",   "compatible" : 1, "s" : "that the psychiatrist who the nurse assisted /horrified the patient /became widely known."})
-nounsAndVerbs.append({"item" : "232_Critical_14",   "compatible" : 2, "s" : "that the driver who the guide called /phoned the tourist /was absolutely true."})
-nounsAndVerbs.append({"item" : "232_Critical_14",   "compatible" : 1, "s" : "that the driver who the guide called /amazed the tourist /was absolutely true."})
-nounsAndVerbs.append({"item" : "232_Critical_15",   "compatible" : 2, "s" : "that the actor who the fans loved /greeted the director /appeared to be true."})
-nounsAndVerbs.append({"item" : "232_Critical_15",   "compatible" : 1, "s" : "that the actor who the fans loved /astonished the director /appeared to be true."})
-nounsAndVerbs.append({"item" : "232_Critical_16",   "compatible" : 2, "s" : "that the banker who the analyst cheated /trusted the customer /proved to be made up."})
-nounsAndVerbs.append({"item" : "232_Critical_16",   "compatible" : 1, "s" : "that the banker who the analyst cheated /excited the customer /proved to be made up."})
-nounsAndVerbs.append({"item" : "232_Critical_17",   "compatible" : 2, "s" : "that the judge who the attorney hated /acquitted the defendant /was a lie."})
-nounsAndVerbs.append({"item" : "232_Critical_17",   "compatible" : 1, "s" : "that the judge who the attorney hated /vindicated the defendant /was a lie."})
-nounsAndVerbs.append({"item" : "232_Critical_18",   "compatible" : 2, "s" : "that the captain who the crew trusted /commanded the sailor /was nice to hear."})
-nounsAndVerbs.append({"item" : "232_Critical_18",   "compatible" : 1, "s" : "that the captain who the crew trusted /motivated the sailor /was nice to hear."})
-nounsAndVerbs.append({"item" : "232_Critical_19",   "compatible" : 2, "s" : "that the manager who the boss authorized /hired the intern /seemed absurd."})
-nounsAndVerbs.append({"item" : "232_Critical_19",   "compatible" : 1, "s" : "that the manager who the boss authorized /saddened the intern /seemed absurd."})
-nounsAndVerbs.append({"item" : "232_Critical_20",   "compatible" : 2, "s" : "that the plaintiff who the jury interrogated /interrupted the witness /made it into the news."})
-nounsAndVerbs.append({"item" : "232_Critical_20",   "compatible" : 1, "s" : "that the plaintiff who the jury interrogated /startled the witness /made it into the news."})
-nounsAndVerbs.append({"item" : "232_Critical_21",   "compatible" : 2, "s" : "that the drinker who the thug hit /defeated the bartender /sounded hilarious."})
-nounsAndVerbs.append({"item" : "232_Critical_21",   "compatible" : 1, "s" : "that the drinker who the thug hit /stunned the bartender /sounded hilarious."})
-nounsAndVerbs.append({"item" : "232_Critical_23",   "compatible" : 2, "s" : "that the medic who the survivor thanked /greeted the surgeon /turned out to be untrue."})
-nounsAndVerbs.append({"item" : "232_Critical_23",   "compatible" : 1, "s" : "that the medic who the survivor thanked /surprised the surgeon /turned out to be untrue."})
-nounsAndVerbs.append({"item" : "232_Critical_24",   "compatible" : 2, "s" : "that the lifeguard who the soldier taught /rescued the swimmer /took the townspeople by surprise."})
-nounsAndVerbs.append({"item" : "232_Critical_24",   "compatible" : 1, "s" : "that the lifeguard who the soldier taught /encouraged the swimmer /took the townspeople by surprise."})
-nounsAndVerbs.append({"item" : "232_Critical_25",   "compatible" : 2, "s" : "that the fisherman who the gardener helped /admired the politician /was interesting."})
-nounsAndVerbs.append({"item" : "232_Critical_25",   "compatible" : 1, "s" : "that the fisherman who the gardener helped /delighted the politician /was interesting."})
-nounsAndVerbs.append({"item" : "232_Critical_26",   "compatible" : 2, "s" : "that the janitor who the organizer criticized /ignored the audience /was funny."})
-nounsAndVerbs.append({"item" : "232_Critical_26",   "compatible" : 1, "s" : "that the janitor who the organizer criticized /amused the audience /was funny."})
-nounsAndVerbs.append({"item" : "232_Critical_27",   "compatible" : 2, "s" : "that the investor who the scientist hated /deceived the entrepreneur /drove everyone crazy."})
-nounsAndVerbs.append({"item" : "232_Critical_27",   "compatible" : 1, "s" : "that the investor who the scientist hated /disappointed the entrepreneur /drove everyone crazy."})
-nounsAndVerbs.append({"item" : "232_Critical_28",   "compatible" : 2, "s" : "that the firefighter who the neighbor insulted /rescued the homeowner /went unnoticed."})
-nounsAndVerbs.append({"item" : "232_Critical_28",   "compatible" : 1, "s" : "that the firefighter who the neighbor insulted /discouraged the homeowner /went unnoticed."})
-nounsAndVerbs.append({"item" : "232_Critical_30",   "compatible" : 2, "s" : "that the plumber who the apprentice consulted /assisted the woman /was true."})
-nounsAndVerbs.append({"item" : "232_Critical_30",   "compatible" : 1, "s" : "that the plumber who the apprentice consulted /puzzled the woman /was true."})
-
-
-
-
+nounsAndVerbs.append(["der Schulleiter",    "den der Lehrer",    "kritisierte",           "gefeuert wurde",           "erschien in der Zeitung", "Was the XXXX quoted in the newspaper?", "Y"])
+nounsAndVerbs.append(["der Bildhauer",    "den der Maler",    "bewunderte",      "Talent hatte",          "war falsch", "Was the XXXX untrue?", "Y"])
+nounsAndVerbs.append(["der Spezialist", "den der Künstler",     "kannte",         "ein Betrüger war",            "schockiert alle", "Did the XXXX shock everyone?", "Y"])
+nounsAndVerbs.append(["der Marathonläufer",     "den der Psychiater",    "behandelte",        "betrogen hatte",      "schien lächerlich", "Was the XXXX ridiculous?", "Y"])
+nounsAndVerbs.append(["das Kind",      "das der Sanitäter",     "rettete",  "unbeschadet war",      "erleichterte alle", "Did the XXXX relieve everyone?", "Y"])
+nounsAndVerbs.append(["der Kriminelle",    "den die Polizisten",    "festnahmen",         "unschuldig war",       "war völlig falsch", "Was the XXXX bogus?", "Y"])
+nounsAndVerbs.append(["der Student",     "der Professor",   "hasst",           "das Studium abbrach",       "machte den Professor glücklich", "Did the XXXX make the professor happy?", "Y"])
+nounsAndVerbs.append(["der Boss",     "den der Journalist",     "darstellte",        "geflohen war",           "stellte sich als wahr heraus", "Did the XXXX turn out to be true?", "Y"])
+nounsAndVerbs.append(["die Schauspielerin",            "den der Star",    "liebte",          "die Show verpasste",        "brachte sie zum Weinen", "Did the XXXX almost make her cry?", "Y"])
+nounsAndVerbs.append(["der Pfarrer",    "den die Gemeindemitglieder",  "wählten",           "Geld stahl",    "war korrekt", "Did the XXXX prove to be true?", "Y"])
+nounsAndVerbs.append(["der Musiker",   "den die Sponsoren",    "unterstützten",          "Drogen nahm",            "stimmt wahrscheinlich", "Was the XXXX likely true?", "Y"])
+nounsAndVerbs.append(["der Abgeordnete",    "den der Diplomat",    "kannte",          "in der Stichwahl gewann",          "machte ihn wütend", "Did the XXXX make him angry?", "Y"])
+nounsAndVerbs.append(["der Kommandant",    "den der Präsident",    "einsetzte",  "einen Krieg begann",     "beunruhigt die Leute", "Did the XXXX trouble people?", "Y"])
+nounsAndVerbs.append(["das Opfer",    "das der Verbrecher",    "angriff",  "überlebten",     "beruhigt alle", "Did the XXXX calm everyone down?", "Y"])
+nounsAndVerbs.append(["der Politiker",    "den der Bankier",    "unterstützte",  "Geldwäsche betrieb",     "war ein Schock für seine Anhänger", "Did the XXXX come as a shock?", "Y"])
+nounsAndVerbs.append(["der Chirurg",    "den der Patient",    "bezahlte",  "keinen Doktor hatte",     "war keine Überraschung", "Was the XXXX unsurprising?", "Y"])
+nounsAndVerbs.append(["der Spion",    "den der Agent",    "verfolgte",          "einen Preis bekam",     "war traurig", "Was the XXXX disconcerting?", "Y"])
+nounsAndVerbs.append(["der Angestellte",    "den der Kunde",    "rief",  "ein Held war",     "schien absurd", "Did the XXXX seem absurd?", "Y"])
+nounsAndVerbs.append(["der Händler",    "der Unternehmer",    "befragte",  "geheime Informationen hatte",     "wurde bestätigt", "Was the XXXX confirmed?", "Y"])
+nounsAndVerbs.append(["der Chef",    "den der Angestellte",    "beeindruckte",  "in Rente ging",     "war korrekt", "Was the XXXX correct?", "Y"])
+nounsAndVerbs.append(["der Taxifahrer", "den der Tourist", "fragte", "blind war", "schien schwer zu glauben", "", "Y"])
+nounsAndVerbs.append(["der Buchhändler", "den der Dieb", "überfiel", "einen Herzinfarkt bekam", "schockiert seine Familie", "", "Y"])
+nounsAndVerbs.append(["der Nachbar", "den die Frau", "verdächtigte", "ihren Hund ermordete", "war eine Lüge", "", "Y"])
+nounsAndVerbs.append(["der Wissenschaftler", "dem der Bürgermeister", "vertraute", "verrückt war", "war eine böse Verleumdung", "", "Y"])
+nounsAndVerbs.append(["der Schüler", "den der Junge", "schlug", "betrogen hatte", "schockiert seine Eltern", "", "Y"])
+nounsAndVerbs.append(["der Betrüger", "den die Frau", "erkannte", "gefasst wurde", "beruhigt die Leute", "", "Y"])
+nounsAndVerbs.append(["der Unternehmer", "den der Wohltäter", "finanzierte", "das Geld ausgab", "war eine Enttäuschung", "", "Y"])
+nounsAndVerbs.append(["der Retter", "den der Schwimmer", "rief", "die Kinder rettete", "beeindruckte die ganze Stadt", "", "Y"])
 
 for x in nounsAndVerbs:
-# for z in x:
-   for q in x["s"].split(" "):
-    q = q.strip("/").strip(".").lower()
-    if q not in stoi_total and q not in ["X", "Y", "XXXX"]:
-     print("OOV WARNING", "#"+q+"#")
-#quit()
-
+   for i in [0,1,2,3,4]:
+       for y in x[i].lower().split(" "):
+          if stoi_total.get(y, 500000000) > 50000:
+             print(y)
+quit()
 
 #nounsAndVerbs.append(["the senator",        "the diplomat",       "opposed"])
 
 #nounsAndVerbs = nounsAndVerbs[:1]
 
 topNouns = []
-topNouns.append("report")
-topNouns.append("story")       
-#topNouns.append("disclosure")
-topNouns.append("proof")
-topNouns.append("confirmation")  
-topNouns.append("information")
-topNouns.append("evidence")
-topNouns.append("reminder")
-topNouns.append("rumor")
-#topNouns.append("thought")
-topNouns.append("suggestion")
-topNouns.append( "revelation")  
-topNouns.append( "belief")
-topNouns.append( "fact")
-topNouns.append( "realization")
-topNouns.append( "suspicion")
-topNouns.append( "certainty")
-topNouns.append( "idea")
-topNouns.append( "admission") 
-topNouns.append( "confirmation")
-topNouns.append( "complaint"    )
-topNouns.append( "certainty"   )
-topNouns.append( "prediction"  )
-topNouns.append( "declaration")
-topNouns.append( "proof"   )
-topNouns.append( "suspicion")    
-topNouns.append( "allegation"   )
-topNouns.append( "revelation"   )
-topNouns.append( "realization")
-topNouns.append( "news")
-topNouns.append( "opinion" )
-topNouns.append( "idea")
-topNouns.append("myth")
-
-topNouns.append("announcement")
-topNouns.append("suspicion")
-topNouns.append("allegation")
-topNouns.append("realization")
-topNouns.append("indication")
-topNouns.append("remark")
-topNouns.append("speculation")
-topNouns.append("assurance")
-topNouns.append("presumption")
-topNouns.append("concern")
-topNouns.append("finding")
-topNouns.append("assertion")
-topNouns.append("feeling")
-topNouns.append("perception")
-topNouns.append("statement")
-topNouns.append("assumption")
-topNouns.append("conclusion")
-
-
-topNouns.append("report")
-topNouns.append("story")
-#topNouns.append("disclosure")
-topNouns.append("confirmation")   
-topNouns.append("information")
-topNouns.append("evidence")
-topNouns.append("reminder")
-topNouns.append("rumor")
-topNouns.append("thought")
-topNouns.append("suggestion")
-topNouns.append("revelation")    
-topNouns.append("belief")
-#topNouns.append("inkling") # this is OOV for the model
-topNouns.append("suspicion")
-topNouns.append("idea")
-topNouns.append("claim")
-topNouns.append("news")
-topNouns.append("proof")
-topNouns.append("admission")
-topNouns.append("declaration")
-
-topNouns.append("assessment")
-topNouns.append("truth")
-topNouns.append("declaration")
-topNouns.append("complaint")
-topNouns.append("admission")
-topNouns.append("disclosure")
-topNouns.append("confirmation")
-topNouns.append("guess")
-topNouns.append("remark")
-topNouns.append("news")
-topNouns.append("proof")
-topNouns.append("message")
-topNouns.append("announcement")
-topNouns.append("statement")
-topNouns.append("thought")
-topNouns.append("allegation")
-topNouns.append("indication")
-topNouns.append("recognition")
-topNouns.append("speculation")
-topNouns.append("accusation")
-topNouns.append("reminder")
-topNouns.append("rumor")
-topNouns.append("finding")
-topNouns.append("idea")
-topNouns.append("feeling")
-topNouns.append("conjecture")
-topNouns.append("perception")
-topNouns.append("certainty")
-topNouns.append("revelation")
-topNouns.append("understanding")
-topNouns.append("claim")
-topNouns.append("view")
-topNouns.append("observation")
-topNouns.append("conviction")
-topNouns.append("presumption")
-topNouns.append("intuition")
-topNouns.append("opinion")
-topNouns.append("conclusion")
-topNouns.append("notion")
-topNouns.append("suggestion")
-topNouns.append("sense")
-topNouns.append("suspicion")
-topNouns.append("assurance")
-topNouns.append("insinuation")
-topNouns.append("realization")
-topNouns.append("assertion")
-topNouns.append("impression")
-topNouns.append("contention")
-topNouns.append("assumption")
-topNouns.append("belief")
-topNouns.append("fact")
-
-topNouns = list(set(topNouns))
 
 
 
-with open("../../../../forgetting/corpus_counts/wikipedia/results/counts4NEW_Processed.tsv", "r") as inFile:
-   counts = [x.replace('"', '').split("\t") for x in inFile.read().strip().split("\n")]
-   header = ["LineNum"] + counts[0]
-   assert len(header) == len(counts[1])
+topNouns.append('Die Klage')
+topNouns.append('Der Zweifel')
+topNouns.append('Der Bericht')
+topNouns.append('Die Kritik')
+topNouns.append('Der Punkt')
+topNouns.append('Die Sicherheit')
+topNouns.append('Die Anordnung')
+topNouns.append('Die Entscheidung')
+topNouns.append('Das Zeichen')
+topNouns.append('Die Schätzung')
+topNouns.append('Die Aufforderung')
+topNouns.append('Die Entdeckung')
+topNouns.append('Der Beleg')
+topNouns.append('Die Idee')
+topNouns.append('Die Möglichkeit')
+topNouns.append('Der Vorwurf')
+topNouns.append('Die Erfahrung')
+topNouns.append('Die Erklärung')
+topNouns.append('Die Bestätigung')
+topNouns.append('Die Spekulation')
+topNouns.append('Die Information')
+topNouns.append('Die Ankündigung')
+topNouns.append('Der Glaube')
+topNouns.append('Die Andeutung')
+topNouns.append('Der Gedanke')
+topNouns.append('Die Aussage')
+topNouns.append('Das Gefühl')
+topNouns.append('Der Eindruck')
+topNouns.append('Der Beweis')
+topNouns.append('Der Verdacht')
+topNouns.append('Das Fazit')
+topNouns.append('Die Hoffnung')
+topNouns.append('Die Nachricht')
+topNouns.append('Die Behauptung')
+topNouns.append('Das Gerücht')
+topNouns.append('Die Mitteilung')
+topNouns.append('Die Wahrscheinlichkeit')
+topNouns.append('Der Hinweis')
+topNouns.append('Die Mutmaßung')
+topNouns.append('Die Erkenntnis')
+topNouns.append('Die Feststellung')
+topNouns.append('Die Annahme')
+topNouns.append('Die Vermutung')
+topNouns.append('Die Befürchtung')
+topNouns.append('Die Ansicht')
+topNouns.append('Die Auffassung')
+topNouns.append('Die Überzeugung')
+topNouns.append('Der Schluss')
+topNouns.append('Die Tatsache')
+
+
+topNouns = [x for x in topNouns if stoi_total.get(x.split(" ")[1].lower(), 100000000) <= 50000]
+topNouns = [x.lower().strip().split(" ") for x in topNouns]
+articles = dict([x[::-1] for x in topNouns])
+topNouns = topNouns = [x[1] for x in topNouns]
+
+
+with open("../../../../forgetting/corpus_counts/german/output/counts_ordered.tsv", "r") as inFile:
+   counts = [x.split("\t") for x in inFile.read().strip().split("\n")]
+   header = counts[0]
    header = dict(list(zip(header, range(len(header)))))
-   counts = {line[header["Noun"]] : line for line in counts[1:]}
+   counts = {line[1].lower() : line for line in counts}
 
-
-print(len(topNouns))
-print([x for x in topNouns if x not in counts])
 topNouns = [x for x in topNouns if x in counts]
-
-def thatBias(noun):
-   return math.log(float(counts[noun][header["CountThat"]]))-math.log(float(counts[noun][header["CountBare"]]))
-
-topNouns = sorted(list(set(topNouns)), key=lambda x:thatBias(x))
+topNouns = sorted(list(set(topNouns)), key=lambda x:float(counts[x][header["True_False"]])-float(counts[x][header["False_False"]]))
 
 print(topNouns)
 print(len(topNouns))
-#quit()
 
 
-# This is to ensure the tsv files are useful even when the script is stopped prematurely
-random.shuffle(topNouns)
 
     
-#plain_lm = PlainLanguageModel()
-#plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars.py"
+plain_lm = PlainLanguageModel()
+plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_NoComma.py"
 
-#if args.load_from_plain_lm is not None:
-#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
-#  for i in range(len(checkpoint["components"])):
-#      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
-#  del checkpoint
+if args.load_from_plain_lm is not None:
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
+  for i in range(len(checkpoint["components"])):
+      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
+  del checkpoint
 
 
 # Helper Functions
@@ -1212,82 +1036,15 @@ def flatten(x):
    return l
 
 
-calibrationSentences = []
-
-calibrationSentences.append("The divorcee has come to love her life ever since she got divorced.") 
-calibrationSentences.append("The mathematician at the banquet baffled the philosopher although she rarely needed anyone else's help.")
-calibrationSentences.append("The showman travels to different cities every month.")
-calibrationSentences.append("The roommate takes out the garbage every week.")
-calibrationSentences.append("The dragon wounded the knight although he was far too crippled to protect the princess.")
-calibrationSentences.append("The office-worker worked through the stack of files on his desk quickly.")
-calibrationSentences.append("The firemen at the scene apprehended the arsonist because there was a great deal of evidence pointing to his guilt.")
-calibrationSentences.append("During the season, the choir holds rehearsals in the church regularly.")
-calibrationSentences.append("The speaker who the historian offended kicked a chair after the talk was over and everyone had left the room.")
-calibrationSentences.append("The milkman punctually delivers the milk at the door every day.")
-calibrationSentences.append("The quarterback dated the cheerleader although this hurt her reputation around school.")
-calibrationSentences.append("The citizens of France eat oysters.")
-calibrationSentences.append("The bully punched the kid after all the kids had to leave to go to class.")
-calibrationSentences.append("After the argument, the husband ignored his wife.")
-calibrationSentences.append("The engineer who the lawyer who was by the elevator scolded blamed the secretary but nobody listened to his complaints.")
-calibrationSentences.append("The librarian put the book onto the shelf.")
-calibrationSentences.append("The photographer processed the film on time.")
-calibrationSentences.append("The spider that the boy who was in the yard captured scared the dog since it was larger than the average spider.")
-calibrationSentences.append("The sportsman goes jogging in the park regularly.")
-calibrationSentences.append("The customer who was on the phone contacted the operator because the new long-distance pricing plan was extremely inconvenient.")
-calibrationSentences.append("The private tutor explained the assignment carefully.")
-calibrationSentences.append("The audience who was at the club booed the singer before the owner of the bar could remove him from the stage.")
-calibrationSentences.append("The defender is constantly scolding the keeper.")
-calibrationSentences.append("The hippies who the police at the concert arrested complained to the officials while the last act was going on stage.")
-calibrationSentences.append("The natives on the island captured the anthropologist because she had information that could help the tribe.")
-calibrationSentences.append("The trainee knew that the task which the director had set for him was impossible to finish within a week.")
-calibrationSentences.append("The administrator who the nurse from the clinic supervised scolded the medic while a patient was brought into the emergency room.")
-calibrationSentences.append("The company was sure that its new product, which its researchers had developed, would soon be sold out.")
-calibrationSentences.append("The astronaut that the journalists who were at the launch worshipped criticized the administrators after he discovered a potential leak in the fuel tank.")
-calibrationSentences.append("The janitor who the doorman who was at the hotel chatted with bothered a guest but the manager decided not to fire him for it.")
-calibrationSentences.append("The technician at the show repaired the robot while people were taking a break for coffee.")
-calibrationSentences.append("The salesman feared that the printer which the customer bought was damaged.")
-calibrationSentences.append("The students studied the surgeon whenever he performed an important operation.")
-calibrationSentences.append("The locksmith can crack the safe easily.")
-calibrationSentences.append("The woman who was in the apartment hired the plumber despite the fact that he couldn't fix the toilet.")
-calibrationSentences.append("Yesterday the swimmer saw only a turtle at the beach.")
-calibrationSentences.append("The surgeon who the detective who was on the case consulted questioned the coroner because the markings on the body were difficult to explain.")
-calibrationSentences.append("The gangster who the detective at the club followed implicated the waitress because the police suspected he had murdered the shopkeeper.")
-calibrationSentences.append("During the party everybody was dancing to rock music.")
-calibrationSentences.append("The fans at the concert loved the guitarist because he played with so much energy.")
-calibrationSentences.append("The intern comforted the patient because he was in great pain.")
-calibrationSentences.append("The casino hired the daredevil because he was confident that everything would go according to plan.")
-calibrationSentences.append("The beggar is often scrounging for cigarettes.")
-calibrationSentences.append("The cartoonist who the readers supported pressured the dean because she thought that censorship was never appropriate.")
-calibrationSentences.append("The prisoner who the guard attacked tackled the warden although he had no intention of trying to escape.")
-calibrationSentences.append("The passer-by threw the cardboard box into the trash-can with great force.")
-calibrationSentences.append("The biker who the police arrested ran a light since he was driving under the influence of alcohol.")
-calibrationSentences.append("The scientists who were in the lab studied the alien while the blood sample was run through the computer.")
-calibrationSentences.append("The student quickly finished his homework assignments.")
-calibrationSentences.append("The environmentalist who the demonstrators at the rally supported calmed the crowd until security came and sent everyone home.")
-calibrationSentences.append("The producer shoots a new movie every year.")
-calibrationSentences.append("The rebels who were in the jungle captured the diplomat after they threatened to kill his family for not complying with their demands.")
-calibrationSentences.append("Dinosaurs ate other reptiles during the stone age.")
-calibrationSentences.append("The manager who the baker loathed spoke to the new pastry chef because he had instituted a new dress code for all employees.")
-calibrationSentences.append("The teacher doubted that the test that had taken him a long time to design would be easy to answer.")
-calibrationSentences.append("The cook who the servant in the kitchen hired offended the butler and then left the mansion early to see a movie at the local theater.")
-
-
-#in and is the it
-#time maintain metal commercially the was salt cut as two-year college flavorings solutions
-#a alkali and and four-year into twice programme cation and \tduring addition ammonia burials
-#often and used butyllithiums perfumery as this amide
-
-
-
 def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["ModelTmp", "Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
 #    print(plain_lm) 
-    numberOfSamples = 6
+    numberOfSamples = 12
     import scoreWithGPT2Medium as scoreWithGPT2
     with torch.no_grad():
-     with open("/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
-      print("\t".join(["Sentence", "Region", "Word", "Surprisal", "SurprisalReweighted", "Repetition"]), file=outFile)
+     with open("/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv-german/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
+      print("\t".join(["Sentence", "Region", "Word", "Surprisal", "SurprisalReweighted"]), file=outFile)
       TRIALS_COUNT = 0
       for sentenceID in range(len(calibrationSentences)):
           print(sentenceID)
@@ -1298,7 +1055,6 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
           print("INPUT", context, remainingInput)
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
-            for repetition in range(2):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = max(0, args.sequence_length - len(context.split(" ")) - i - 1) # some sentences are too long
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
@@ -1309,7 +1065,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               if SANITY == "Sanity":
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
+                 numeric_noised = torch.where(numeric == stoi["dass"]+3, 0*numeric, numeric)
               elif SANITY == "ZeroLoss":
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
@@ -1400,7 +1156,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
                   print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//24]))
               print("SURPRISAL", i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
-              print("\t".join([str(w) for w in [sentenceID, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
+              print("\t".join([str(w) for w in [sentenceID, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3)]]), file=outFile)
 
 def divideDicts(y, z):
    r = {}
@@ -1411,60 +1167,50 @@ def divideDicts(y, z):
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["ModelTmp", "Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
-#    print(plain_lm) 
+    print(plain_lm) 
     surprisalsPerNoun = {}
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}
     thatFractionsReweightedPerNoun = {}
     numberOfSamples = 12
-    import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
 #    topNouns = ["fact", "report"]
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") if SANITY != "ModelTmp" else sys.stdout as outFile:
+    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem-german/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") if SANITY != "ModelTmp" else sys.stdout as outFile:
      print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat", "Word"]), file=outFile)
      with torch.no_grad():
       TRIALS_COUNT = 0
       TOTAL_TRIALS = len(topNouns) * len(nounsAndVerbs) * 2 * 1
       for nounIndex, NOUN in enumerate(topNouns):
         print(NOUN, "Time:", time.time() - startTimePredictions, nounIndex/len(topNouns), file=sys.stderr)
-        thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        thatFractionsCount = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalReweightedByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
-        surprisalCountByRegions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
+        thatFractions = {x : defaultdict(float) for x in ["grammatical", "ungrammatical"]}
+        thatFractionsReweighted = {x : defaultdict(float) for x in ["grammatical", "ungrammatical"]}
+        thatFractionsCount = {x : defaultdict(float) for x in ["grammatical", "ungrammatical"]}
+        surprisalReweightedByRegions = {x : defaultdict(float) for x in ["grammatical", "ungrammatical"]}
+        surprisalByRegions = {x : defaultdict(float) for x in ["grammatical", "ungrammatical"]}
+        surprisalCountByRegions = {x : defaultdict(float) for x in ["grammatical", "ungrammatical"]}
         itemIDs = set()
         for sentenceID in range(len(nounsAndVerbs)):
           print(sentenceID)
           context = None
-          for condition in ["SCRC", "SC","NoSC"]:
+          for condition in ["grammatical", "ungrammatical"]:
             TRIALS_COUNT += 1
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
             sentenceListDict = nounsAndVerbs[sentenceID]
             itemID = sentenceListDict["item"]
-            compatible = [None, "compatible", "incompatible"][sentenceListDict["compatible"]] if condition != "NoSC" else "neither"
+            compatible = "incompatible" #[None, "compatible", "incompatible"][sentenceListDict["compatible"]] if condition != "NoSC" else "neither"
             sentence1, V2, V3 = sentenceListDict["s"].lower().split("/")
             sentence1, V1 = sentence1.split(" who ")
             sentenceList = [(" "+sentence1.strip()).replace(" that ", "").strip(), V1.strip(), V2.strip().strip("/").strip("."), V3.strip().strip("/").strip(".")]                                  
             assert len(sentenceList) >= 4, sentenceList
-            if condition == "NoSC" and itemID in itemIDs:
-               continue
-            if condition == "SC":
-               context = f"the {NOUN} that {sentenceList[0]}"
+            if condition == "grammatical":
+               context = f"{NOUN} dass {sentenceList[0]} {sentenceList[1]}"
                regionsToDo = [(sentenceList[2], "V2"), (sentenceList[3].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
-            elif condition == "NoSC":
-               itemIDs.add(itemID)
-               context = f"the {NOUN}"
+            elif condition == "ungrammatical":
+               context = f"{NOUN} dass {sentenceList[0]} {sentenceList[1]}"
                regionsToDo = [(sentenceList[3].split(" ")[0], "V1")]
-               remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
-               regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
-               assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
-            elif condition == "SCRC":
-               context = f"the {NOUN} that {sentenceList[0]} who {sentenceList[1]}"
-               regionsToDo = [(sentenceList[2], "V2"), (sentenceList[3].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
@@ -1473,9 +1219,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             print("INPUT", context, remainingInput)
             assert len(remainingInput) > 0
             for i in range(len(remainingInput)):
-              if regions[i] not in ["V1_0"]: #.startswith("V2"):
+              if regions[i] not in ["V1_0", "V1_1"]: #.startswith("V2"):
                 continue
-              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
+              numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "die schwester schlug vor den patienten mit einem antibiotikum zu behandeln aber dazu kam es nicht . " + context)
               pointWhereToStart = args.sequence_length - len(context.split(" ")) - i - 1
               assert pointWhereToStart >= 0, (args.sequence_length, i, len(context.split(" ")))
               assert numerified.size()[0] == args.sequence_length+1, (numerified.size())
@@ -1485,7 +1231,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               if SANITY == "Sanity":
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
+                 numeric_noised = torch.where(numeric == stoi["dass"]+3, 0*numeric, numeric)
               elif SANITY == "ZeroLoss":
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
@@ -1504,8 +1250,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               # get THAT fractions
               if "NoSC" not in condition: # and i == 0:
                  resultNumericPrevious = resultNumeric
-                 locationThat = context.split(" ")[::-1].index("that")+i+2
-                 thatFractionHere = float((resultNumeric[:, -locationThat] == stoi_total["that"]).float().mean())
+                 locationThat = context.split(" ")[::-1].index("dass")+i+2
+                 thatFractionHere = float((resultNumeric[:, -locationThat] == stoi_total["dass"]).float().mean())
                  thatFractions[condition+"_"+compatible][regions[i]]+=thatFractionHere
                  thatFractionsCount[condition+"_"+compatible][regions[i]]+=1
               else:
@@ -1528,24 +1274,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
               # Evaluate the prior on these samples to estimate next-word surprisal
-
-              resultNumeric_cpu = resultNumeric.detach().cpu()
-              batch = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(pointWhereToStart+1, resultNumeric.size()[0])]) for s in range(resultNumeric.size()[1])]
-              for h in range(len(batch)):
-                 batch[h] = batch[h][:1].upper() + batch[h][1:]
-                 assert batch[h][0] != " ", batch[h]
-#              print(batch)
-              totalSurprisal = scoreWithGPT2.scoreSentences(batch)
-              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
-              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
-
-#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
-#              assert resultNumeric.size()[0] == args.sequence_length+1
-#              assert totalSurprisal.size()[0] == args.sequence_length
-#              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
-#              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
-#              surprisals_past = totalSurprisal[:-1].sum(dim=0)
-#              surprisals_nextWord = totalSurprisal[-1]
+              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
+              assert resultNumeric.size()[0] == args.sequence_length+1
+              assert totalSurprisal.size()[0] == args.sequence_length
+              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
+              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
+              surprisals_past = totalSurprisal[:-1].sum(dim=0)
+              surprisals_nextWord = totalSurprisal[-1]
 
               # where numberOfSamples is how many samples we take from the noise model, and 24 is how many samples are drawn from the amortized posterior for each noised sample
               amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
@@ -1590,10 +1325,10 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
  #                print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)))
   #               print(torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1)).sum(dim=1))
 #                 print(surprisals_nextWord.size(), (((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) .size())))
-                 surprisalsWithThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] == stoi_total["that"]).view(-1, 24)].mean())
-                 surprisalsWithoutThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] != stoi_total["that"]).view(-1, 24)].mean())
+                 surprisalsWithThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] == stoi_total["dass"]).view(-1, 24)].mean())
+                 surprisalsWithoutThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] != stoi_total["dass"]).view(-1, 24)].mean())
                  print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
-                 thatFractionReweightedHere = float((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
+                 thatFractionReweightedHere = float((((resultNumericPrevious[:, -locationThat] == stoi_total["dass"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
                  thatFractionsReweighted[condition+"_"+compatible][regions[i]]+=thatFractionReweightedHere
    #              print((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
     #             print(((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().mean()))
@@ -1636,7 +1371,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
+    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-german/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
       for noun in topNouns:
  #      assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
@@ -1648,7 +1383,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
          for region in surprisalsPerNoun[noun][condition]:
            print(noun, region, condition, surprisalsPerNoun[noun][condition][region], surprisalsReweightedPerNoun[noun][condition][region], thatFractionsPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", thatFractionsReweightedPerNoun[noun][condition][region] if "NoSC" not in condition else "NA", file=outFile)
     # For sanity-checking: Prints correlations between surprisal and that-bias
-    for region in ["V2_0", "V2_1", "V1_0"]:
+    for region in ["V1_0"]:
       for condition in surprisalsPerNoun["fact"]:
        if region not in surprisalsPerNoun["fact"][condition]:
           continue
@@ -1668,8 +1403,8 @@ startTimePredictions = time.time()
 #getTotalSentenceSurprisals(SANITY="ZeroLoss")
 #getTotalSentenceSurprisals(SANITY="Sanity")
 #getTotalSentenceSurprisals(SANITY="Model")
-#getTotalSentenceSurprisals(SANITY="ModelTmp")
-#quit()
+getTotalSentenceSurprisals(SANITY="ModelTmp")
+quit()
 
 
 #getTotalSentenceSurprisals()
@@ -1716,42 +1451,23 @@ for epoch in range(1000):
       if updatesCount == maxUpdates:
 
 
-       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-german/"+__file__+"_"+str(args.myID), "w") as outFile:
          print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"], file=outFile)
          print(args, file=outFile)
 
 
        # Record calibration for the acceptability judgments
-       getTotalSentenceSurprisalsCalibration(SANITY="Model")
+       #getTotalSentenceSurprisalsCalibration(SANITY="Model")
        
        # Record reconstructions and surprisals
-       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-german/"+__file__+"_"+str(args.myID), "w") as outFile:
          startTimePredictions = time.time()
 
          sys.stdout = outFile
          print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
          print(args)
-         print("=========================")
-         showAttention("the")
-         showAttention("was")
-         showAttention("that")
-         showAttention("fact")
-         showAttention("information")
-         showAttention("report")
-         showAttention("belief")
-         showAttention("finding")
-         showAttention("prediction")
-         showAttention("of")
-         showAttention("by")
-         showAttention("about")
          getTotalSentenceSurprisals(SANITY="Model")
-  #       getTotalSentenceSurprisals(SANITY="Sanity")
-
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
- #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
- #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
-#  
+  
 
 #         getPerNounReconstructionsSanity()
 #         getPerNounReconstructionsSanityVerb()
@@ -1759,71 +1475,16 @@ for epoch in range(1000):
 #         getPerNounReconstructionsVerb()
 #         getPerNounReconstructions2Verbs()
          print("=========================")
-         # Determiner
-         showAttention("the", POS="Det")
-         showAttention("a", POS="Det")
-         # Verbs
-         showAttention("was")
-         showAttention("pleased", POS="Verb")
-         showAttention("invited", POS="Verb")
-         showAttention("annoyed", POS="Verb")
-         showAttention("did", POS="Verb")
-         showAttention("failed", POS="Verb")
-         showAttention("trusted", POS="Verb")
-         showAttention("bothered", POS="Verb")
-         showAttention("admired", POS="Verb")
-         showAttention("impressed", POS="Verb")
-         showAttention("shocked", POS="Verb")
-         showAttention("appointed", POS="Verb")
-         showAttention("supported", POS="Verb")
-         showAttention("looked", POS="Verb")
-         # that
-         showAttention("that", POS="that")
-         # Noun
-         showAttention("fact", POS="Verb")
-         showAttention("information", POS="Verb")
-         showAttention("report", POS="Noun")
-         showAttention("belief", POS="Noun")
-         showAttention("finding", POS="Noun")
-         showAttention("prediction", POS="Noun")
-         showAttention("musician", POS="Noun")
-         showAttention("surgeon", POS="Noun")
-         showAttention("survivor", POS="Noun")
-         showAttention("guide", POS="Noun")
-         showAttention("fans", POS="Noun")
-         showAttention("sponsor", POS="Noun")
-         showAttention("detective", POS="Noun")
-         showAttention("time", POS="Noun")
-         showAttention("years", POS="Noun")
-         showAttention("name", POS="Noun")
-         showAttention("country", POS="Noun")
-         showAttention("school", POS="Noun")
-         showAttention("agreement", POS="Noun")
-         showAttention("series", POS="Noun")
-         showAttention("producers", POS="Noun")
-         showAttention("concerts", POS="Noun")
-         showAttention("classification", POS="Noun")
-         showAttention("house", POS="Noun")
-         showAttention("circle", POS="Noun")
-         showAttention("balance", POS="Noun")
-         showAttention("cartoon", POS="Noun")
-         showAttention("dancers", POS="Noun")
-         showAttention("immigrant", POS="Noun")
-         showAttention("teacher", POS="Noun")
-         showAttention("doctor", POS="Noun")
-         showAttention("patient", POS="Noun")
-         # Preposition
-         showAttention("of", POS="Prep")
-         showAttention("for", POS="Prep")
-         showAttention("to", POS="Prep")
-         showAttention("in", POS="Prep")
-         showAttention("by", POS="Prep")
-         showAttention("about", POS="Prep")
-         # Pronouns
-         showAttention("you", POS="Pron")
-         showAttention("we", POS="Pron")
-         showAttention("he", POS="Pron")
-         showAttention("she", POS="Pron")
+         showAttention("der")
+         showAttention("war")
+         showAttention("ist")
+         showAttention("dass")
+         showAttention("tatsache")
+         showAttention("information")
+         showAttention("bericht")
+         showAttention("von")
+         
+
          sys.stdout = STDOUT
 
 #      if updatesCount % 10000 == 0:
@@ -1925,7 +1586,7 @@ for epoch in range(1000):
 #
 
 
-with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.myID), "w") as outFile:
+with open("/u/scr/mhahn/reinforce-logs-both-short/results-german/"+__file__+"_"+str(args.myID), "w") as outFile:
    print(args, file=outFile)
    print(runningAverageReward, file=outFile)
    print(expectedRetentionRate, file=outFile)
@@ -1935,17 +1596,13 @@ with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(arg
 
 
 print("=========================")
-showAttention("the")
-showAttention("was")
-showAttention("that")
-showAttention("fact")
+showAttention("der")
+showAttention("war")
+showAttention("ist")
+showAttention("dass")
+showAttention("tatsache")
 showAttention("information")
-showAttention("report")
-showAttention("belief")
-showAttention("finding")
-showAttention("prediction")
-showAttention("of")
-showAttention("by")
-showAttention("about")
+showAttention("bericht")
+showAttention("von")
 
 
