@@ -190,23 +190,12 @@ class Autoencoder:
     self.relu = torch.nn.ReLU()
     self.modules_autoencoder = [self.rnn_decoder, self.rnn_encoder, self.output, self.word_embeddings, self.attention_proj, self.output_mlp]
 
-  def toBPE(self, input):
-    assert False
-    bpeRep = ([stoi_BPE[x]+3 if x in stoi_BPE else 2 for x in i2BPE[stoi[char]]] if char in stoi else [2,1])
-    for x in bpeRep:
-       numerified.append(x)
-
-  def forward(self, input_tensor_pure, input_tensor_noised, NUMBER_OF_REPLICATES):
-      # INPUTS: input_tensor_pure, input_tensor_noised
-      # OUTPUT: autoencoder_lossTensor
-      # now convert to BPE
-#      print(input_tensor_pure.size())
- #     print(input_tensor_noised.size())
+  def convertToBPE(self, input_tensor_pure, input_tensor_noised, withTarget=True):
       input_tensor_pure_cpu = input_tensor_pure.detach().cpu()
       input_tensor_noised_cpu = input_tensor_noised.detach().cpu()
       input_tensor_pure_bpe = [[] for _ in range(input_tensor_pure_cpu.size()[1])]
       input_tensor_noised_bpe = [[] for _ in range(input_tensor_pure_cpu.size()[1])]
-      target_tensor_onlyNoised_bpe = [[] for _ in range(input_tensor_pure_cpu.size()[1])]
+      target_tensor_onlyNoised_bpe = [[] for _ in range(input_tensor_pure_cpu.size()[1])] if withTarget else None
       for i1 in range(input_tensor_pure_cpu.size()[0]-1):
         for i2 in range(input_tensor_pure_cpu.size()[1]):
             #print(itos_total[input_tensor_pure_cpu[i1,i2]])
@@ -219,19 +208,32 @@ class Autoencoder:
               input_tensor_pure_bpe[i2].append(x)
               if erased:
                  input_tensor_noised_bpe[i2].append(0)
-                 target_tensor_onlyNoised_bpe[i2].append(x)
+                 if withTarget:
+                    target_tensor_onlyNoised_bpe[i2].append(x)
               else:
                  input_tensor_noised_bpe[i2].append(x)
-                 target_tensor_onlyNoised_bpe[i2].append(0)
+                 if withTarget:
+                    target_tensor_onlyNoised_bpe[i2].append(0)
       #print(input_tensor_pure_bpe) 
       maxLength = max(len(q) for q in input_tensor_pure_bpe)
       for i1 in range(len(input_tensor_pure_bpe)):
          input_tensor_pure_bpe[i1] = [0 for _ in range(maxLength - len(input_tensor_pure_bpe[i1]))] + input_tensor_pure_bpe[i1]
          input_tensor_noised_bpe[i1] = [0 for _ in range(maxLength - len(input_tensor_noised_bpe[i1]))] + input_tensor_noised_bpe[i1]
-         target_tensor_onlyNoised_bpe[i1] = [0 for _ in range(maxLength - len(target_tensor_onlyNoised_bpe[i1]))] + target_tensor_onlyNoised_bpe[i1]
+         if withTarget:
+            target_tensor_onlyNoised_bpe[i1] = [0 for _ in range(maxLength - len(target_tensor_onlyNoised_bpe[i1]))] + target_tensor_onlyNoised_bpe[i1]
       input_tensor_pure_bpe = torch.cuda.LongTensor(input_tensor_pure_bpe).t().contiguous()
       input_tensor_noised_bpe = torch.cuda.LongTensor(input_tensor_noised_bpe).t().contiguous()
-      target_tensor_onlyNoised_bpe = torch.cuda.LongTensor(target_tensor_onlyNoised_bpe).t().contiguous()
+      if withTarget:
+         target_tensor_onlyNoised_bpe = torch.cuda.LongTensor(target_tensor_onlyNoised_bpe).t().contiguous()
+      return input_tensor_pure_bpe, input_tensor_noised_bpe, target_tensor_onlyNoised_bpe
+
+  def forward(self, input_tensor_pure, input_tensor_noised, NUMBER_OF_REPLICATES):
+      # INPUTS: input_tensor_pure, input_tensor_noised
+      # OUTPUT: autoencoder_lossTensor
+      # now convert to BPE
+#      print(input_tensor_pure.size())
+ #     print(input_tensor_noised.size())
+      input_tensor_pure_bpe, input_tensor_noised_bpe, target_tensor_onlyNoised_bpe = self.convertToBPE(input_tensor_pure, input_tensor_noised)
       #print("614", input_tensor_pure_bpe.size(), input_tensor_noised_bpe.size(), target_tensor_onlyNoised_bpe.size())
       #print([len(q) for q in input_tensor_pure_bpe])
       #print(maxLength, input_tensor_pure.size())
@@ -261,25 +263,26 @@ class Autoencoder:
  
   def sampleReconstructions(self, numeric, numeric_noised, NOUN, offset, numberOfBatches=args.batchSize*args.NUMBER_OF_REPLICATES, fillInBefore=-1, computeProbabilityStartingFrom=0):
       """ Draws samples from the amortized reconstruction posterior """
-      assert False, "not yet implemented with BPE"
-      if True:
-          beginning = zeroBeginning
+      #assert False, "not yet implemented with BPE"
 
 
       input_tensor = Variable(numeric[:-1], requires_grad=False)
       input_tensor_noised = Variable(numeric_noised[:-1], requires_grad=False)
+
+      input_tensor_pure_bpe, input_tensor_noised_bpe, target_tensor_onlyNoised_bpe = self.convertToBPE(input_tensor, input_tensor_noised, withTarget=False)
+
+
+
       #target_tensor = Variable(numeric_onlyNoisedOnes[1:], requires_grad=False)
 
 
-      input_tensor = Variable(numeric[:-1], requires_grad=False)
-      target_tensor = Variable(numeric[1:], requires_grad=False)
-
-      input_tensor_noised = Variable(numeric_noised, requires_grad=False)
+ #     input_tensor = Variable(numeric[:-1], requires_grad=False)
+#      input_tensor_noised = Variable(numeric_noised, requires_grad=False)
 
 
-      embedded = self.word_embeddings(input_tensor)
+#      embedded = self.word_embeddings(input_tensor)
 
-      embedded_noised = self.word_embeddings(input_tensor_noised)
+      embedded_noised = self.word_embeddings(input_tensor_noised_bpe)
 
       out_encoder, _ = self.rnn_encoder(embedded_noised, None)
 
@@ -288,7 +291,7 @@ class Autoencoder:
       hidden = None
       result  = ["" for _ in range(numberOfBatches)]
       result_numeric = [[] for _ in range(numberOfBatches)]
-      embeddedLast = embedded[0].unsqueeze(0)
+      embeddedLast = embedded_noised[0].unsqueeze(0)
       amortizedPosterior = torch.zeros(numberOfBatches, device='cuda')
       zeroLogProb = torch.zeros(numberOfBatches, device='cuda')
       for i in range(args.sequence_length+1):
@@ -316,19 +319,25 @@ class Autoencoder:
        
 #          nextWord = (dist.sample())
           if i < fillInBefore:
-             nextWord = numeric[i:i+1]
+             nextWord = input_tensor_pure_bpe[i:i+1]
           else:
             sampledFromDist = dist.sample()
             logProbForSampledFromDist = dist.log_prob(sampledFromDist).squeeze(0)
  #           print(logProbForSampledFromDist.size(), numeric_noised[i].size(), zeroLogProb.size())
             assert numeric_noised.size()[0] == args.sequence_length+1
             if i < args.sequence_length: # IMPORTANT make sure the last word -- which is (due to a weird design choice) cut off -- doesn't contribute to the posterior
-               amortizedPosterior += torch.where(numeric_noised[i] == 0, logProbForSampledFromDist, zeroLogProb)
+               amortizedPosterior += torch.where(input_tensor_noised_bpe[i] == 0, logProbForSampledFromDist, zeroLogProb)
 
-            nextWord = torch.where(numeric_noised[i] == 0, sampledFromDist, numeric[i:i+1])
+            nextWord = torch.where(input_tensor_noised_bpe[i] == 0, sampledFromDist, input_tensor_pure_bpe[i:i+1])
   #        print(nextWord.size())
+
           nextWordDistCPU = nextWord.cpu().numpy()[0]
-          nextWordStrings = [itos_total[x] for x in nextWordDistCPU]
+#          print("line 335")
+#          print(probs.size())
+#          print(input_tensor_pure_bpe[i:i+1])
+#          print(sampledFromDist)
+#          print(nextWord)
+          nextWordStrings = [itos_BPE_total[x] for x in nextWordDistCPU]
           for i in range(numberOfBatches):
              result[i] += " "+nextWordStrings[i]
              result_numeric[i].append( nextWordDistCPU[i] )
@@ -336,7 +345,7 @@ class Autoencoder:
 #          print(embeddedLast.size())
       for r in result[:2]:
          print(r)
-      if NOUN is not None:
+      if NOUN is not None and False:
          nounFraction = (float(len([x for x in result if NOUN in x]))/len(result))
          thatFraction = (float(len([x for x in result if NOUN+" that" in x]))/len(result))
       else:
@@ -740,7 +749,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       
       return loss, product(target_tensor_full.size())
 
-
+# This could easily be made a function in the MemoryModel class
 def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True, computeProbabilityStartingFrom=0):
       """ Forward pass through the entire model
         @param numeric
@@ -793,7 +802,7 @@ def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, pro
 #      print(memory_filter.size(), memory_hidden.size())
       bernoulli_logprob = torch.where(memory_filter, torch.log(memory_hidden.squeeze(2)+1e-10), torch.log(1-memory_hidden.squeeze(2)+1e-10))
 
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
+      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(11, 1, 1)).long().sum(dim=0)).bool())
 
       # Disregard likelihood computation on punctuation
       bernoulli_logprob = torch.where(punctuation, 0*bernoulli_logprob, bernoulli_logprob)
@@ -962,7 +971,7 @@ topNouns.append('Die Tatsache')
 topNouns = [x for x in topNouns if stoi_total.get(x.split(" ")[1].lower(), 100000000) <= 50000]
 topNouns = [x.lower().strip().split(" ") for x in topNouns]
 articles = dict([x[::-1] for x in topNouns])
-topNouns = topNouns = [x[1] for x in topNouns]
+topNouns = [x[1] for x in topNouns]
 
 
 with open("../../../../forgetting/corpus_counts/german/output/counts_ordered.tsv", "r") as inFile:
@@ -1177,22 +1186,20 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
           for condition in ["grammatical", "ungrammatical"]:
             TRIALS_COUNT += 1
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
-            sentenceListDict = nounsAndVerbs[sentenceID]
-            itemID = sentenceListDict["item"]
-            compatible = "incompatible" #[None, "compatible", "incompatible"][sentenceListDict["compatible"]] if condition != "NoSC" else "neither"
-            sentence1, V2, V3 = sentenceListDict["s"].lower().split("/")
-            sentence1, V1 = sentence1.split(" who ")
-            sentenceList = [(" "+sentence1.strip()).replace(" that ", "").strip(), V1.strip(), V2.strip().strip("/").strip("."), V3.strip().strip("/").strip(".")]                                  
+            sentenceList = [x.lower() for x in nounsAndVerbs[sentenceID]]
+            itemID = sentenceID
+            compatible = "incompatible" #[None, "compatible", "incompatible"][sentenceListDict["compatible"]] if condition != "NoSC" else "neither"#
+#       nounsAndVerbs.append(["der Schulleiter",    "den der Lehrer",    "kritisierte",           "gefeuert wurde",           "erschien in der Zeitung", "Was the XXXX quoted in the newspaper?", "Y"])    
             assert len(sentenceList) >= 4, sentenceList
             if condition == "grammatical":
-               context = f"{NOUN} dass {sentenceList[0]} {sentenceList[1]}"
-               regionsToDo = [(sentenceList[2], "V2"), (sentenceList[3].split(" ")[0], "V1")]
+               context = f"{articles[NOUN]} {NOUN} dass {sentenceList[0]} {sentenceList[1]} {sentenceList[2]}"
+               regionsToDo = [(sentenceList[3], "V2"), (sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
             elif condition == "ungrammatical":
                context = f"{NOUN} dass {sentenceList[0]} {sentenceList[1]}"
-               regionsToDo = [(sentenceList[3].split(" ")[0], "V1")]
+               regionsToDo = [(sentenceList[4].split(" ")[0], "V1")]
                remainingInput = flatten([x[0].split(" ") for x in regionsToDo])
                regions = flatten([[f"{region}_{c}" for c, _ in enumerate(words.split(" "))] for words, region in regionsToDo])
                assert len(remainingInput) == len(regions), (regionsToDo, remainingInput, regions)
@@ -1234,8 +1241,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                  resultNumericPrevious = resultNumeric
                  locationThat = context.split(" ")[::-1].index("dass")+i+2
                  thatFractionHere = float((resultNumeric[:, -locationThat] == stoi_total["dass"]).float().mean())
-                 thatFractions[condition+"_"+compatible][regions[i]]+=thatFractionHere
-                 thatFractionsCount[condition+"_"+compatible][regions[i]]+=1
+                 thatFractions[condition][regions[i]]+=thatFractionHere
+                 thatFractionsCount[condition][regions[i]]+=1
               else:
                  thatFractionHere = -1
 #                 print("\n".join(result))
@@ -1311,7 +1318,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
                  surprisalsWithoutThat = float(surprisals_nextWord[(resultNumericPrevious[:, -locationThat] != stoi_total["dass"]).view(-1, 24)].mean())
                  print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
                  thatFractionReweightedHere = float((((resultNumericPrevious[:, -locationThat] == stoi_total["dass"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
-                 thatFractionsReweighted[condition+"_"+compatible][regions[i]]+=thatFractionReweightedHere
+                 thatFractionsReweighted[condition][regions[i]]+=thatFractionReweightedHere
    #              print((((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().view(-1, 24) * torch.exp(log_importance_weights - log_importance_weights_sum.unsqueeze(1))).sum(dim=1)).mean())
     #             print(((resultNumericPrevious[:, -locationThat] == stoi_total["that"]).float().mean()))
      #            quit()
@@ -1322,13 +1329,13 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
               for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
                   print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//24]))
-              print("SURPRISAL", NOUN, sentenceList[0], condition+"_"+compatible, i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
-              surprisalReweightedByRegions[condition+"_"+compatible][regions[i]] += float( reweightedSurprisalsMean)
-              surprisalByRegions[condition+"_"+compatible][regions[i]] += float( surprisalOfNextWord)
-              surprisalCountByRegions[condition+"_"+compatible][regions[i]] += 1
+              print("SURPRISAL", NOUN, sentenceList[0], condition, i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
+              surprisalReweightedByRegions[condition][regions[i]] += float( reweightedSurprisalsMean)
+              surprisalByRegions[condition][regions[i]] += float( surprisalOfNextWord)
+              surprisalCountByRegions[condition][regions[i]] += 1
 
               #assert sentenceList[-1] in ["o","v"]
-              print("\t".join([str(w) for w in [NOUN, itemID, regions[i], condition+"_"+compatible[:2], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere), surprisalsWithThat, surprisalsWithoutThat, remainingInput[i]]]), file=outFile)
+              print("\t".join([str(w) for w in [NOUN, itemID, regions[i], condition, round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), int(100*thatFractionHere), int(100*thatFractionReweightedHere), surprisalsWithThat, surprisalsWithoutThat, remainingInput[i]]]), file=outFile)
 #                 print("Surp with and without that", surprisalsWithThat, surprisalsWithoutThat)               
 
 
@@ -1385,8 +1392,8 @@ startTimePredictions = time.time()
 #getTotalSentenceSurprisals(SANITY="ZeroLoss")
 #getTotalSentenceSurprisals(SANITY="Sanity")
 #getTotalSentenceSurprisals(SANITY="Model")
-#getTotalSentenceSurprisals(SANITY="ModelTmp")
-#quit()
+getTotalSentenceSurprisals(SANITY="ModelTmp")
+quit()
 
 
 #getTotalSentenceSurprisals()
