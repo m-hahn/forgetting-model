@@ -17,9 +17,9 @@ from collections import defaultdict
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="german")
-parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=random.choice([522622844])) # language model taking noised input
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([188436350, 518982544])) #518982544, 188436350, 518982544, 310179465, 12916800])) # 310179465, has a corrupted file
-parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([67760999, 977691881])) #, 129313017])) #136525999])) #244706489, 273846868])) # plain language model without noise
+parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=random.choice([177741044])) # language model taking noised input
+parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([971549136, 79606396])) #518982544, 188436350, 518982544, 310179465, 12916800])) # 310179465, has a corrupted file
+#parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([67760999, 977691881])) #, 129313017])) #136525999])) #244706489, 273846868])) # plain language model without noise
 
 
 # Unique ID for this model run
@@ -111,11 +111,52 @@ def plus(it1, it2):
       yield x
 
 
-# Load Vocabulary
-char_vocab_path = "vocabularies/"+args.language.lower()+"-wiki-word-vocab-50000.txt"
+#############################################################
+# Vocabulary
 
+
+vocab_path = f"/u/scr/mhahn/FAIR18/{args.language.lower()}-wiki-word-vocab.txt"
+bpe_vocab_path = f"/u/scr/mhahn/FAIR18/{args.language.lower()}-wiki-word-vocab_BPE_50000_Parsed.txt"
+
+itos_autoencoder = [None for _ in range(5000000)]
+i2BPE = [None for _ in range(5000000)]
+with open(vocab_path, "r") as inFile:
+  with open(bpe_vocab_path, "r") as inFileBPE:
+     for i in range(5000000):
+        if i % 50000 == 0:
+           print(i)
+        word = next(inFile).strip().split("\t")
+        bpe = next(inFileBPE).strip().split("\t")
+        itos_autoencoder[i] = word[0]
+        i2BPE[i] = bpe[0].split("@@ ")
+stoi_autoencoder = dict([(itos_autoencoder[i],i) for i in range(len(itos_autoencoder))])
+
+
+itos_autoencoder_total = ["<SOS>", "<EOS>", "OOV"] + itos_autoencoder
+stoi_autoencoder_total = dict([(itos_autoencoder_total[i],i) for i in range(len(itos_autoencoder_total))])
+
+with open("vocabularies/char-vocab-wiki-"+args.language, "r") as inFile:
+     itos_BPE = [x for x in inFile.read().strip().split("\n")]
+with open("/u/scr/mhahn/FAIR18/german-wiki-word-vocab_BPE_50000.txt", "r") as inFile:
+     itos_BPE += [x.replace(" ",  "") for x in inFile.read().strip().split("\n")]
+assert len(itos_BPE) > 50000
+stoi_BPE = dict([(itos_BPE[i],i) for i in range(len(itos_BPE))])
+itos_BPE_total = ["SOS", "EOS", "OOV"] + itos_BPE
+
+
+
+
+
+# Load Vocabulary
+char_vocab_path = f"/u/scr/mhahn/FAIR18/{args.language.lower()}-wiki-word-vocab.txt"
+
+itos = []
 with open(char_vocab_path, "r") as inFile:
-     itos = [x.split("\t")[0] for x in inFile.read().strip().split("\n")[:50000]]
+  for i in range(500000):
+     if i % 20000 == 0:
+       print(i)
+     itos.append(next(inFile).strip().split("\t")[0])
+#     itos = [x.split("\t")[0] for x in inFile.read().strip().split("\n")[:50000]]
 stoi = dict([(itos[i],i) for i in range(len(itos))])
 
 
@@ -130,136 +171,13 @@ print(torch.__version__)
 
 
 
-class PlainLanguageModel(torch.nn.Module):
-  """ Prior: a sequence LSTM network """
-  def __init__(self):
-      super(PlainLanguageModel, self).__init__()
-      self.rnn = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_lm, args.layer_num).cuda()
-      self.output = torch.nn.Linear(args.hidden_dim_lm, len(itos)+3).cuda()
-      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
-      self.logsoftmax = torch.nn.LogSoftmax(dim=2)
-      self.softmax = torch.nn.Softmax(dim=2)
-
-      self.train_loss = torch.nn.NLLLoss(ignore_index=0)
-      self.print_loss = torch.nn.NLLLoss(size_average=False, reduce=False, ignore_index=0)
-      self.char_dropout = torch.nn.Dropout2d(p=args.char_dropout_prob)
-      self.train_loss_chars = torch.nn.NLLLoss(ignore_index=0, reduction='sum')
-      self.modules = [self.rnn, self.output, self.word_embeddings]
-      #self.learning_rate = args.learning_rate
-      #self.optim = torch.optim.SGD(self.parameters(), lr=self.learning_rate, momentum=0.0) # 0.02, 0.9
-      self.zeroBeginning = torch.LongTensor([0 for _ in range(args.NUMBER_OF_REPLICATES*args.batchSize)]).cuda().view(1,args.NUMBER_OF_REPLICATES*args.batchSize)
-      self.beginning = None
-      self.zeroBeginning_chars = torch.zeros(1, args.batchSize, 16).long().cuda()
-      self.zeroHidden = torch.zeros((args.layer_num, args.batchSize, args.hidden_dim_lm)).cuda()
-      self.bernoulli = torch.distributions.bernoulli.Bernoulli(torch.tensor([0.1 for _ in range(args.batchSize)]).cuda())
-      self.bernoulli_input = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_in for _ in range(args.batchSize * 2 * args.word_embedding_size)]).cuda())
-      self.bernoulli_output = torch.distributions.bernoulli.Bernoulli(torch.tensor([1-args.weight_dropout_out for _ in range(args.batchSize * args.hidden_dim_lm)]).cuda())
-
-      self.hidden = None
-
-  def parameters(self):
-     for module in self.modules:
-         for param in module.parameters():
-              yield param
-
-#  def sample(self, numeric):
-#     print("FOR SAMPLING", numeric.size())
-#     embedded = self.word_embeddings(numeric.unsqueeze(0))
-#     results = ["" for _ in range(args.NUMBER_OF_REPLICATES*args.batchSize)]     
-#     for _ in range(10): 
-#        out, self.hidden = self.rnn(embedded, self.hidden)
-#        logits = self.output(out) 
-#        probs = self.softmax(logits)
-##        print(probs.size())
-#        dist = torch.distributions.Categorical(probs=probs)
-#         
-#        nextWord = (dist.sample())
-#        nextWordStrings = [itos_total[x] for x in nextWord.cpu().numpy()[0]]
-#        for i in range(args.NUMBER_OF_REPLICATES*args.batchSize):
-#            results[i] += " "+nextWordStrings[i]
-#        embedded = self.word_embeddings(nextWord)
-#     return results
-#
-
-  def forward(self, numeric, train=True, printHere=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=args.NUMBER_OF_REPLICATES*args.batchSize):
-       """ Forward pass
-           @param self
-           @param numeric
-           @param train
-           @param printHere
-           @param computeSurprisals
-           @param returnLastSurprisal
-           @param numberOfBatches
-
-           @return lossTensor
-           @return target_tensor.view(-1).size()[0]
-           @return None
-           @return log_probs
-       """
-       if self.hidden is None or True:
-           self.hidden = None
-           self.beginning = self.zeroBeginning
-#       elif self.hidden is not None:
-#           hidden1 = Variable(self.hidden[0]).detach()
-#           hidden2 = Variable(self.hidden[1]).detach()
-#           forRestart = bernoulli.sample()
-#           hidden1 = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroHidden, hidden1)
-#           hidden2 = torch.where(forRestart.unsqueeze(0).unsqueeze(2) == 1, zeroHidden, hidden2)
-#           self.hidden = (hidden1, hidden2)
-#           self.beginning = torch.where(forRestart.unsqueeze(0) == 1, zeroBeginning, self.beginning)
-       print("BEGINNING", "NUMERIC", self.beginning.size(), numeric.size())
-       assert numeric.size()[1] == numberOfBatches, ("numberOfBatches", numberOfBatches)
-       assert numeric.size()[0] == args.sequence_length+1
-       self.beginning = numeric[numeric.size()[0]-1].view(1, numberOfBatches)
-       input_tensor = Variable(numeric[:-1], requires_grad=False)
-       target_tensor = Variable(numeric[1:], requires_grad=False)
-       embedded = self.word_embeddings(input_tensor)
-#       if train:
-#          embedded = self.char_dropout(embedded)
-#          mask = self.bernoulli_input.sample()
-#          mask = mask.view(1, args.batchSize, 2*args.word_embedding_size)
-#          embedded = embedded * mask
-  
-       out, self.hidden = self.rnn(embedded, self.hidden)
-   
-#       if train:
-#         mask = self.bernoulli_output.sample()
-#         mask = mask.view(1, args.batchSize, args.hidden_dim_lm)
-#         out = out * mask
-       if computeSurprisals: 
-          logits = self.output(out) 
-          log_probs = self.logsoftmax(logits)
-           
-          loss = self.train_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1))
-     
-          lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, numberOfBatches)
-   
-          if printHere:
-             lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor.view(-1)).view(-1, args.batchSize)
-             losses = lossTensor.data.cpu().numpy()
-             numericCPU = numeric.cpu().data.numpy()
-             #print(("NONE", itos_total[numericCPU[0][0]]))
-             #for i in range((args.sequence_length)):
-             #   print((losses[i][0], itos_total[numericCPU[i+1][0]]))
-       elif returnLastSurprisal:
-          logits = self.output(out[-1:]) 
-          log_probs = self.logsoftmax(logits)
-          loss = self.train_loss(log_probs.view(-1, len(itos)+3), target_tensor[-1].view(-1))
-#          print([itos_total[int(x)] for x in target_tensor[-1].cpu()])
- #         quit()
-          lossTensor = self.print_loss(log_probs.view(-1, len(itos)+3), target_tensor[-1].view(-1)).view(1,numberOfBatches)
-       return lossTensor, target_tensor.view(-1).size()[0], None, log_probs
-   
-
-
-
 class Autoencoder:
   """ Amortized Reconstruction Posterior """
   def __init__(self):
     self.rnn_encoder = torch.nn.LSTM(2*args.word_embedding_size, int(args.hidden_dim_autoencoder/2.0), args.layer_num, bidirectional=True).cuda()
     self.rnn_decoder = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_autoencoder, args.layer_num).cuda()
-    self.output = torch.nn.Linear(args.hidden_dim_autoencoder, len(itos)+3).cuda()
-    self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
+    self.output = torch.nn.Linear(args.hidden_dim_autoencoder, len(itos_BPE_total)).cuda()
+    self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos_BPE_total), embedding_dim=2*args.word_embedding_size).cuda()
     self.logsoftmax = torch.nn.LogSoftmax(dim=2)
     self.softmax = torch.nn.Softmax(dim=2)
     self.attention_softmax = torch.nn.Softmax(dim=1)
@@ -271,9 +189,79 @@ class Autoencoder:
     self.output_mlp = torch.nn.Linear(2*args.hidden_dim_autoencoder, args.hidden_dim_autoencoder).cuda()
     self.relu = torch.nn.ReLU()
     self.modules_autoencoder = [self.rnn_decoder, self.rnn_encoder, self.output, self.word_embeddings, self.attention_proj, self.output_mlp]
+
+  def toBPE(self, input):
+    assert False
+    bpeRep = ([stoi_BPE[x]+3 if x in stoi_BPE else 2 for x in i2BPE[stoi[char]]] if char in stoi else [2,1])
+    for x in bpeRep:
+       numerified.append(x)
+
+  def forward(self, input_tensor_pure, input_tensor_noised, NUMBER_OF_REPLICATES):
+      # INPUTS: input_tensor_pure, input_tensor_noised
+      # OUTPUT: autoencoder_lossTensor
+      # now convert to BPE
+#      print(input_tensor_pure.size())
+ #     print(input_tensor_noised.size())
+      input_tensor_pure_cpu = input_tensor_pure.detach().cpu()
+      input_tensor_noised_cpu = input_tensor_noised.detach().cpu()
+      input_tensor_pure_bpe = [[] for _ in range(input_tensor_pure_cpu.size()[1])]
+      input_tensor_noised_bpe = [[] for _ in range(input_tensor_pure_cpu.size()[1])]
+      target_tensor_onlyNoised_bpe = [[] for _ in range(input_tensor_pure_cpu.size()[1])]
+      for i1 in range(input_tensor_pure_cpu.size()[0]-1):
+        for i2 in range(input_tensor_pure_cpu.size()[1]):
+            #print(itos_total[input_tensor_pure_cpu[i1,i2]])
+            word = (itos_total[input_tensor_pure_cpu[i1,i2]])
+            bpeRep = ([stoi_BPE[x]+3 if x in stoi_BPE else 2 for x in i2BPE[stoi_autoencoder[word]]] if word in stoi_autoencoder else [2,1])
+            
+            erased = (input_tensor_noised_cpu[i1,i2] == 0)
+            for x in bpeRep:
+              #print(i1, i2, word, itos_BPE_total[x])
+              input_tensor_pure_bpe[i2].append(x)
+              if erased:
+                 input_tensor_noised_bpe[i2].append(0)
+                 target_tensor_onlyNoised_bpe[i2].append(x)
+              else:
+                 input_tensor_noised_bpe[i2].append(x)
+                 target_tensor_onlyNoised_bpe[i2].append(0)
+      #print(input_tensor_pure_bpe) 
+      maxLength = max(len(q) for q in input_tensor_pure_bpe)
+      for i1 in range(len(input_tensor_pure_bpe)):
+         input_tensor_pure_bpe[i1] = [0 for _ in range(maxLength - len(input_tensor_pure_bpe[i1]))] + input_tensor_pure_bpe[i1]
+         input_tensor_noised_bpe[i1] = [0 for _ in range(maxLength - len(input_tensor_noised_bpe[i1]))] + input_tensor_noised_bpe[i1]
+         target_tensor_onlyNoised_bpe[i1] = [0 for _ in range(maxLength - len(target_tensor_onlyNoised_bpe[i1]))] + target_tensor_onlyNoised_bpe[i1]
+      input_tensor_pure_bpe = torch.cuda.LongTensor(input_tensor_pure_bpe).t().contiguous()
+      input_tensor_noised_bpe = torch.cuda.LongTensor(input_tensor_noised_bpe).t().contiguous()
+      target_tensor_onlyNoised_bpe = torch.cuda.LongTensor(target_tensor_onlyNoised_bpe).t().contiguous()
+      #print("614", input_tensor_pure_bpe.size(), input_tensor_noised_bpe.size(), target_tensor_onlyNoised_bpe.size())
+      #print([len(q) for q in input_tensor_pure_bpe])
+      #print(maxLength, input_tensor_pure.size())
+
+      autoencoder_embedded = self.word_embeddings(input_tensor_pure_bpe)
+      autoencoder_embedded_noised = self.word_embeddings(input_tensor_noised_bpe)
+      autoencoder_out_encoder, _ = self.rnn_encoder(autoencoder_embedded_noised, None)
+      autoencoder_out_decoder, _ = self.rnn_decoder(autoencoder_embedded, None)
+      assert autoencoder_embedded.size()[0] >= args.sequence_length-1, (input_tensor_pure.size(),input_tensor_pure.size(), autoencoder_embedded.size(), args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py. Would be good if they were unified.
+      assert autoencoder_embedded_noised.size()[0] >= args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py.
+
+      autoencoder_attention = torch.bmm(self.attention_proj(autoencoder_out_encoder).transpose(0,1), autoencoder_out_decoder.transpose(0,1).transpose(1,2))
+      autoencoder_attention = self.attention_softmax(autoencoder_attention).transpose(0,1)
+      autoencoder_from_encoder = (autoencoder_out_encoder.unsqueeze(2) * autoencoder_attention.unsqueeze(3)).sum(dim=0).transpose(0,1)
+      autoencoder_out_full = torch.cat([autoencoder_out_decoder, autoencoder_from_encoder], dim=2)
+
+
+      autoencoder_logits = self.output(self.relu(self.output_mlp(autoencoder_out_full) ))
+      autoencoder_log_probs = self.logsoftmax(autoencoder_logits)
+
+      # Prediction Loss 
+      #print(autoencoder_log_probs.size(), target_tensor_onlyNoised_bpe.size(), len(itos_BPE_total), NUMBER_OF_REPLICATES, args.batchSize)
+      autoencoder_lossTensor = self.print_loss(autoencoder_log_probs.view(-1, len(itos_BPE_total)), target_tensor_onlyNoised_bpe.view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
+      return autoencoder_lossTensor
+ 
+
  
   def sampleReconstructions(self, numeric, numeric_noised, NOUN, offset, numberOfBatches=args.batchSize*args.NUMBER_OF_REPLICATES, fillInBefore=-1, computeProbabilityStartingFrom=0):
       """ Draws samples from the amortized reconstruction posterior """
+      assert False, "not yet implemented with BPE"
       if True:
           beginning = zeroBeginning
 
@@ -367,7 +355,7 @@ class LanguageModel:
    def __init__(self):
       self.rnn = torch.nn.LSTM(2*args.word_embedding_size, args.hidden_dim_lm, args.layer_num).cuda()
       self.rnn_drop = self.rnn
-      self.output = torch.nn.Linear(args.hidden_dim_lm, len(itos)+3).cuda()
+      self.output = torch.nn.Linear(args.hidden_dim_lm, 50000+3).cuda()
       self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
       self.logsoftmax = torch.nn.LogSoftmax(dim=2)
       self.train_loss = torch.nn.NLLLoss(ignore_index=0)
@@ -381,9 +369,18 @@ class LanguageModel:
        lm_out = lm_out[-1:]
        lm_logits = self.output(lm_out) 
        lm_log_probs = self.logsoftmax(lm_logits)
+
+       #print(target_tensor_full.size())
+       #quit()
+       target_tensor_full_relevant = target_tensor_full[-1]
+#       if NUMBER_OF_REPLICATES == args.NUMBER_OF_REPLICATES:
+       oovTensor = torch.zeros(target_tensor_full_relevant.size()).cuda().long() + 2
+       target_tensor_full_relevant = torch.where(target_tensor_full_relevant < 50000, target_tensor_full_relevant, oovTensor)
+
+
  
        # Prediction Loss 
-       lm_lossTensor = self.print_loss(lm_log_probs.view(-1, len(itos)+3), target_tensor_full[-1].view(-1)).view(-1, NUMBER_OF_REPLICATES) # , args.batchSize is 1
+       lm_lossTensor = self.print_loss(lm_log_probs.view(-1, 50000+3), target_tensor_full_relevant.view(-1)).view(-1, NUMBER_OF_REPLICATES) # , args.batchSize is 1
        return lm_lossTensor 
 
 
@@ -457,14 +454,14 @@ optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory
 # Amortized Reconstruction Posterior
 if args.load_from_autoencoder is not None:
   print(args.load_from_autoencoder)
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss_WithoutComma.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
+  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss_WithoutComma_BPE.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
   for i in range(len(checkpoint["components"])):
       autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
   del checkpoint
  
 # Amortized Prediction Posterior
 if args.load_from_lm is not None:
-  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
+  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_NoComma_LargeVocab.py"
   checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(args.load_from_lm)+".txt")
   for i in range(len(checkpoint["components"])):
       lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
@@ -542,6 +539,9 @@ runningAverageReconstructionLoss = 5.0
 expectedRetentionRate = 0.5
 
 
+
+
+
 def getPunctuationMask(masks):
    assert len(masks) > 0
    if len(masks) == 1:
@@ -557,7 +557,7 @@ def product(x):
      r *= i
    return r
 
-PUNCTUATION = torch.LongTensor([stoi_total[x] for x in [".", "OOV", '"', "(", ")", "'", '"', ":", ",", "'s", "[", "]"]]).cuda()
+PUNCTUATION = torch.LongTensor([stoi_total[x] for x in [".", "OOV", '"', "(", ")", "'", '"', ":", ",", "[", "]"]]).cuda()
 
 def forward(numeric, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True):
       """ Forward pass through the entire model
@@ -614,7 +614,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
          entropy=-1.0
       memory_filter = memory_filter.squeeze(2)
 
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
+      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(11, 1, 1)).long().sum(dim=0)).bool())
         
       ####################################################################################
       numeric_noised = torch.where(torch.logical_or(punctuation, memory_filter==1), numeric, 0*numeric) #[[x if random.random() > args.deletion_rate else 0 for x in y] for y in numeric.cpu().t()]
@@ -627,31 +627,15 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       input_tensor_noised = Variable(numeric_noised[:-1], requires_grad=False)
       target_tensor_full = Variable(numeric[1:], requires_grad=False)
 
-      target_tensor_onlyNoised = Variable(numeric_onlyNoisedOnes[1:], requires_grad=False)
+      #target_tensor_onlyNoised = Variable(numeric_onlyNoisedOnes[1:], requires_grad=False)
       #####################################################################################
 
 
       ##########################################
       ##########################################
       # RUN AUTOENCODER (approximately inverting loss model)
-      autoencoder_embedded = autoencoder.word_embeddings(input_tensor_pure[:-1])
-      autoencoder_embedded_noised = autoencoder.word_embeddings(input_tensor_noised[:-1])
-      autoencoder_out_encoder, _ = autoencoder.rnn_encoder(autoencoder_embedded_noised, None)
-      autoencoder_out_decoder, _ = autoencoder.rnn_decoder(autoencoder_embedded, None)
-      assert autoencoder_embedded.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py. Would be good if they were unified.
-      assert autoencoder_embedded_noised.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py.
 
-      autoencoder_attention = torch.bmm(autoencoder.attention_proj(autoencoder_out_encoder).transpose(0,1), autoencoder_out_decoder.transpose(0,1).transpose(1,2))
-      autoencoder_attention = autoencoder.attention_softmax(autoencoder_attention).transpose(0,1)
-      autoencoder_from_encoder = (autoencoder_out_encoder.unsqueeze(2) * autoencoder_attention.unsqueeze(3)).sum(dim=0).transpose(0,1)
-      autoencoder_out_full = torch.cat([autoencoder_out_decoder, autoencoder_from_encoder], dim=2)
-
-
-      autoencoder_logits = autoencoder.output(autoencoder.relu(autoencoder.output_mlp(autoencoder_out_full) ))
-      autoencoder_log_probs = autoencoder.logsoftmax(autoencoder_logits)
-
-      # Prediction Loss 
-      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
+      autoencoder_lossTensor =  autoencoder.forward(input_tensor_pure, input_tensor_noised, NUMBER_OF_REPLICATES)
 
       ##########################################
       ##########################################
@@ -915,7 +899,6 @@ for x in nounsAndVerbs:
        for y in x[i].lower().split(" "):
           if stoi_total.get(y, 500000000) > 50000:
              print(y)
-quit()
 
 #nounsAndVerbs.append(["the senator",        "the diplomat",       "opposed"])
 
@@ -997,16 +980,16 @@ print(len(topNouns))
 
 
     
-plain_lm = PlainLanguageModel()
-plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_NoComma.py"
-
-if args.load_from_plain_lm is not None:
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
-  for i in range(len(checkpoint["components"])):
-      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
-
-
+#plain_lm = PlainLanguageModel()
+#plain_lmFileName = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_NoComma.py"
+#
+#if args.load_from_plain_lm is not None:
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+plain_lmFileName+"_code_"+str(args.load_from_plain_lm)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      plain_lm.modules[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
+#
+#
 # Helper Functions
 
 def correlation(x, y):
@@ -1167,7 +1150,6 @@ def divideDicts(y, z):
 def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
     assert SANITY in ["ModelTmp", "Model", "Sanity", "ZeroLoss"]
     assert VERBS in [1,2]
-    print(plain_lm) 
     surprisalsPerNoun = {}
     surprisalsReweightedPerNoun = {}
     thatFractionsPerNoun = {}
@@ -1403,8 +1385,8 @@ startTimePredictions = time.time()
 #getTotalSentenceSurprisals(SANITY="ZeroLoss")
 #getTotalSentenceSurprisals(SANITY="Sanity")
 #getTotalSentenceSurprisals(SANITY="Model")
-getTotalSentenceSurprisals(SANITY="ModelTmp")
-quit()
+#getTotalSentenceSurprisals(SANITY="ModelTmp")
+#quit()
 
 
 #getTotalSentenceSurprisals()
