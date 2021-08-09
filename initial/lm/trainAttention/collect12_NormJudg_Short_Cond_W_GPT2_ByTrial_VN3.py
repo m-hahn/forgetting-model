@@ -2,7 +2,7 @@ import codecs
 import os
 
 header = "Noun Item Region Condition Surprisal SurprisalReweighted ThatFraction ThatFractionReweighted".split(" ")
-header += ["Script", "ID", "predictability_weight", "deletion_rate", "autoencoder", "lm"]
+header += ["S1", "S2", "Word", "Script", "ID", "predictability_weight", "deletion_rate", "autoencoder", "lm"]
 
 PATH = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs/"
 PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"
@@ -42,6 +42,11 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
              data = [x.split("\t") for x in inFile.read().strip().split("\n")]
              data = data[1:]
              for line in data:
+                 if len(line) == 10:
+                    print("WARNING: COLUMN MISSING!!!", line)
+                    _ = float(line[-1]) # Make sure the last entry is a number, as a basic sanity check
+                    line.append("NA")
+                 assert len(line) == 11, line
                  print("\t".join(line + [suffix, arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], arguments["load_from_autoencoder"], arguments["load_from_plain_lm"]]), file=outFile)
           except FileNotFoundError:
              print("Couldn't open", PATH2+f+"_Model")

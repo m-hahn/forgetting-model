@@ -644,12 +644,13 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       ##########################################
       ##########################################
       # RUN AUTOENCODER (approximately inverting loss model)
-      autoencoder_embedded = autoencoder.word_embeddings(input_tensor_pure[:-1])
-      autoencoder_out_encoder, _ = autoencoder.rnn_encoder(encoded_embeddings[:-1], None)
+      autoencoder_embedded = autoencoder.word_embeddings(input_tensor_pure)
+      autoencoder_out_encoder, _ = autoencoder.rnn_encoder(encoded_embeddings, None)
       autoencoder_out_decoder, _ = autoencoder.rnn_decoder(autoencoder_embedded, None)
-      assert autoencoder_embedded.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py. Would be good if they were unified.
-
+      assert autoencoder_embedded.size()[0] == args.sequence_length, (autoencoder_embedded.size()[0], args.sequence_length) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py. Would be good if they were unified.
+      #print(autoencoder.attention_proj(autoencoder_out_encoder).transpose(0,1).size(), autoencoder_out_decoder.transpose(0,1).transpose(1,2).size())
       autoencoder_attention = torch.bmm(autoencoder.attention_proj(autoencoder_out_encoder).transpose(0,1), autoencoder_out_decoder.transpose(0,1).transpose(1,2))
+      #print(autoencoder_attention.size())
       autoencoder_attention = autoencoder.attention_softmax(autoencoder_attention).transpose(0,1)
       autoencoder_from_encoder = (autoencoder_out_encoder.unsqueeze(2) * autoencoder_attention.unsqueeze(3)).sum(dim=0).transpose(0,1)
       autoencoder_out_full = torch.cat([autoencoder_out_decoder, autoencoder_from_encoder], dim=2)
@@ -659,7 +660,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       autoencoder_log_probs = autoencoder.logsoftmax(autoencoder_logits)
 
       # Prediction Loss 
-      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_full[:-1].contiguous().view(-1)).view(-1, args.batchSize)
+      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_full.contiguous().view(-1)).view(-1, args.batchSize)
 
       ##########################################
       ##########################################
@@ -691,7 +692,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 #      retentionTarget = 10000.0
       klLossAverage = klLoss.sum(dim=2).mean()
 #      print(klLossAverage, retentionTarget, dual_weight)
-      tradeoffFactorNow = updatesCount/maxUpdates * args.tradeoffFactor
+      tradeoffFactorNow = updatesCount/maxUpdatesForAnnealing * args.tradeoffFactor
       loss += tradeoffFactorNow * klLossAverage
 
 
@@ -775,8 +776,10 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-#maxUpdates = 200000 if args.tuning == 1 else 10000000000
-maxUpdates = 10000 if args.tuning == 1 else 10000000000
+maxUpdatesForAnnealing = 200000 if args.tuning == 1 else 10000000000
+maxUpdates = 200000 if args.tuning == 1 else 10000000000
+#maxUpdates = 10000 if args.tuning == 1 else 10000000000
+#maxUpdates = 10 if args.tuning == 1 else 10000000000
 
 def showAttention(word):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
@@ -1442,6 +1445,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     numberOfSamples = 12
     import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
+    random.shuffle(topNouns)
 #    topNouns = ["fact", "report"]
     with open("/u/scr/mhahn/reinforce-logs-both-short-continuous/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
      print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted"]), file=outFile)
@@ -1459,7 +1463,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         for sentenceID in range(min(20,len(nounsAndVerbsCompatible))):
           print(sentenceID)
           context = None
-          for compatible in ["compatible", "incompatible"]:
+          for compatible in ["compatible"]: #, "incompatible"]:
            for condition in ["SC"]: #"SCRC", "SC","NoSC"]:
             TRIALS_COUNT += 1
             print("TRIALS", TRIALS_COUNT/TOTAL_TRIALS)
@@ -1666,8 +1670,8 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 startTimePredictions = time.time()
 
 
-getTotalSentenceSurprisals(SANITY="Model")
-quit()
+#getTotalSentenceSurprisals(SANITY="Model")
+#quit()
 
 
 #getTotalSentenceSurprisals(SANITY="ZeroLoss")
@@ -1717,7 +1721,7 @@ for epoch in range(1000):
       counter += 1
       updatesCount += 1
       # Get model predictions at the end of optimization
-      if updatesCount == maxUpdates and False:
+      if updatesCount == maxUpdates:
 
        # Record calibration for the acceptability judgments
        #getTotalSentenceSurprisalsCalibration(SANITY="Model")
@@ -1730,18 +1734,18 @@ for epoch in range(1000):
          print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
          print(args)
          print("=========================")
-         showAttention("the")
-         showAttention("was")
-         showAttention("that")
-         showAttention("fact")
-         showAttention("information")
-         showAttention("report")
-         showAttention("belief")
-         showAttention("finding")
-         showAttention("prediction")
-         showAttention("of")
-         showAttention("by")
-         showAttention("about")
+#         showAttention("the")
+#         showAttention("was")
+#         showAttention("that")
+#         showAttention("fact")
+#         showAttention("information")
+#         showAttention("report")
+#         showAttention("belief")
+#         showAttention("finding")
+#         showAttention("prediction")
+#         showAttention("of")
+#         showAttention("by")
+#         showAttention("about")
          getTotalSentenceSurprisals(SANITY="Model")
   #       getTotalSentenceSurprisals(SANITY="Sanity")
 
