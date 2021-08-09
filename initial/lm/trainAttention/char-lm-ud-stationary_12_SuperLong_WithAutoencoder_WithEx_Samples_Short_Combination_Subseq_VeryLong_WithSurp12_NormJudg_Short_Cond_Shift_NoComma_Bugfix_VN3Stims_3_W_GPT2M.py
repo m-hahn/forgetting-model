@@ -267,7 +267,13 @@ class Autoencoder:
     self.output_mlp = torch.nn.Linear(2*args.hidden_dim_autoencoder, args.hidden_dim_autoencoder).cuda()
     self.relu = torch.nn.ReLU()
     self.modules_autoencoder = [self.rnn_decoder, self.rnn_encoder, self.output, self.word_embeddings, self.attention_proj, self.output_mlp]
- 
+
+
+   def forward(self, input_tensor_pure, input_tensor_noised, NUMBER_OF_REPLICATES):
+      # INPUTS: input_tensor_pure, input_tensor_noised
+      # OUTPUT: autoencoder_lossTensor
+      assert False, "could easily transplant the relevant part from the global forward function"
+
   def sampleReconstructions(self, numeric, numeric_noised, NOUN, offset, numberOfBatches=args.batchSize*args.NUMBER_OF_REPLICATES, fillInBefore=-1, computeProbabilityStartingFrom=0):
       """ Draws samples from the amortized reconstruction posterior """
       if True:
@@ -632,6 +638,9 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       ##########################################
       ##########################################
       # RUN AUTOENCODER (approximately inverting loss model)
+      # Could easily turn the next few sections into:
+#      autoencoder_lossTensor =  autoencoder.forward(input_tensor_pure, input_tensor_noised, NUMBER_OF_REPLICATES)
+
       autoencoder_embedded = autoencoder.word_embeddings(input_tensor_pure[:-1])
       autoencoder_embedded_noised = autoencoder.word_embeddings(input_tensor_noised[:-1])
       autoencoder_out_encoder, _ = autoencoder.rnn_encoder(autoencoder_embedded_noised, None)
@@ -754,7 +763,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       
       return loss, product(target_tensor_full.size())
 
-
+# This could easily be made a function in the MemoryModel class
 def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True, computeProbabilityStartingFrom=0):
       """ Forward pass through the entire model
         @param numeric
