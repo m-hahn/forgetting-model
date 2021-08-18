@@ -99,6 +99,9 @@ model2 = (lmer(FPASSD ~ SurprisalReweighted.y + WLEN + LogBNCFreq + WLEN + LogBN
 #model2 = (lmer(FPASSD ~ SurprisalReweighted.y + WLEN + LogBNCFreq + WLEN*LogBNCFreq + (1|Identifier) + (1|SUBJ), data=data, REML=F))
 
    cat(model_id, "\t", (AIC(model1) - AIC(model2))/nrow(data), (AIC(model1) - AIC(model2)), models$deletion_rate[[i]], models$predictability_weight[[i]])
+   sink("analyze_model2.R.tsv", append=TRUE)
+   cat(model_id, (AIC(model1) - AIC(model2))/nrow(data), (AIC(model1) - AIC(model2)), models$deletion_rate[[i]], models$predictability_weight[[i]], sep="\t")
+   sink()
    cat( "\n")
 
 }
