@@ -17,7 +17,7 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
         continue
       print(f)
       print(suffix)
-      accept = False
+#      accept = False
       with codecs.open(PATH+f, "r", 'utf-8', "ignore") as inFile:
          try:
            iterations = next(inFile).strip()
@@ -29,7 +29,7 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
 #                if "fixed" in line:
 #                     accept = True
 #                     break
-      print(accept)
+ #     print(accept)
       if True or accept:
           arguments = dict([x.split("=") for x in arguments[10:-1].split(", ")])
           print(arguments)

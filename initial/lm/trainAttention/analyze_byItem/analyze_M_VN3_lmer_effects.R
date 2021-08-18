@@ -37,7 +37,6 @@ data$Item245 = grepl("245_", data$Item)
 
 
 data = data %>% filter(Item245)
-#crash()
 
 sink("analyze_M_VN3_245_lmer_effects.R.txt")
 cat(paste("predictability_weight", "deletion_rate", "beta_EmbRate", "beta_TwoThree", "beta_TwoThree:EmbRate", "\n", sep="\t"))
