@@ -25,6 +25,6 @@ for lambda_, delta_ in sorted(list(results)):
     print("-------------------")
     print(lambda_, delta_)
     for x, a, b, y in scores:
-       print("\t".join([str(w) for w in [round(x/2, 2), round(a,2), round(b,2), y["learning_rate_memory"], y["learning_rate_autoencoder"], float(y.get("learning_rate_lm", 0)), y["momentum"]]]))
+       print("\t".join([str(w) for w in [round(x/2, 2), round(a,2), round(b,2), y["learning_rate_memory"], y["learning_rate_autoencoder"], float(y.get("learning_rate_lm", 0)), y["momentum"], y["myID"]]]))
     
 
