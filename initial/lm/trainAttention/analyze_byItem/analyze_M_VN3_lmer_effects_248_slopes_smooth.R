@@ -43,9 +43,9 @@ library(brms)
 
 for(pred in unique(data$predictability_weight)) {
   for(del in unique(data$deletion_rate)) {
-    outpath = paste("posterior_summaries/analyze_M_VN3_lmer_effects_248_slopes.R_", pred, "_", del, ".tsv", sep="")
+    outpath = paste("posterior_summaries/analyze_M_VN3_lmer_effects_248_slopes_smooth.R_", pred, "_", del, ".tsv", sep="")
     if(!file.exists(outpath)) {
-    data2 = data %>% filter(predictability_weight == pred, deletion_rate == del)
+    data2 = data %>% filter(abs(predictability_weight - pred) <= 0.25, abs(deletion_rate - del) <= 0.05)
     if(del > 0.4) {
      if(del < 0.55) {
 if(pred > 0) {
