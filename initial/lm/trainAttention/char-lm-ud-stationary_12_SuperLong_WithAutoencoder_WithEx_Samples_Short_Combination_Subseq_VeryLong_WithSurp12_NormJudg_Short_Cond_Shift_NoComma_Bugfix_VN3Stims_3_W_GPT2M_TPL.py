@@ -611,8 +611,8 @@ checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.loa
 assert itos == checkpoint["words"]
 for i in range(len(checkpoint["memory"])):
    memory.modules_memory[i].load_state_dict(checkpoint["memory"][i])
-for i in range(len(checkpoint["lm"])):
-   lm.modules_lm[i].load_state_dict(checkpoint["lm"][i])
+#for i in range(len(checkpoint["lm"])):
+#   lm.modules_lm[i].load_state_dict(checkpoint["lm"][i])
 for i in range(len(checkpoint["autoencoder"])):
    autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["autoencoder"][i])
 state = {"arguments" : args, "words" : itos, "memory" : memory, "lm" : lm, "autoencoder" : autoencoder}
@@ -879,6 +879,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
 
 def backward(loss, printHere):
+      return
       """ An optimization step for the resource-rational objective function """
       # Set stored gradients to zero
       optim_autoencoder.zero_grad()
@@ -919,7 +920,7 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 200000 if args.tuning == 1 else 10000000000
+maxUpdates = 20000 if args.tuning == 1 else 10000000000
 
 def showAttention(word, POS=""):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)

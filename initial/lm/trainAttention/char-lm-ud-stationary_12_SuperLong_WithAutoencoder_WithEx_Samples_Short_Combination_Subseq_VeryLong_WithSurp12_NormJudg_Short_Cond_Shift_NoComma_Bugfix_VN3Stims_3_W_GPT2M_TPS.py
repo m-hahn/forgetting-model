@@ -1970,7 +1970,9 @@ with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(arg
    print(runningAverageReconstructionLoss, file=outFile)
 
 
-state = {"arguments" : args, "words" : itos, "memory" : [c.state_dict() for c in memory.modules_memory], "lm" : [c.state_dict() for c in lm.modules_lm], "autoencoder" : [c.state_dict() for c in autoencoder.modules_autoencoder]}
+#state = {"arguments" : args, "words" : itos, "memory" : [c.state_dict() for c in memory.modules_memory], "lm" : [c.state_dict() for c in lm.modules_lm], "autoencoder" : [c.state_dict() for c in autoencoder.modules_autoencoder]}
+#torch.save(state, f"/u/scr/mhahn/CODEBOOKS_MEMORY/{__file__}_{args.myID}.model")
+state = {"arguments" : args, "words" : itos, "memory" : [c.state_dict() for c in memory.modules_memory], "autoencoder" : [c.state_dict() for c in autoencoder.modules_autoencoder]}
 torch.save(state, f"/u/scr/mhahn/CODEBOOKS_MEMORY/{__file__}_{args.myID}.model")
 
 
