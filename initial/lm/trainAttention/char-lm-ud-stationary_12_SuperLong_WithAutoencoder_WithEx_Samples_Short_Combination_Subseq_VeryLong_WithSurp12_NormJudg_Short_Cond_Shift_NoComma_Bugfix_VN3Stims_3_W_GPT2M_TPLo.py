@@ -1,4 +1,7 @@
 # Example: ~/python-py37-mhahn char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_TPLo.py --load_from_joint=163008048 --stimulus_file=Staub2006
+# ~/python-py37-mhahn char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_TPLo.py --load_from_joint=163008048 --stimulus_file=Staub2006 --criticalRegions=NP1_0,NP1_1,OR,NP2_0,NP2_1
+
+# --stimulus_file=BartekEtal --criticalRegions=Critical_0
 
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
@@ -69,6 +72,7 @@ parser.add_argument("--predictability_weight", type=float, default=1)
 
 
 parser.add_argument("--stimulus_file", type=str)
+parser.add_argument("--criticalRegions", type=str)
 
 
 TRAIN_LM = True
@@ -82,6 +86,8 @@ import math
 
 args=parser.parse_args()
 
+if args.criticalRegions is not None:
+   args.criticalRegions = args.criticalRegions.split(",")
 ############################
 
 
@@ -969,13 +975,13 @@ def getSurprisalsStimuli(SANITY="Sanity"):
     with open(f"/u/scr/mhahn/STIMULI/{args.stimulus_file}.tsv", "r") as inFile:
        data = [x.split("\t") for x in inFile.read().strip().split("\n")]
        header = data[0]
-       assert header == ["Sentence", "Item", "Condition", "Region", "Word"]
+       assert header == ["Sentence", "Item", "Condition", "Region", "Word", "NumInSent"]
        header = dict(list(zip(header, range(len(header)))))
        data = data[1:]
        from collections import defaultdict
        sentences = defaultdict(list)
        for line in data:
-           sentences[header["Sentence"]].append(line)
+           sentences[line[header["Sentence"]]].append(line)
        sentences = sorted(sentences.items(), key=lambda x:x[0])
     assert SANITY in ["ModelTmp", "Model", "Sanity", "ZeroLoss"]
     numberOfSamples = 6
@@ -989,12 +995,16 @@ def getSurprisalsStimuli(SANITY="Sanity"):
           ITEM = sentence[0][header["Item"]]
           CONDITION = sentence[0][header["Condition"]]
           regions = [x[header["Region"]] for x in sentence]
-          sentence = [x[header["Word"]] for x in sentence]
+          sentence = [x[header["Word"]].lower() for x in sentence]
           context = sentence[0]
+
           remainingInput = sentence[1:]
+          regions = regions[1:]
           print("INPUT", context, remainingInput)
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
+            if not (args.criticalRegions is None) and regions[i] not in args.criticalRegions:
+              continue
             for repetition in range(2):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = max(0, args.sequence_length - len(context.split(" ")) - i - 1) # some sentences are too long

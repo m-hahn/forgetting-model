@@ -43,14 +43,14 @@ library(brms)
 
 for(pred in unique(data$predictability_weight)) {
   for(del in unique(data$deletion_rate)) {
-    outpath = paste("posterior_summaries/analyze_M_VN3_lmer_effects_248_slopes_smooth.R_", pred, "_", del, ".tsv", sep="")
+    outpath = paste("posterior_summaries/analyze_M_VN3_lmer_effects_248_slopes_inter.R_", pred, "_", del, ".tsv", sep="")
     if(!file.exists(outpath)) {
-    data2 = data %>% filter(abs(predictability_weight - pred) <= 0.25, abs(deletion_rate - del) <= 0.05)
-#    if(del > 0.4) {
- #    if(del < 0.55) {
-#if(pred > 0) {
+    data2 = data %>% filter(predictability_weight == pred, deletion_rate == del)
+#    if(del <= 0.4 | del >= 0.55) {
+ #    if(del < 0.55 || TRUE) {
+#if(pred == 0 || TRUE) {
     if(nrow(data2) > 0) {
-          model2 = brm(SurprisalReweighted ~ True_Minus_False.C + HasRC.C + HasRC.C * True_Minus_False.C + True_Minus_False.C + compatible.C*HasRC.C + compatible.C*True_Minus_False.C + (1+True_Minus_False.C+compatible.C|Item) + (1+compatible.C|Noun), data=data2 %>% filter(HasSC.C>0) %>% group_by(compatible.C,HasRC.C, True_Minus_False.C, Item, Noun) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), cores=4)
+          model2 = brm(SurprisalReweighted ~ True_Minus_False.C + HasRC.C + HasRC.C * True_Minus_False.C + True_Minus_False.C + compatible.C*HasRC.C + compatible.C*True_Minus_False.C + (1+True_Minus_False.C+compatible.C+HasRC.C+HasRC.C * True_Minus_False.C + True_Minus_False.C + compatible.C*HasRC.C + compatible.C*True_Minus_False.C|Item) + (1+compatible.C+HasRC.C+compatible.C*HasRC.C|Noun), data=data2 %>% filter(HasSC.C>0) %>% group_by(compatible.C,HasRC.C, True_Minus_False.C, Item, Noun) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), cores=4)
        write.table(summary(model2)$fixed, file=outpath, sep="\t")
     }
   }
