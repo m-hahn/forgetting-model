@@ -1234,7 +1234,7 @@ for epoch in range(1):
           print("Slurm", os.environ["SLURM_JOB_ID"])
           print(lastSaved)
           print(__file__)
-          print(args)
+          print(checkpoint["arguments"])
 
       if False and (time.time() - totalStartTime)/60 > 4000:
           print("Breaking early to get some result within 72 hours")
@@ -1296,9 +1296,11 @@ for epoch in range(1):
 #      global runningAveragePredictionLoss
 #
 
-
-with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.myID), "w") as outFile:
-   print(args, file=outFile)
+assert runningAverageReward == 5
+assert runningAveragePredictionLoss == 5
+assert runningAverageBaselineDeviation == 2
+with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.load_from_joint), "w") as outFile:
+   print(checkpoint["arguments"], file=outFile)
    print(runningAverageReward, file=outFile)
    print(expectedRetentionRate, file=outFile)
    print(runningAverageBaselineDeviation, file=outFile)
@@ -1329,7 +1331,7 @@ with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(a
 
          sys.stdout = outFile
          print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
-         print(args)
+         print(checkpoint["arguments"])
          print("=========================")
          showAttention("the")
          showAttention("was")

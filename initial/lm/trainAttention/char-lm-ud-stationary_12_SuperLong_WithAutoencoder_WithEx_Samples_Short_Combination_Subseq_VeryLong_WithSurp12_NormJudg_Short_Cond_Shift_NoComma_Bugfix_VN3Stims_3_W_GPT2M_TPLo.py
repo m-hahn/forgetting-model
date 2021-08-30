@@ -987,7 +987,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
     numberOfSamples = 6
     import scoreWithGPT2Medium as scoreWithGPT2
     with torch.no_grad():
-     with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint)+"_"+SANITY, "w") as outFile:
+     with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint if SANITY != "ZeroLoss" else "ZERO")+"_"+SANITY, "w") as outFile:
       print("\t".join(["Sentence", "Item", "Condition", "Region", "Word", "Surprisal", "SurprisalReweighted", "Repetition"]), file=outFile)
       TRIALS_COUNT = 0
       for sentenceID, sentence in sentences:
@@ -1052,6 +1052,9 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               for h in range(len(batch)):
                  batch[h] = batch[h][:1].upper() + batch[h][1:]
                  assert batch[h][0] != " ", batch[h]
+              # Add the preceding context
+              batchPreceding = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(0,pointWhereToStart+1)]) for s in range(resultNumeric.size()[1])]
+              batch = [x.replace(" .", ".")+" "+y for x, y in zip(batchPreceding, batch)]
 #              print(batch)
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
               surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
@@ -1110,5 +1113,4 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
 
 
-getSurprisalsStimuli(SANITY="Model")
-
+getSurprisalsStimuli(SANITY=("Model" if args.deletion_rate > 0 else "ZeroLoss"))

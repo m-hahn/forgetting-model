@@ -1,3 +1,8 @@
+# Example: ~/python-py37-mhahn char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_TPLo.py --load_from_joint=163008048 --stimulus_file=Staub2006
+# ~/python-py37-mhahn char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_Lo.py --load_from_joint=163008048 --stimulus_file=Staub2006 --criticalRegions=NP1_0,NP1_1,OR,NP2_0,NP2_1
+
+# --stimulus_file=BartekEtal --criticalRegions=Critical_0
+
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -61,7 +66,10 @@ parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.
 
 # Lambda and Delta Parameters
 parser.add_argument("--deletion_rate", type=float, default=0.5)
-parser.add_argument("--predictability_weight", type=float, default=1)
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
+
+parser.add_argument("--stimulus_file", type=str)
+parser.add_argument("--criticalRegions", type=str)
 
 
 TRAIN_LM = False
@@ -75,6 +83,8 @@ import math
 
 args=parser.parse_args()
 
+if args.criticalRegions is not None:
+   args.criticalRegions = args.criticalRegions.split(",")
 ############################
 
 assert args.predictability_weight >= 0
@@ -87,7 +97,7 @@ assert args.deletion_rate < 1.0
 #############################
 
 assert args.tuning in [0,1]
-#assert args.batchSize == 1
+assert args.batchSize == 1
 print(args.myID)
 import sys
 STDOUT = sys.stdout
@@ -432,6 +442,7 @@ class MemoryModel():
      self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
      self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
      self.memory_bilinear.weight.data.fill_(0)
+     # Modules of the memory model
      self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
   def forward(self, numeric):
       embedded_everything_mem = lm.word_embeddings(numeric).detach()
@@ -566,9 +577,9 @@ def parameters_lm():
 parameters_lm_cached = [x for x in parameters_lm()]
 
 
-assert not TRAIN_LM
-optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
+#assert not TRAIN_LM
+#optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
+#optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
 
 ###############################################3
 
@@ -593,9 +604,10 @@ if True or args.load_from_lm is not None:
 
 from torch.autograd import Variable
 
-print(lm.word_embeddings.weight)
-assert (checkpoint["lm_embeddings"]["weight"] == lm.word_embeddings.weight).all()
-del checkpoint["lm_embeddings"]
+if "lm_embeddings" in checkpoint:
+  print(lm.word_embeddings.weight)
+  assert (checkpoint["lm_embeddings"]["weight"] == lm.word_embeddings.weight).all()
+  del checkpoint["lm_embeddings"]
 assert set(list(checkpoint)) == set(["arguments", "words", "memory", "autoencoder"]), list(checkpoint)
 assert itos == checkpoint["words"]
 for i in range(len(checkpoint["memory"])):
@@ -748,7 +760,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       if onlyProvideMemoryResult:
         return numeric, numeric_noised
-
+      assert False, "this version of the code uses an unintialized lm"
       input_tensor_pure = Variable(numeric[:-1], requires_grad=False)
       input_tensor_noised = Variable(numeric_noised[:-1], requires_grad=False)
       target_tensor_full = Variable(numeric[1:], requires_grad=False)
@@ -786,7 +798,6 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       # Autoencoder Loss
       loss += autoencoder_lossTensor.mean()
 
-#      loss += lm_lossTensor.mean() 
       # Overall Reward
       #negativeRewardsTerm = negativeRewardsTerm1 + dual_weight * (negativeRewardsTerm2-retentionTarget)
       # for the dual weight
@@ -871,6 +882,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 def backward(loss, printHere):
       assert False
       """ An optimization step for the resource-rational objective function """
+      assert False, "this version of the code uses an unintialized lm"
       # Set stored gradients to zero
       optim_autoencoder.zero_grad()
       optim_memory.zero_grad()
@@ -906,9 +918,6 @@ totalStartTime = time.time()
 lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
-
-maxUpdates = 20000 if args.tuning == 1 else 10000000000
-
 def showAttention(word, POS=""):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
     attention = attention[:,0,0]
@@ -945,92 +954,45 @@ def flatten(x):
    return l
 
 
-calibrationSentences = []
-
-calibrationSentences.append("The divorcee has come to love her life ever since she got divorced.") 
-calibrationSentences.append("The mathematician at the banquet baffled the philosopher although she rarely needed anyone else's help.")
-calibrationSentences.append("The showman travels to different cities every month.")
-calibrationSentences.append("The roommate takes out the garbage every week.")
-calibrationSentences.append("The dragon wounded the knight although he was far too crippled to protect the princess.")
-calibrationSentences.append("The office-worker worked through the stack of files on his desk quickly.")
-calibrationSentences.append("The firemen at the scene apprehended the arsonist because there was a great deal of evidence pointing to his guilt.")
-calibrationSentences.append("During the season, the choir holds rehearsals in the church regularly.")
-calibrationSentences.append("The speaker who the historian offended kicked a chair after the talk was over and everyone had left the room.")
-calibrationSentences.append("The milkman punctually delivers the milk at the door every day.")
-calibrationSentences.append("The quarterback dated the cheerleader although this hurt her reputation around school.")
-calibrationSentences.append("The citizens of France eat oysters.")
-calibrationSentences.append("The bully punched the kid after all the kids had to leave to go to class.")
-calibrationSentences.append("After the argument, the husband ignored his wife.")
-calibrationSentences.append("The engineer who the lawyer who was by the elevator scolded blamed the secretary but nobody listened to his complaints.")
-calibrationSentences.append("The librarian put the book onto the shelf.")
-calibrationSentences.append("The photographer processed the film on time.")
-calibrationSentences.append("The spider that the boy who was in the yard captured scared the dog since it was larger than the average spider.")
-calibrationSentences.append("The sportsman goes jogging in the park regularly.")
-calibrationSentences.append("The customer who was on the phone contacted the operator because the new long-distance pricing plan was extremely inconvenient.")
-calibrationSentences.append("The private tutor explained the assignment carefully.")
-calibrationSentences.append("The audience who was at the club booed the singer before the owner of the bar could remove him from the stage.")
-calibrationSentences.append("The defender is constantly scolding the keeper.")
-calibrationSentences.append("The hippies who the police at the concert arrested complained to the officials while the last act was going on stage.")
-calibrationSentences.append("The natives on the island captured the anthropologist because she had information that could help the tribe.")
-calibrationSentences.append("The trainee knew that the task which the director had set for him was impossible to finish within a week.")
-calibrationSentences.append("The administrator who the nurse from the clinic supervised scolded the medic while a patient was brought into the emergency room.")
-calibrationSentences.append("The company was sure that its new product, which its researchers had developed, would soon be sold out.")
-calibrationSentences.append("The astronaut that the journalists who were at the launch worshipped criticized the administrators after he discovered a potential leak in the fuel tank.")
-calibrationSentences.append("The janitor who the doorman who was at the hotel chatted with bothered a guest but the manager decided not to fire him for it.")
-calibrationSentences.append("The technician at the show repaired the robot while people were taking a break for coffee.")
-calibrationSentences.append("The salesman feared that the printer which the customer bought was damaged.")
-calibrationSentences.append("The students studied the surgeon whenever he performed an important operation.")
-calibrationSentences.append("The locksmith can crack the safe easily.")
-calibrationSentences.append("The woman who was in the apartment hired the plumber despite the fact that he couldn't fix the toilet.")
-calibrationSentences.append("Yesterday the swimmer saw only a turtle at the beach.")
-calibrationSentences.append("The surgeon who the detective who was on the case consulted questioned the coroner because the markings on the body were difficult to explain.")
-calibrationSentences.append("The gangster who the detective at the club followed implicated the waitress because the police suspected he had murdered the shopkeeper.")
-calibrationSentences.append("During the party everybody was dancing to rock music.")
-calibrationSentences.append("The fans at the concert loved the guitarist because he played with so much energy.")
-calibrationSentences.append("The intern comforted the patient because he was in great pain.")
-calibrationSentences.append("The casino hired the daredevil because he was confident that everything would go according to plan.")
-calibrationSentences.append("The beggar is often scrounging for cigarettes.")
-calibrationSentences.append("The cartoonist who the readers supported pressured the dean because she thought that censorship was never appropriate.")
-calibrationSentences.append("The prisoner who the guard attacked tackled the warden although he had no intention of trying to escape.")
-calibrationSentences.append("The passer-by threw the cardboard box into the trash-can with great force.")
-calibrationSentences.append("The biker who the police arrested ran a light since he was driving under the influence of alcohol.")
-calibrationSentences.append("The scientists who were in the lab studied the alien while the blood sample was run through the computer.")
-calibrationSentences.append("The student quickly finished his homework assignments.")
-calibrationSentences.append("The environmentalist who the demonstrators at the rally supported calmed the crowd until security came and sent everyone home.")
-calibrationSentences.append("The producer shoots a new movie every year.")
-calibrationSentences.append("The rebels who were in the jungle captured the diplomat after they threatened to kill his family for not complying with their demands.")
-calibrationSentences.append("Dinosaurs ate other reptiles during the stone age.")
-calibrationSentences.append("The manager who the baker loathed spoke to the new pastry chef because he had instituted a new dress code for all employees.")
-calibrationSentences.append("The teacher doubted that the test that had taken him a long time to design would be easy to answer.")
-calibrationSentences.append("The cook who the servant in the kitchen hired offended the butler and then left the mansion early to see a movie at the local theater.")
-
-
 #in and is the it
 #time maintain metal commercially the was salt cut as two-year college flavorings solutions
 #a alkali and and four-year into twice programme cation and \tduring addition ammonia burials
 #often and used butyllithiums perfumery as this amide
 
-
-
-def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal for EOS after 2 or 3 verbs
+def getSurprisalsStimuli(SANITY="Sanity"):
+    with open(f"/u/scr/mhahn/STIMULI/{args.stimulus_file}.tsv", "r") as inFile:
+       data = [x.split("\t") for x in inFile.read().strip().split("\n")]
+       header = data[0]
+       assert header == ["Sentence", "Item", "Condition", "Region", "Word", "NumInSent"]
+       header = dict(list(zip(header, range(len(header)))))
+       data = data[1:]
+       from collections import defaultdict
+       sentences = defaultdict(list)
+       for line in data:
+           sentences[line[header["Sentence"]]].append(line)
+       sentences = sorted(sentences.items(), key=lambda x:x[0])
     assert SANITY in ["ModelTmp", "Model", "Sanity", "ZeroLoss"]
-    assert VERBS in [1,2]
-#    print(plain_lm) 
     numberOfSamples = 6
     import scoreWithGPT2Medium as scoreWithGPT2
     with torch.no_grad():
-     with open("/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w") as outFile:
-      print("\t".join(["Sentence", "Region", "Word", "Surprisal", "SurprisalReweighted", "Repetition"]), file=outFile)
+     with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint if SANITY != "ZeroLoss" else "ZERO")+"_"+SANITY, "w") as outFile:
+      print("\t".join(["Sentence", "Item", "Condition", "Region", "Word", "Surprisal", "SurprisalReweighted", "Repetition"]), file=outFile)
       TRIALS_COUNT = 0
-      for sentenceID in range(len(calibrationSentences)):
+      for sentenceID, sentence in sentences:
           print(sentenceID)
-          sentence = calibrationSentences[sentenceID].lower().replace(".", "").replace(",", "").replace("n't", " n't").split(" ")
+          ITEM = sentence[0][header["Item"]]
+          CONDITION = sentence[0][header["Condition"]]
+          regions = [x[header["Region"]] for x in sentence]
+          sentence = [x[header["Word"]].lower() for x in sentence]
           context = sentence[0]
+
           remainingInput = sentence[1:]
-          regions = range(len(sentence))
+          regions = regions[1:]
           print("INPUT", context, remainingInput)
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
+            if not (args.criticalRegions is None) and regions[i] not in args.criticalRegions:
+              continue
             for repetition in range(2):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = max(0, args.sequence_length - len(context.split(" ")) - i - 1) # some sentences are too long
@@ -1078,6 +1040,9 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               for h in range(len(batch)):
                  batch[h] = batch[h][:1].upper() + batch[h][1:]
                  assert batch[h][0] != " ", batch[h]
+              # Add the preceding context
+              batchPreceding = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(0,pointWhereToStart+1)]) for s in range(resultNumeric.size()[1])]
+              batch = [x.replace(" .", ".")+" "+y for x, y in zip(batchPreceding, batch)]
 #              print(batch)
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
               surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
@@ -1133,285 +1098,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
               for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
                   print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//24]))
               print("SURPRISAL", i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
-              print("\t".join([str(w) for w in [sentenceID, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
+              print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
 
 
-
-startTimePredictions = time.time()
-
-#getTotalSentenceSurprisals(SANITY="ZeroLoss")
-#getTotalSentenceSurprisals(SANITY="Sanity")
-#getTotalSentenceSurprisals(SANITY="Model")
-#getTotalSentenceSurprisals(SANITY="ModelTmp")
-#quit()
-
-
-#getTotalSentenceSurprisals()
-#quit()
-
-#incrementallySampleCompletions(SANITY="Model", VERBS=1)
-#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
-#quit()
-
-startTimeTotal = time.time()
-startTimePredictions = time.time()
-#getTotalSentenceSurprisals(SANITY="Sanity")
-#quit()
-#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model")
-#getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity")
-#quit()
-#  
-#getPerNounReconstructionsSanity()
-#getPerNounReconstructionsSanityVerb()
-startTimeTotal = time.time()
-
-devLosses = 1
-devBatches = 1
-
-
-for epoch in range(1):
-   print(epoch)
-
-   # Get training data
-   training_data = corpusIteratorWikiWords.dev(args.language)
-   print("Got data")
-   training_chars = prepareDatasetChunks(training_data, train=True)
-
-
-   # Set the model up for training
-   lm.rnn_drop.train(False)
-   startTime = time.time()
-   trainChars = 0
-   counter = 0
-   hidden, beginning = None, None
-   # End optimization when maxUpdates is reached
-   if updatesCount > maxUpdates:
-     break
-   while updatesCount <= maxUpdates:
-      counter += 1
-      updatesCount += 1
-
-      # Get a batch from the training set
-      try:
-         numeric, _ = next(training_chars)
-      except StopIteration:
-         break
-      printHere = (counter % 50 == 0)
-      # Run this through the model: forward pass of the resource-rational objective function
-      with torch.no_grad():
-          loss, charCounts = forward(numeric, printHere=printHere, train=False, expandReplicates=False)
-
-
-      # Bad learning rate parameters might make the loss explode. In this case, stop.
-      if lossHasBeenBad > 100:
-          print("Loss exploding, has been bad for a while")
-          print(loss)
-          assert False
-      devLosses += float(loss)
-      devBatches += 1
-      trainChars += charCounts 
-      if printHere:
-          print("Precise reconstruction loss", devLosses/devBatches)
-          print(("Loss here", loss))
-          print((epoch, "Updates", updatesCount, str((100.0*updatesCount)/maxUpdates)+" %", maxUpdates, counter, trainChars, "ETA", ((time.time()-startTimeTotal)/updatesCount * (maxUpdates-updatesCount))/3600.0, "hours"))
-          print("Dev losses")
-          print(devLosses)
-          print("Words per sec "+str(trainChars/(time.time()-startTime)))
-          print(args.learning_rate_memory, args.learning_rate_autoencoder)
-          print("Slurm", os.environ["SLURM_JOB_ID"])
-          print(lastSaved)
-          print(__file__)
-          print(checkpoint["arguments"])
-
-      if False and (time.time() - totalStartTime)/60 > 4000:
-          print("Breaking early to get some result within 72 hours")
-          totalStartTime = time.time()
-          break
-
-# #     break
-#   rnn_drop.train(False)
-#
-#
-#   dev_data = corpusIteratorWikiWords.dev(args.language)
-#   print("Got data")
-#   dev_chars = prepareDatasetChunks(dev_data, train=False)
-#
-#
-#     
-#   dev_loss = 0
-#   dev_char_count = 0
-#   counter = 0
-#   hidden, beginning = None, None
-#   while True:
-#       counter += 1
-#       try:
-#          numeric = next(dev_chars)
-#       except StopIteration:
-#          break
-#       printHere = (counter % 50 == 0)
-#       loss, numberOfCharacters = forward(numeric, printHere=printHere, train=False)
-#       dev_loss += numberOfCharacters * loss.cpu().data.numpy()
-#       dev_char_count += numberOfCharacters
-#   devLosses.append(dev_loss/dev_char_count)
-#   print(devLosses)
-##   quit()
-#   #if args.save_to is not None:
-# #     torch.save(dict([(name, module.state_dict()) for name, module in named_modules.items()]), MODELS_HOME+"/"+args.save_to+".pth.tar")
-#
-#   with open("/u/scr/mhahn/recursive-prd/memory-upper-neural-pos-only_recursive_words/estimates-"+args.language+"_"+__file__+"_model_"+str(args.myID)+"_"+model+".txt", "w") as outFile:
-#       print(str(args), file=outFile)
-#       print(" ".join([str(x) for x in devLosses]), file=outFile)
-#
-#   if len(devLosses) > 1 and devLosses[-1] > devLosses[-2]:
-#      break
-#
-#   state = {"arguments" : str(args), "words" : itos, "components" : [c.state_dict() for c in modules]}
-#   torch.save(state, "/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__+"_code_"+str(args.myID)+".txt")
-#
-#
-#
-#
-#
-#
-#   learning_rate = args.learning_rate * math.pow(args.lr_decay, len(devLosses))
-#   optim = torch.optim.SGD(parameters(), lr=learning_rate, momentum=0.0) # 0.02, 0.9
-
-
-
-
-#      global runningAverageBaselineDeviation
-#      global runningAveragePredictionLoss
-#
-
-assert runningAverageReward == 5
-assert runningAveragePredictionLoss == 5
-assert runningAverageBaselineDeviation == 2
-with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.load_from_joint), "w") as outFile:
-   print(checkpoint["arguments"], file=outFile)
-   print(runningAverageReward, file=outFile)
-   print(expectedRetentionRate, file=outFile)
-   print(runningAverageBaselineDeviation, file=outFile)
-   print(runningAveragePredictionLoss, file=outFile)
-   print(devLosses/devBatches, file=outFile)
-
-
-
-print("=========================")
-showAttention("the")
-showAttention("was")
-showAttention("that")
-showAttention("fact")
-showAttention("information")
-showAttention("report")
-showAttention("belief")
-showAttention("finding")
-showAttention("prediction")
-showAttention("of")
-showAttention("by")
-showAttention("about")
-
-
-      
-# Record reconstructions and surprisals
-with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.load_from_joint), "w") as outFile:
-         startTimePredictions = time.time()
-
-         sys.stdout = outFile
-         print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
-         print(checkpoint["arguments"])
-         print("=========================")
-         showAttention("the")
-         showAttention("was")
-         showAttention("that")
-         showAttention("fact")
-         showAttention("information")
-         showAttention("report")
-         showAttention("belief")
-         showAttention("finding")
-         showAttention("prediction")
-         showAttention("of")
-         showAttention("by")
-         showAttention("about")
-         #getTotalSentenceSurprisals(SANITY="Model")
-  #       getTotalSentenceSurprisals(SANITY="Sanity")
-
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=1)
- #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
- #        getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Model", VERBS=2)
-#         getPerNounReconstructions2VerbsUsingPlainLM(SANITY="Sanity", VERBS=2)
-#  
-
-#         getPerNounReconstructionsSanity()
-#         getPerNounReconstructionsSanityVerb()
-#         getPerNounReconstructions()
-#         getPerNounReconstructionsVerb()
-#         getPerNounReconstructions2Verbs()
-         print("=========================")
-         # Determiner
-         showAttention("the", POS="Det")
-         showAttention("a", POS="Det")
-         # Verbs
-         showAttention("was")
-         showAttention("pleased", POS="Verb")
-         showAttention("invited", POS="Verb")
-         showAttention("annoyed", POS="Verb")
-         showAttention("did", POS="Verb")
-         showAttention("failed", POS="Verb")
-         showAttention("trusted", POS="Verb")
-         showAttention("bothered", POS="Verb")
-         showAttention("admired", POS="Verb")
-         showAttention("impressed", POS="Verb")
-         showAttention("shocked", POS="Verb")
-         showAttention("appointed", POS="Verb")
-         showAttention("supported", POS="Verb")
-         showAttention("looked", POS="Verb")
-         # that
-         showAttention("that", POS="that")
-         # Noun
-         showAttention("fact", POS="Verb")
-         showAttention("information", POS="Verb")
-         showAttention("report", POS="Noun")
-         showAttention("belief", POS="Noun")
-         showAttention("finding", POS="Noun")
-         showAttention("prediction", POS="Noun")
-         showAttention("musician", POS="Noun")
-         showAttention("surgeon", POS="Noun")
-         showAttention("survivor", POS="Noun")
-         showAttention("guide", POS="Noun")
-         showAttention("fans", POS="Noun")
-         showAttention("sponsor", POS="Noun")
-         showAttention("detective", POS="Noun")
-         showAttention("time", POS="Noun")
-         showAttention("years", POS="Noun")
-         showAttention("name", POS="Noun")
-         showAttention("country", POS="Noun")
-         showAttention("school", POS="Noun")
-         showAttention("agreement", POS="Noun")
-         showAttention("series", POS="Noun")
-         showAttention("producers", POS="Noun")
-         showAttention("concerts", POS="Noun")
-         showAttention("classification", POS="Noun")
-         showAttention("house", POS="Noun")
-         showAttention("circle", POS="Noun")
-         showAttention("balance", POS="Noun")
-         showAttention("cartoon", POS="Noun")
-         showAttention("dancers", POS="Noun")
-         showAttention("immigrant", POS="Noun")
-         showAttention("teacher", POS="Noun")
-         showAttention("doctor", POS="Noun")
-         showAttention("patient", POS="Noun")
-         # Preposition
-         showAttention("of", POS="Prep")
-         showAttention("for", POS="Prep")
-         showAttention("to", POS="Prep")
-         showAttention("in", POS="Prep")
-         showAttention("by", POS="Prep")
-         showAttention("about", POS="Prep")
-         # Pronouns
-         showAttention("you", POS="Pron")
-         showAttention("we", POS="Pron")
-         showAttention("he", POS="Pron")
-         showAttention("she", POS="Pron")
-         sys.stdout = STDOUT
-
-
+getSurprisalsStimuli(SANITY=("Model" if args.deletion_rate > 0 else "ZeroLoss"))
