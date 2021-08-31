@@ -18,7 +18,9 @@ models = glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/char-lm-ud-stationary_12_Super
 for model in models:
    ID = model[model.rfind("_")+1:model.rfind(".")]
    if len(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/{script}_{stimulus_file}_{ID}_Model"))>0:
+     print("EXISTS", ID)
      continue
+   print("DOES NOT EXIST", ID)
    command = ["/u/nlp/anaconda/main/anaconda3/envs/py36-mhahn/bin/python", script, "--stimulus_file="+stimulus_file, "--criticalRegions="+criticalRegions, "--load_from_joint="+ID]
    print(command)
    subprocess.call(command)

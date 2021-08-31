@@ -12,7 +12,9 @@ random.shuffle(models)
 for model in models:
    ID = model[model.rfind("_")+1:model.rfind(".")]
    if len(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/{script}_{ID}_Model"))>0:
+     print("PROCWSSED", ID)
      continue
+   print("NOT PROCWSSED", ID)
    command = ["/u/nlp/anaconda/main/anaconda3/envs/py36-mhahn/bin/python", script, "--load_from_joint="+ID]
    print(command)
    subprocess.call(command)
