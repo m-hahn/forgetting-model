@@ -7,15 +7,17 @@ import os
 # Character-aware version of the `Tabula Rasa' language model
 # char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop.py
 # Adopted for English and German
+import glob
 import sys
 import random
 from collections import defaultdict
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--language", dest="language", type=str, default="english")
-parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=964163553) # language model taking noised input # Amortized Prediction Posterior
-parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([647336050, 516252642, 709961927, 727001672, 712478284, 524811876])) # Amortized Reconstruction Posterior
-parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([27553360, 935649231])) # plain language model without noise (Prior)
+#parser.add_argument("--load-from-lm", dest="load_from_lm", type=str, default=964163553) # language model taking noised input # Amortized Prediction Posterior
+#parser.add_argument("--load-from-autoencoder", dest="load_from_autoencoder", type=str, default=random.choice([647336050, 516252642, 709961927, 727001672, 712478284, 524811876])) # Amortized Reconstruction Posterior
+#parser.add_argument("--load-from-plain-lm", dest="load_from_plain_lm", type=str, default=random.choice([27553360, 935649231])) # plain language model without noise (Prior)
+parser.add_argument("--load_from_joint", type=str)
 
 
 # Unique ID for this model run
@@ -44,8 +46,8 @@ parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.
 
 ## Learning Rates
 parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.00002, 0.00005, 0.0001, 0.0001, 0.0001]))  # Can also use 0.0001, which leads to total convergence to deterministic solution withtin maximum iterations (March 25, 2021)   #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
-parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.1, 0.1, 0.1, 0.2])) # 0.0001, 
-parser.add_argument("--learning_rate_lm", type = float, default= random.choice([0.0005])) # 0.0005 was identified as the best hyperparameter for optimizing predictability quite clearly (August 2021)
+parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.1, 0.1, 0.1])) # 0.0001, 
+parser.add_argument("--learning_rate_lm", type = float, default= random.choice([0.0002, 0.0005, 0.001])) # 0.0001, 
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
 parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.2, 0.3]))
@@ -274,10 +276,31 @@ class Autoencoder:
     self.modules_autoencoder = [self.rnn_decoder, self.rnn_encoder, self.output, self.word_embeddings, self.attention_proj, self.output_mlp]
 
 
-  def forward(self, input_tensor_pure, input_tensor_noised, NUMBER_OF_REPLICATES):
+  def forward(self, input_tensor_pure, input_tensor_noised, target_tensor_onlyNoised, NUMBER_OF_REPLICATES):
       # INPUTS: input_tensor_pure, input_tensor_noised
       # OUTPUT: autoencoder_lossTensor
-      assert False, "could easily transplant the relevant part from the global forward function"
+#      autoencoder_lossTensor =  autoencoder.forward(input_tensor_pure, input_tensor_noised, NUMBER_OF_REPLICATES)
+
+      autoencoder_embedded = self.word_embeddings(input_tensor_pure[:-1])
+      autoencoder_embedded_noised = self.word_embeddings(input_tensor_noised[:-1])
+      autoencoder_out_encoder, _ = self.rnn_encoder(autoencoder_embedded_noised, None)
+      autoencoder_out_decoder, _ = self.rnn_decoder(autoencoder_embedded, None)
+      assert autoencoder_embedded.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py. Would be good if they were unified.
+      assert autoencoder_embedded_noised.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py.
+
+      autoencoder_attention = torch.bmm(self.attention_proj(autoencoder_out_encoder).transpose(0,1), autoencoder_out_decoder.transpose(0,1).transpose(1,2))
+      autoencoder_attention = self.attention_softmax(autoencoder_attention).transpose(0,1)
+      autoencoder_from_encoder = (autoencoder_out_encoder.unsqueeze(2) * autoencoder_attention.unsqueeze(3)).sum(dim=0).transpose(0,1)
+      autoencoder_out_full = torch.cat([autoencoder_out_decoder, autoencoder_from_encoder], dim=2)
+
+
+      autoencoder_logits = self.output(self.relu(self.output_mlp(autoencoder_out_full) ))
+      autoencoder_log_probs = self.logsoftmax(autoencoder_logits)
+
+      # Prediction Loss 
+      autoencoder_lossTensor = self.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
+      return autoencoder_lossTensor
+ 
 
   def sampleReconstructions(self, numeric, numeric_noised, NOUN, offset, numberOfBatches=args.batchSize*args.NUMBER_OF_REPLICATES, fillInBefore=-1, computeProbabilityStartingFrom=0):
       """ Draws samples from the amortized reconstruction posterior """
@@ -394,7 +417,7 @@ class LanguageModel:
        return lm_lossTensor 
 
 
-lm = LanguageModel()
+#lm = LanguageModel()
 
 #character_embeddings = torch.nn.Embedding(num_embeddings = len(itos_chars_total)+3, embedding_dim=args.char_emb_dim).cuda()
 
@@ -414,8 +437,108 @@ class MemoryModel():
      self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
      self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
      self.memory_bilinear.weight.data.fill_(0)
-     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
+     # Word embedding matrix (will be initialized from the prediction posterior)
      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
+     # Modules of the memory model
+     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear, self.word_embeddings]
+
+  def forward(self, numeric):
+      embedded_everything_mem = self.word_embeddings(numeric)
+
+      # Positional embeddings
+      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
+      embedded_positions = self.positional_embeddings(numeric_positions)
+      numeric_embedded = self.memory_word_pos_inter(embedded_positions)
+
+      # Retention probabilities
+      memory_byword_inner = self.memory_mlp_inner(embedded_everything_mem)
+      memory_hidden_logit_per_wordtype = self.memory_mlp_outer(self.relu(memory_byword_inner))
+
+  #    print(embedded_positions.size(), embedded_everything.size())
+ #     print(self.memory_bilinear(embedded_positions).size())
+#      print(self.relu(self.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
+      attention_bilinear_term = torch.bmm(self.memory_bilinear(embedded_positions), self.relu(self.memory_mlp_inner_bilinear(embedded_everything_mem)).transpose(1,2)).transpose(1,2)
+
+      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
+      memory_hidden = self.sigmoid(memory_hidden_logit)
+      return memory_hidden, embedded_everything_mem
+
+
+
+  def compute_likelihood(self, numeric, numeric_noised, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True, computeProbabilityStartingFrom=0):
+      """ Forward pass through the entire model
+        @param numeric
+      """
+      global hidden
+      global beginning
+      global beginning_chars
+      if True:
+          hidden = None
+          beginning = zeroBeginning
+
+      assert numeric.size() == numeric_noised.size(), (numeric.size(), numeric_noised.size())
+
+      ######################################################
+      ######################################################
+      # Run Loss Model
+      if expandReplicates:
+         assert False
+         numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
+#      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
+#      numeric = torch.cat([beginning, numeric], dim=0)
+      embedded_everything_mem = self.word_embeddings(numeric)
+
+      # Positional embeddings
+      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
+      embedded_positions = self.positional_embeddings(numeric_positions)
+      numeric_embedded = self.memory_word_pos_inter(embedded_positions)
+
+      # Retention probabilities
+      memory_byword_inner = self.memory_mlp_inner(embedded_everything_mem)
+      memory_hidden_logit_per_wordtype = self.memory_mlp_outer(self.relu(memory_byword_inner))
+
+  #    print(embedded_positions.size(), embedded_everything.size())
+ #     print(self.memory_bilinear(embedded_positions).size())
+#      print(self.relu(self.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
+      attention_bilinear_term = torch.bmm(self.memory_bilinear(embedded_positions), self.relu(self.memory_mlp_inner_bilinear(embedded_everything_mem)).transpose(1,2)).transpose(1,2)
+
+      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
+      memory_hidden = self.sigmoid(memory_hidden_logit)
+ #     if provideAttention:
+#         return memory_hidden
+
+#      # Baseline predictions for prediction loss
+ #     baselineValues = 10*self.sigmoid(self.perword_baseline_outer(self.relu(self.perword_baseline_inner(embedded_everything[-1].detach())))).squeeze(1)
+  #    assert tuple(baselineValues.size()) == (NUMBER_OF_REPLICATES,)
+
+
+      # NOISE MEMORY ACCORDING TO MODEL
+      memory_filter = (numeric_noised != 0)
+#      print(memory_filter.size(), memory_hidden.size())
+      bernoulli_logprob = torch.where(memory_filter, torch.log(memory_hidden.squeeze(2)+1e-10), torch.log(1-memory_hidden.squeeze(2)+1e-10))
+
+      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
+
+      # Disregard likelihood computation on punctuation
+      bernoulli_logprob = torch.where(punctuation, 0*bernoulli_logprob, bernoulli_logprob)
+      # Penalize forgotten punctuation
+      bernoulli_logprob = torch.where(torch.logical_and(punctuation, memory_filter==0), 0*bernoulli_logprob-10.0, bernoulli_logprob)
+
+#      bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
+
+     # Run the following lines as a sanity check
+#      print(numeric.size(), numeric_noised.size())
+#      for i in range(computeProbabilityStartingFrom, bernoulli_logprob.size()[0]):
+#        print(i, itos_total[int(numeric[i,0])], itos_total[int(numeric_noised[i,0])], bernoulli_logprob[i,0])
+
+
+      # SPECIFICALLY FOR THIS APPLICATION (where the last element in the sequence is the first future word) CUT OFF, TO REDUCE EXTRANEOUS VARIANCE, OR POTENTIALLY PRECLUDE WEIRRD VALUES AS THAT IS ALWAYS OBLIGATORILY NOISED: I'm cutting of the final value by restricting up to -1.
+      return bernoulli_logprob[computeProbabilityStartingFrom:-1].sum(dim=0)
+
+
+
+
+
 
 memory = MemoryModel()
 
@@ -443,45 +566,60 @@ def parameters_autoencoder():
             yield param
 
 
-
-def parameters_lm():
-   for module in lm.modules_lm:
-       for param in module.parameters():
-            yield param
-
-parameters_lm_cached = [x for x in parameters_lm()]
-
-
-assert TRAIN_LM
-optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
-optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
+#
+#def parameters_lm():
+#   for module in lm.modules_lm:
+#       for param in module.parameters():
+#            yield param
+#
+#parameters_lm_cached = [x for x in parameters_lm()]
+#
+#
+#assert TRAIN_LM
+#optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
+#optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
+#if args.predictability_weight > 0:
+#   optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
 
 ###############################################3
 
-
+checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.load_from_joint)+"*")[0])
 # Load pretrained prior and amortized posteriors
 
-# Amortized Reconstruction Posterior
-if args.load_from_autoencoder is not None:
-  print(args.load_from_autoencoder)
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(args.load_from_autoencoder)+".txt")
-  for i in range(len(checkpoint["components"])):
-      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
- 
-# Amortized Prediction Posterior
-if args.load_from_lm is not None:
-  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(args.load_from_lm)+".txt")
-  for i in range(len(checkpoint["components"])):
-      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
-
+## Amortized Reconstruction Posterior
+#if args.load_from_autoencoder is not None:
+#  print(args.load_from_autoencoder)
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(checkpoint["args"].load_from_autoencoder)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
+# 
+## Amortized Prediction Posterior
+#if args.load_from_lm is not None:
+#  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(checkpoint["args"].load_from_lm)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
+#
 from torch.autograd import Variable
 
 # Initialize memory word embeddings from LM
-memory.word_embeddings.weight.data.copy_(lm.word_embeddings.weight.data)
+#memory.word_embeddings.weight.data.copy_(lm.word_embeddings.weight.data)
+
+
+assert set(list(checkpoint)) == set(["arguments", "words", "memory", "autoencoder"]), list(checkpoint)
+assert itos == checkpoint["words"]
+for i in range(len(checkpoint["memory"])):
+   memory.modules_memory[i].load_state_dict(checkpoint["memory"][i])
+#for i in range(len(checkpoint["lm"])):
+#   lm.modules_lm[i].load_state_dict(checkpoint["lm"][i])
+for i in range(len(checkpoint["autoencoder"])):
+   autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["autoencoder"][i])
+#state = {"arguments" : args, "words" : itos, "memory" : memory, "lm" : lm, "autoencoder" : autoencoder}
+#torch.save(state, "/u/scr/mhahn/CODEBOOKS_MEMORY/{__file__}_{args.myID}.model")
+
+
 
 
 def prepareDatasetChunks(data, train=True):
@@ -590,24 +728,12 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
          numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
 #      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
 #      numeric = torch.cat([beginning, numeric], dim=0)
-      embedded_everything_mem = memory.word_embeddings(numeric)
 
-      # Positional embeddings
-      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
-      embedded_positions = memory.positional_embeddings(numeric_positions)
-      numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
+      # Input: numeric
+      # Output: memory_hidden
 
-      # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything_mem)
-      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
+      memory_hidden, embedded_everything_mem = memory.forward(numeric)
 
-  #    print(embedded_positions.size(), embedded_everything.size())
- #     print(memory.memory_bilinear(embedded_positions).size())
-#      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything_mem)).transpose(1,2)).transpose(1,2)
-
-      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
-      memory_hidden = memory.sigmoid(memory_hidden_logit)
       if provideAttention:
          return memory_hidden
 
@@ -634,7 +760,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       if onlyProvideMemoryResult:
         return numeric, numeric_noised
-
+      assert False, "this version of the code uses an unintialized lm"
       input_tensor_pure = Variable(numeric[:-1], requires_grad=False)
       input_tensor_noised = Variable(numeric_noised[:-1], requires_grad=False)
       target_tensor_full = Variable(numeric[1:], requires_grad=False)
@@ -646,27 +772,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       ##########################################
       ##########################################
       # RUN AUTOENCODER (approximately inverting loss model)
-      # Could easily turn the next few sections into:
-#      autoencoder_lossTensor =  autoencoder.forward(input_tensor_pure, input_tensor_noised, NUMBER_OF_REPLICATES)
-
-      autoencoder_embedded = autoencoder.word_embeddings(input_tensor_pure[:-1])
-      autoencoder_embedded_noised = autoencoder.word_embeddings(input_tensor_noised[:-1])
-      autoencoder_out_encoder, _ = autoencoder.rnn_encoder(autoencoder_embedded_noised, None)
-      autoencoder_out_decoder, _ = autoencoder.rnn_decoder(autoencoder_embedded, None)
-      assert autoencoder_embedded.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py. Would be good if they were unified.
-      assert autoencoder_embedded_noised.size()[0] == args.sequence_length-1, (autoencoder_embedded.size()[0], args.sequence_length-1) # Note that this is different from autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py.
-
-      autoencoder_attention = torch.bmm(autoencoder.attention_proj(autoencoder_out_encoder).transpose(0,1), autoencoder_out_decoder.transpose(0,1).transpose(1,2))
-      autoencoder_attention = autoencoder.attention_softmax(autoencoder_attention).transpose(0,1)
-      autoencoder_from_encoder = (autoencoder_out_encoder.unsqueeze(2) * autoencoder_attention.unsqueeze(3)).sum(dim=0).transpose(0,1)
-      autoencoder_out_full = torch.cat([autoencoder_out_decoder, autoencoder_from_encoder], dim=2)
-
-
-      autoencoder_logits = autoencoder.output(autoencoder.relu(autoencoder.output_mlp(autoencoder_out_full) ))
-      autoencoder_log_probs = autoencoder.logsoftmax(autoencoder_logits)
-
-      # Prediction Loss 
-      autoencoder_lossTensor = autoencoder.print_loss(autoencoder_log_probs.view(-1, len(itos)+3), target_tensor_onlyNoised[:-1].view(-1)).view(-1, NUMBER_OF_REPLICATES*args.batchSize)
+      autoencoder_lossTensor =  autoencoder.forward(input_tensor_pure, input_tensor_noised, target_tensor_onlyNoised, NUMBER_OF_REPLICATES)
 
       ##########################################
       ##########################################
@@ -747,9 +853,9 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
          numericCPU = numeric.cpu().data.numpy()
          numeric_noisedCPU = numeric_noised.cpu().data.numpy()
          memory_hidden_CPU = memory_hidden[:,0,0].cpu().data.numpy()
-         memory_hidden_logit_per_wordtype_cpu = memory_hidden_logit_per_wordtype.cpu().data
-         attention_bilinear_term = attention_bilinear_term.cpu().data
-         numeric_embedded_cpu = numeric_embedded.cpu().data
+#         memory_hidden_logit_per_wordtype_cpu = memory_hidden_logit_per_wordtype.cpu().data
+ #        attention_bilinear_term = attention_bilinear_term.cpu().data
+         #numeric_embedded_cpu = numeric_embedded.cpu().data
  #        print(("NONE", itos_total[numericCPU[0][0]]))
 #         for i in range((args.sequence_length+1)):
             #print(autoencoder_losses[i][0] if i < args.sequence_length else "--", "\t", lm_losses[0][0] if args.predictability_weight > 0 and i == args.sequence_length else "---" , "\t", itos_total[numericCPU[i+1][0]],"\t", itos_total[numeric_noisedCPU[i+1][0]],"\t", memory_hidden_CPU[i+1],"\t", float(baselineValues[0]) if i == args.sequence_length else "","\t", float(numeric_embedded_cpu[i+1,0,0]),"\t", float(memory_hidden_logit_per_wordtype_cpu[i+1,0,0]),"\t", float(attention_bilinear_term[i+1,0,0]))
@@ -772,86 +878,16 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       
       return loss, product(target_tensor_full.size())
 
-# This could easily be made a function in the MemoryModel class
-def compute_likelihood(numeric, numeric_noised, train=True, printHere=False, provideAttention=False, onlyProvideMemoryResult=False, NUMBER_OF_REPLICATES=args.NUMBER_OF_REPLICATES, expandReplicates=True, computeProbabilityStartingFrom=0):
-      """ Forward pass through the entire model
-        @param numeric
-      """
-      global hidden
-      global beginning
-      global beginning_chars
-      if True:
-          hidden = None
-          beginning = zeroBeginning
-
-      assert numeric.size() == numeric_noised.size(), (numeric.size(), numeric_noised.size())
-
-      ######################################################
-      ######################################################
-      # Run Loss Model
-      if expandReplicates:
-         assert False
-         numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
-#      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
-#      numeric = torch.cat([beginning, numeric], dim=0)
-      embedded_everything_mem = memory.word_embeddings(numeric)
-
-      # Positional embeddings
-      numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
-      embedded_positions = memory.positional_embeddings(numeric_positions)
-      numeric_embedded = memory.memory_word_pos_inter(embedded_positions)
-
-      # Retention probabilities
-      memory_byword_inner = memory.memory_mlp_inner(embedded_everything_mem)
-      memory_hidden_logit_per_wordtype = memory.memory_mlp_outer(memory.relu(memory_byword_inner))
-
-  #    print(embedded_positions.size(), embedded_everything.size())
- #     print(memory.memory_bilinear(embedded_positions).size())
-#      print(memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything.detach())).transpose(1,2).size())
-      attention_bilinear_term = torch.bmm(memory.memory_bilinear(embedded_positions), memory.relu(memory.memory_mlp_inner_bilinear(embedded_everything_mem)).transpose(1,2)).transpose(1,2)
-
-      memory_hidden_logit = numeric_embedded + memory_hidden_logit_per_wordtype + attention_bilinear_term
-      memory_hidden = memory.sigmoid(memory_hidden_logit)
- #     if provideAttention:
-#         return memory_hidden
-
-#      # Baseline predictions for prediction loss
- #     baselineValues = 10*memory.sigmoid(memory.perword_baseline_outer(memory.relu(memory.perword_baseline_inner(embedded_everything[-1].detach())))).squeeze(1)
-  #    assert tuple(baselineValues.size()) == (NUMBER_OF_REPLICATES,)
-
-
-      # NOISE MEMORY ACCORDING TO MODEL
-      memory_filter = (numeric_noised != 0)
-#      print(memory_filter.size(), memory_hidden.size())
-      bernoulli_logprob = torch.where(memory_filter, torch.log(memory_hidden.squeeze(2)+1e-10), torch.log(1-memory_hidden.squeeze(2)+1e-10))
-
-      punctuation = (((numeric.unsqueeze(0) == PUNCTUATION.view(12, 1, 1)).long().sum(dim=0)).bool())
-
-      # Disregard likelihood computation on punctuation
-      bernoulli_logprob = torch.where(punctuation, 0*bernoulli_logprob, bernoulli_logprob)
-      # Penalize forgotten punctuation
-      bernoulli_logprob = torch.where(torch.logical_and(punctuation, memory_filter==0), 0*bernoulli_logprob-10.0, bernoulli_logprob)
-
-#      bernoulli_logprob_perBatch = bernoulli_logprob.mean(dim=0)
-
-     # Run the following lines as a sanity check
-#      print(numeric.size(), numeric_noised.size())
-#      for i in range(computeProbabilityStartingFrom, bernoulli_logprob.size()[0]):
-#        print(i, itos_total[int(numeric[i,0])], itos_total[int(numeric_noised[i,0])], bernoulli_logprob[i,0])
-
-
-      # SPECIFICALLY FOR THIS APPLICATION (where the last element in the sequence is the first future word) CUT OFF, TO REDUCE EXTRANEOUS VARIANCE, OR POTENTIALLY PRECLUDE WEIRRD VALUES AS THAT IS ALWAYS OBLIGATORILY NOISED: I'm cutting of the final value by restricting up to -1.
-      return bernoulli_logprob[computeProbabilityStartingFrom:-1].sum(dim=0)
-
-
-
 
 def backward(loss, printHere):
+      assert False
       """ An optimization step for the resource-rational objective function """
+      assert False, "this version of the code uses an unintialized lm"
       # Set stored gradients to zero
       optim_autoencoder.zero_grad()
       optim_memory.zero_grad()
-      optim_lm.zero_grad()
+      if args.predictability_weight > 0:
+         optim_lm.zero_grad()
 
       if dual_weight.grad is not None:
          dual_weight.grad.data.fill_(0.0)
@@ -861,7 +897,7 @@ def backward(loss, printHere):
       loss.backward()
       # Gradient clipping
       torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
-      if TRAIN_LM and args.clip_lm:
+      if TRAIN_LM and args.clip_lm and args.predictability_weight > 0:
          #assert False
          torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
 
@@ -885,9 +921,6 @@ totalStartTime = time.time()
 lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
-
-maxUpdates = 200000 if args.tuning == 1 else 10000000000
-
 def showAttention(word, POS=""):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
     attention = attention[:,0,0]
@@ -1306,7 +1339,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
     numberOfSamples = 6
     import scoreWithGPT2Medium as scoreWithGPT2
     with torch.no_grad():
-     with open("/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") as outFile:
+     with open("/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w") as outFile:
       print("\t".join(["Sentence", "Region", "Word", "Surprisal", "SurprisalReweighted", "Repetition"]), file=outFile)
       TRIALS_COUNT = 0
       for sentenceID in range(len(calibrationSentences)):
@@ -1351,7 +1384,7 @@ def getTotalSentenceSurprisalsCalibration(SANITY="Sanity", VERBS=2): # Surprisal
 
 
 #              print(resultNumeric.size(), numeric_noised.size())
-              likelihood = compute_likelihood(resultNumeric, numeric_noised, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=1, computeProbabilityStartingFrom=pointWhereToStart, expandReplicates=False)
+              likelihood = memory.compute_likelihood(resultNumeric, numeric_noised, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=1, computeProbabilityStartingFrom=pointWhereToStart, expandReplicates=False)
 
 
 
@@ -1440,7 +1473,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
 #    topNouns = ["fact", "report"]
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w") if SANITY != "ModelTmp" else sys.stdout as outFile:
+    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w") if SANITY != "ModelTmp" else sys.stdout as outFile:
      print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat", "Word"]), file=outFile)
      with torch.no_grad():
       TRIALS_COUNT = 0
@@ -1540,7 +1573,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
 
 
 #              print(resultNumeric.size(), numeric_noised.size())
-              likelihood = compute_likelihood(resultNumeric, numeric_noised, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=1, computeProbabilityStartingFrom=pointWhereToStart, expandReplicates=False)
+              likelihood = memory.compute_likelihood(resultNumeric, numeric_noised, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=1, computeProbabilityStartingFrom=pointWhereToStart, expandReplicates=False)
 
 
 
@@ -1656,7 +1689,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.myID)+"_"+SANITY, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
+    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
       for noun in topNouns:
  #      assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
@@ -1711,46 +1744,22 @@ startTimePredictions = time.time()
 #getPerNounReconstructionsSanityVerb()
 startTimeTotal = time.time()
 
-for epoch in range(1000):
-   print(epoch)
-
-   # Get training data
-   training_data = corpusIteratorWikiWords.training(args.language)
-   print("Got data")
-   training_chars = prepareDatasetChunks(training_data, train=True)
-
-
-   # Set the model up for training
-   lm.rnn_drop.train(True)
-   startTime = time.time()
-   trainChars = 0
-   counter = 0
-   hidden, beginning = None, None
-   # End optimization when maxUpdates is reached
-   if updatesCount > maxUpdates:
-     break
-   while updatesCount <= maxUpdates:
-      counter += 1
-      updatesCount += 1
-      # Get model predictions at the end of optimization
-      if updatesCount == maxUpdates:
-
-
-       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+if True:
+       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.load_from_joint), "w") as outFile:
          print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"], file=outFile)
-         print(args, file=outFile)
+         print(checkpoint["arguments"], file=outFile)
 
 
        # Record calibration for the acceptability judgments
-       getTotalSentenceSurprisalsCalibration(SANITY="Model")
+#       getTotalSentenceSurprisalsCalibration(SANITY="Model")
        
        # Record reconstructions and surprisals
-       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.myID), "w") as outFile:
+       with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs/"+__file__+"_"+str(args.load_from_joint), "w") as outFile:
          startTimePredictions = time.time()
 
          sys.stdout = outFile
          print(updatesCount, "Slurm", os.environ["SLURM_JOB_ID"])
-         print(args)
+         print(checkpoint["arguments"])
          print("=========================")
          showAttention("the")
          showAttention("was")
@@ -1845,113 +1854,6 @@ for epoch in range(1000):
          showAttention("he", POS="Pron")
          showAttention("she", POS="Pron")
          sys.stdout = STDOUT
-
-#      if updatesCount % 10000 == 0:
-#         optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-#         optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
-#
-      # Get a batch from the training set
-      try:
-         numeric, _ = next(training_chars)
-      except StopIteration:
-         break
-      printHere = (counter % 50 == 0)
-      # Run this through the model: forward pass of the resource-rational objective function
-      loss, charCounts = forward(numeric, printHere=printHere, train=True)
-      # Calculate gradients and update parameters
-      backward(loss, printHere)
-
-#      if loss.data.cpu().numpy() > 15.0:
-#          lossHasBeenBad += 1
-#      else:
-#          lossHasBeenBad = 0
-
-      # Bad learning rate parameters might make the loss explode. In this case, stop.
-      if lossHasBeenBad > 100:
-          print("Loss exploding, has been bad for a while")
-          print(loss)
-          assert False
-      trainChars += charCounts 
-      if printHere:
-          print(("Loss here", loss))
-          print((epoch, "Updates", updatesCount, str((100.0*updatesCount)/maxUpdates)+" %", maxUpdates, counter, trainChars, "ETA", ((time.time()-startTimeTotal)/updatesCount * (maxUpdates-updatesCount))/3600.0, "hours"))
-          print("Dev losses")
-          print(devLosses)
-          print("Words per sec "+str(trainChars/(time.time()-startTime)))
-          print(args.learning_rate_memory, args.learning_rate_autoencoder)
-          print("Slurm", os.environ["SLURM_JOB_ID"])
-          print(lastSaved)
-          print(__file__)
-          print(args)
-
-      if False and (time.time() - totalStartTime)/60 > 4000:
-          print("Breaking early to get some result within 72 hours")
-          totalStartTime = time.time()
-          break
-
-# #     break
-#   rnn_drop.train(False)
-#
-#
-#   dev_data = corpusIteratorWikiWords.dev(args.language)
-#   print("Got data")
-#   dev_chars = prepareDatasetChunks(dev_data, train=False)
-#
-#
-#     
-#   dev_loss = 0
-#   dev_char_count = 0
-#   counter = 0
-#   hidden, beginning = None, None
-#   while True:
-#       counter += 1
-#       try:
-#          numeric = next(dev_chars)
-#       except StopIteration:
-#          break
-#       printHere = (counter % 50 == 0)
-#       loss, numberOfCharacters = forward(numeric, printHere=printHere, train=False)
-#       dev_loss += numberOfCharacters * loss.cpu().data.numpy()
-#       dev_char_count += numberOfCharacters
-#   devLosses.append(dev_loss/dev_char_count)
-#   print(devLosses)
-##   quit()
-#   #if args.save_to is not None:
-# #     torch.save(dict([(name, module.state_dict()) for name, module in named_modules.items()]), MODELS_HOME+"/"+args.save_to+".pth.tar")
-#
-#   with open("/u/scr/mhahn/recursive-prd/memory-upper-neural-pos-only_recursive_words/estimates-"+args.language+"_"+__file__+"_model_"+str(args.myID)+"_"+model+".txt", "w") as outFile:
-#       print(str(args), file=outFile)
-#       print(" ".join([str(x) for x in devLosses]), file=outFile)
-#
-#   if len(devLosses) > 1 and devLosses[-1] > devLosses[-2]:
-#      break
-#
-#   state = {"arguments" : str(args), "words" : itos, "components" : [c.state_dict() for c in modules]}
-#   torch.save(state, "/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+__file__+"_code_"+str(args.myID)+".txt")
-#
-#
-#
-#
-#
-#
-#   learning_rate = args.learning_rate * math.pow(args.lr_decay, len(devLosses))
-#   optim = torch.optim.SGD(parameters(), lr=learning_rate, momentum=0.0) # 0.02, 0.9
-
-
-
-
-#      global runningAverageBaselineDeviation
-#      global runningAveragePredictionLoss
-#
-
-
-with open("/u/scr/mhahn/reinforce-logs-both-short/results/"+__file__+"_"+str(args.myID), "w") as outFile:
-   print(args, file=outFile)
-   print(runningAverageReward, file=outFile)
-   print(expectedRetentionRate, file=outFile)
-   print(runningAverageBaselineDeviation, file=outFile)
-   print(runningAveragePredictionLoss, file=outFile)
-   print(runningAverageReconstructionLoss, file=outFile)
 
 
 print("=========================")

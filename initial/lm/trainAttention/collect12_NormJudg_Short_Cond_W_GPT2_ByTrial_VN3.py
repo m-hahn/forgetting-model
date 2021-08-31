@@ -31,7 +31,11 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
 #                     break
  #     print(accept)
       if True or accept:
-          arguments = dict([x.split("=") for x in arguments[10:-1].split(", ")])
+          try:
+            arguments = dict([x.split("=") for x in arguments[10:-1].split(", ")])
+          except ValueError:
+            print("VALUE ERROR", arguments)
+            continue
           print(arguments)
           print(f)
           predictability_weight = arguments["predictability_weight"]

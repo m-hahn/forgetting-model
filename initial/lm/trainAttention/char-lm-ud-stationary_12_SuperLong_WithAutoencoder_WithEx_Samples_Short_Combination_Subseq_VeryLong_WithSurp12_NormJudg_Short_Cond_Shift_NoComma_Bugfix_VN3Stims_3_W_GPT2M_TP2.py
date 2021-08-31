@@ -45,7 +45,7 @@ parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.
 ## Learning Rates
 parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.00002, 0.00005, 0.0001, 0.0001, 0.0001]))  # Can also use 0.0001, which leads to total convergence to deterministic solution withtin maximum iterations (March 25, 2021)   #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
 parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.1, 0.1, 0.1])) # 0.0001, 
-parser.add_argument("--learning_rate_lm", type = float, default= random.choice([0.0005, 0.001, 0.001])) # 0.0001, 
+parser.add_argument("--learning_rate_lm", type = float, default= random.choice([0.0002, 0.0005, 0.001])) # 0.0001, 
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
 parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.2, 0.3]))
@@ -455,7 +455,8 @@ parameters_lm_cached = [x for x in parameters_lm()]
 assert TRAIN_LM
 optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
 optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
-optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
+if args.predictability_weight > 0:
+   optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
 
 ###############################################3
 
@@ -851,7 +852,8 @@ def backward(loss, printHere):
       # Set stored gradients to zero
       optim_autoencoder.zero_grad()
       optim_memory.zero_grad()
-      optim_lm.zero_grad()
+      if args.predictability_weight > 0:
+         optim_lm.zero_grad()
 
       if dual_weight.grad is not None:
          dual_weight.grad.data.fill_(0.0)
@@ -861,7 +863,7 @@ def backward(loss, printHere):
       loss.backward()
       # Gradient clipping
       torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
-      if TRAIN_LM and args.clip_lm:
+      if TRAIN_LM and args.clip_lm and args.predictability_weight > 0:
          #assert False
          torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
 
