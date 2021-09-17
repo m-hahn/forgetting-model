@@ -11,8 +11,8 @@ with open(f"/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/{__file
    script = model.split("/")[-1]
    script = script[:script.rfind("_")]
    script = script[:script.rfind("_")]
-   script = script[:script.rfind("_")]
-   assert script.endswith(".py"), script
+   script = script[:script.find(".py_")+3]
+   assert script.endswith(".py"), (script, model)
 
    print(model)
    ID = model.replace("_Model", "")
