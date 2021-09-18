@@ -3,7 +3,7 @@ library(tidyr)
 library(dplyr)
 library(lme4)
 
-data = read.csv("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/collectResults_Stims.py_BartekEtal.tsv", sep="\t")
+data = read.csv("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/collectResults_Stims.py_BartekGG.tsv", sep="\t")
 
 data$Embedding = NA
 data$Intervening = NA
@@ -60,10 +60,10 @@ for(i in 1:nrow(configs)) {
 
 
 plot = ggplot(data=surprisalSmoothed %>% group_by(Intervening, Embedding, deletion_rate, predictability_weight) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Intervening, y=SurprisalReweighted, group=paste(Embedding), color=Embedding)) + theme_bw() + geom_line() + facet_grid(predictability_weight ~ deletion_rate) + ylab("Model Surprisal") + theme(legend.position = 'bottom')
-ggsave(plot, file="figures/bartek_bb_vanillaLSTM_smoothed.pdf", height=5, width=15)
+ggsave(plot, file="figures/bartek_g_vanillaLSTM_smoothed.pdf", height=5, width=15)
 
 
 human = read.csv("analyzeBartek_human.tsv", sep="\t")
 plot = ggplot(data=human, aes(x=Intervening, y=ReadingTime, group=paste(Embedding), color=Embedding)) + theme_bw() + geom_line() + facet_grid(~Measure) + ylab("Reading Time")  + theme(legend.position = 'bottom')
-ggsave(plot, file="figures/bartek_bb_human.pdf", height=3, width=7)
+ggsave(plot, file="figures/bartek_gg_human.pdf", height=3, width=7)
 
