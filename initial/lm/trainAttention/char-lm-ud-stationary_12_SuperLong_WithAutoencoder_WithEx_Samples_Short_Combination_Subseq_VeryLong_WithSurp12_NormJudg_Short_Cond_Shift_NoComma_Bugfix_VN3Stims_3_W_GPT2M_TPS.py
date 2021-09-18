@@ -1,3 +1,6 @@
+assert False, "for now focus on the other version"
+
+
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -780,7 +783,8 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       # Autoencoder Loss
       loss += autoencoder_lossTensor.mean()
 
-      loss += lm_lossTensor.mean() 
+      if args.predictability_weight > 0:
+         loss += lm_lossTensor.mean() 
       # Overall Reward
       negativeRewardsTerm = negativeRewardsTerm1 + dual_weight * (negativeRewardsTerm2-retentionTarget)
       # for the dual weight
@@ -884,7 +888,8 @@ def backward(loss, printHere):
       # Adapt parameters
       optim_autoencoder.step()
       optim_memory.step()
-      optim_lm.step()
+      if args.predictability_weight > 0:
+         optim_lm.step()
 
 #      print(dual_weight.grad)
       dual_weight.data.add_(args.dual_learning_rate*dual_weight.grad.data)
