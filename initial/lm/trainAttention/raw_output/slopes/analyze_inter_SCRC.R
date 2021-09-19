@@ -1,7 +1,7 @@
 library(tidyr)
 library(dplyr)
 data_E1 = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/collect12_NormJudg_Short_Cond_W_GPT2_ByTrial_E1.py.tsv", sep="\t") %>% rename(SurprisalsWithThat=S1, SurprisalsWithoutThat=S2)
-data_E2 = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/collect12_NormJudg_Short_Cond_W_GPT2_ByTrial_VN3.py.tsv", sep="\t") %>% rename(SurprisalsWithThat=S1, SurprisalsWithoutThat=S2)
+data_E2 = read.csv("/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/collect12_NormJudg_Short_Cond_W_GPT2_ByTrial_VN3.py.tsv", sep="\t") %>% rename(SurprisalsWithThat=S1, SurprisalsWithoutThat=S2) %>% filter(!grepl("245_", Item))
 
 data = rbind(data_E1, data_E2)
 
@@ -31,10 +31,7 @@ data[data$SC.C < 0,]$compatible.C = 0
 data[data$SC.C < 0,]$RC.C = 0
 
 
-data$Item245 = grepl("245_", data$Item)
 
-data$Adv = grepl("adv", data$Item)
-data = data %>% filter(!Adv)
 
 
 library(lme4)
