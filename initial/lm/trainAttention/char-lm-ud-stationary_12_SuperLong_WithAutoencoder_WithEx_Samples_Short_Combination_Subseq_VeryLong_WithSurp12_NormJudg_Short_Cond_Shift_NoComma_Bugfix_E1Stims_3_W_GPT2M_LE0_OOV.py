@@ -1,5 +1,3 @@
-assert False, "Use OOV version"
-
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -581,6 +579,8 @@ checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.loa
 # Amortized Reconstruction Posterior
 if True or args.load_from_autoencoder is not None:
   print(checkpoint["arguments"].load_from_autoencoder)
+  if checkpoint["arguments"].deletion_rate < 0.3 or checkpoint["arguments"].deletion_rate >= 0.6 or checkpoint["arguments"].predictability_weight < 0.5:
+      assert False, "rejecting models outside of relevant parameter space"
   checkpoint_ = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(checkpoint["arguments"].load_from_autoencoder)+".txt")
   for i in range(len(checkpoint_["components"])):
       autoencoder.modules_autoencoder[i].load_state_dict(checkpoint_["components"][i])
@@ -941,26 +941,45 @@ nounsAndVerbs = []
 import re
 items_counter = 0
 
-with open(f"../../../../forgetting-gitlab/experiment/maze/228-noise-pro/Submiterator-master/items_Experiment1_working.txt.csv", "r") as inFile:
+with open(f"../../../../noisy-channel-structural-forgetting/stimuli/tsv/RTExperimentsPrevious.tsv", "r") as inFile:
+   header = next(inFile).strip().split("\t")
+   header = dict(list(zip(header, range(len(header)))))
    for line in inFile:
       line = line.strip().split("\t")
-      if len(line[0]) == 1 and len(line) > 1 and  line[0] == "1":
+      if len(line) > 1:
+         if line[header["Experiment"]] == "E2":
+              continue
+         else:
+            assert line[header["Experiment"]] in ["", "Removed"], (line, line[header["Experiment"]])
          print(line)
-         r1, r2, r3, r4, r5, r6 = [x.strip().split(" ") for x in line[2:8]]
-         assert len(r1) > 0
-         assert len(r2) > 0
-         assert len(r3) > 0
-         assert len(r4) > 0
-         assert len(r5) > 0
-         assert len(r6) > 0
+         r1, r2, r3, r4, r5, r6 = [x.strip().split(" ") for x in line[header["Noun1"]:header["Verb3"]+1]]
+         assert len(r1[0]) > 0
+         assert len(r2[0]) > 0
+         assert len(r3[0]) > 0
+         assert len(r4[0]) > 0
+         assert len(r5[0]) > 0
+         assert len(r6[0]) > 0
          assert len(r4) == len(r5)
          sentenceIncompatible = f"that the {' '.join(r1)} who the {' '.join(r2)} {' '.join(r3)} /{' '.join(r4)} /{' '.join(r6)}".strip()
          sentenceCompatible = f"that the {' '.join(r1)} who the {' '.join(r2)} {' '.join(r3)} /{' '.join(r5)} /{' '.join(r6)}".strip()
-         nounsAndVerbs.append({"item" : f"Mixed_{items_counter}", "compatible" : 1, "s" : sentenceCompatible})
-         nounsAndVerbs.append({"item" : f"Mixed_{items_counter}", "compatible" : 2, "s" : sentenceIncompatible})
+         nounsAndVerbs.append({"item" : line[header["ID"]], "compatible" : 1, "s" : sentenceCompatible})
+         nounsAndVerbs.append({"item" : line[header["ID"]], "compatible" : 2, "s" : sentenceIncompatible})
          print(nounsAndVerbs[-2])
          print(nounsAndVerbs[-1])
          items_counter += 1
+for x in nounsAndVerbs:
+   x["s"] = x["s"].replace("couldn’t", "could n't")
+   x["s"] = x["s"].replace("storeowner", "salesman")
+   x["s"] = x["s"].replace("babysitter", "nanny")
+   x["s"] = x["s"].replace("disproven", "refuted")
+   x["s"] = x["s"].replace("idiotic", "stupid")
+   x["s"] = x["s"].replace("disconcerting", "upsetting")
+   x["s"] = x["s"].replace("mistrusted", "distrusted")
+   x["s"] = x["s"].replace("idolized", "admired")
+   x["s"] = x["s"].replace("laundered", "stole")
+   x["s"] = x["s"].replace("unnerving", "unfortunate")
+   x["s"] = x["s"].replace("starlet", "actress")
+   x["s"] = x["s"].replace("detested", "hated")
 print(nounsAndVerbs)
 #quit()
 
@@ -972,6 +991,7 @@ for x in nounsAndVerbs:
     q = q.strip("/").strip(".").lower()
     if q not in stoi_total and q not in ["X", "Y", "XXXX"]:
      print("OOV WARNING", "#"+q+"#")
+     assert len(q) > 0, x["s"]
 #quit()
 
 

@@ -7,6 +7,8 @@ stimulus_file = sys.argv[1]
 
 if stimulus_file == "BartekEtal":
    criticalRegions="Critical_0"
+elif stimulus_file == "BartekGG":
+   criticalRegions="Critical_0"
 elif stimulus_file == "Staub2006":
    criticalRegions = "NP1_0,NP1_1,OR,NP2_0,NP2_1"
 elif stimulus_file == "cunnings-sturt-2018":
@@ -15,6 +17,8 @@ elif stimulus_file == "Staub_2016":
    criticalRegions = "V0,D1,N1,V1"
 elif stimulus_file == "V11_E1_EN":
    criticalRegions = "Critical_0"
+elif stimulus_file == "TaborHutchins":
+   criticalRegions = "Final_0"
 else:
    assert False, stimulus_file
 

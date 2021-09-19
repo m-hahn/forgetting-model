@@ -1,5 +1,3 @@
-assert False, "Use OOV version"
-
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -961,6 +959,17 @@ with open(f"../../../../forgetting-gitlab/experiment/maze/228-noise-pro/Submiter
          print(nounsAndVerbs[-2])
          print(nounsAndVerbs[-1])
          items_counter += 1
+for x in nounsAndVerbs:
+   x["s"] = x["s"].replace("couldn’t", "could n't")
+   x["s"] = x["s"].replace("storeowner", "salesman")
+   x["s"] = x["s"].replace("babysitter", "nanny")
+   x["s"] = x["s"].replace("disproven", "refuted")
+   x["s"] = x["s"].replace("idiotic", "stupid")
+   x["s"] = x["s"].replace("disconcerting", "upsetting")
+   x["s"] = x["s"].replace("mistrusted", "distrusted")
+   x["s"] = x["s"].replace("idolized", "admired")
+   x["s"] = x["s"].replace("laundered", "stole")
+   x["s"] = x["s"].replace("unnerving", "unfortunate")
 print(nounsAndVerbs)
 #quit()
 
