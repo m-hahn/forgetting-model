@@ -68,11 +68,11 @@ plot = ggplot(data=human %>% filter(Region != "V1", !HasPP, !HasParticle), aes(x
 ggsave(plot, file="figures/staub_2016_GoPast_Inner.pdf", height=3, width=7)
 
 plot = ggplot(data=human %>% filter(Region == "V1"), aes(x=Group, y=FirstPass, group=Length, fill=Length, color=Length)) + geom_bar(stat="identity", width=.5, position = "dodge") + theme_bw()
-ggsave(plot, file="staub_2016_FirstPass_MatrixVerb.pdf", height=3, width=3)
+ggsave(plot, file="figures/staub_2016_FirstPass_MatrixVerb.pdf", height=3, width=3)
 
 
 plot = ggplot(data=human %>% filter(Region == "V1"), aes(x=Group, y=GoPast, group=Length, fill=Length, color=Length)) + geom_bar(stat="identity", width=.5, position = "dodge") + theme_bw()
-ggsave(plot, file="staub_2016_GoPast_MatrixVerb.pdf", height=3, width=3)
+ggsave(plot, file="figures/staub_2016_GoPast_MatrixVerb.pdf", height=3, width=3)
 
 
 # but these come from a different stimulus set
