@@ -21,6 +21,8 @@ elif stimulus_file == "TaborHutchins":
    criticalRegions = "Final_0"
 elif stimulus_file == "Chen2005":
    criticalRegions = "critical_1,critical_2,critical_3,critical_4,critical_5"
+elif stimulus_file == "VanDyke_Lewis_2003":
+   criticalRegions = "R4_0,R4_1"
 else:
    assert False, stimulus_file
 

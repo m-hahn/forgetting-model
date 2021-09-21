@@ -13,7 +13,7 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
    shib = "12_NormJudg_Short_Cond_Shift_NoComma_Bugfix"
    if shib in f:
       suffix = "script_"+f[f.index(shib)+len(shib):f.index(".py")]
-      if "_VN3Stims_" not in f or "_OnlyLoc" in f or "ZERO" in f or "_LE" in f or "TPLi" in f:
+      if "_VN3Stims_" not in f or "_OnlyLoc" in f or "ZERO" in f or "_LE" in f or "TPLi" not in f:
         continue
       print(f)
       print(suffix)
