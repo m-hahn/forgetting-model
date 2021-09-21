@@ -28,7 +28,7 @@ surprisalSmoothed = data.frame()
 for(i in 1:nrow(configs)) {
    delta = configs$deletion_rate[[i]]
    lambda = configs$predictability_weight[[i]]
-   surprisals = data %>% filter(abs(deletion_rate-delta)<=0.05, abs(predictability_weight-lambda)<=0.25) %>% group_by(Condition) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)) %>% mutate(deletion_rate=delta, predictability_weight=lambda)
+   surprisals = data %>% filter(abs(deletion_rate-delta)<=0.05, abs(predictability_weight-lambda)<=0.25) %>% group_by(Region, Condition) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)) %>% mutate(deletion_rate=delta, predictability_weight=lambda)
    surprisalSmoothed = rbind(surprisalSmoothed, as.data.frame(surprisals))
 }
 
@@ -37,7 +37,9 @@ plot = ggplot(data=surprisalSmoothed, aes(x=Condition, y=SurprisalReweighted, co
 ggsave(plot, file="figures/staub2006_vanillaLSTM_smoothed.pdf", height=10, width=10)
 
 #plot = ggplot(data=surprisalSmoothed %>% filter(predictability_weight==0.5, deletion_rate == 0.05 | deletion_rate == 0.5), aes(x=Condition, y=SurprisalReweighted, color=Condition)) + geom_point() + facet_grid(predictability_weight ~ deletion_rate)
-plot = ggplot(data=surprisalSmoothed %>% filter(predictability_weight==0.5, deletion_rate == 0.5), aes(x=Condition, y=SurprisalReweighted, color=Condition)) + geom_point() + facet_grid(predictability_weight ~ deletion_rate)
+surprisalSmoothed$Region = factor(surprisalSmoothed$Region, levels=c("NP1_0", "NP1_1", "OR", "NP2_0", "NP_2_1"))
+
+plot = ggplot(data=surprisalSmoothed %>% filter(predictability_weight==0.5, deletion_rate == 0.5), aes(x=Region, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_line() + facet_grid(predictability_weight ~ deletion_rate)
 ggsave(plot, file="figures/staub2006_vanillaLSTM_smoothed_selected.pdf", height=3, width=3)
 
 
