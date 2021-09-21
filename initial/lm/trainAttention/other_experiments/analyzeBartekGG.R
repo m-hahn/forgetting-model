@@ -32,11 +32,11 @@ data = data %>% mutate(emb_c = case_when(Embedding == "Matrix" ~ -1, Embedding =
 data = data %>% mutate(someIntervention = case_when(Intervening == "none" ~ -1, TRUE ~ 1))
 
 configs = unique(data %>% select(deletion_rate, predictability_weight))
-for(i in 1:nrow(configs)) {
-   model = (lmer(SurprisalReweighted ~ pp_rc * emb_c + someIntervention + (1 + pp_rc + emb_c + someIntervention|Item), data=data %>% filter(deletion_rate==configs$deletion_rate[[i]], predictability_weight==configs$predictability_weight[[i]]) %>% group_by(pp_rc, emb_c, someIntervention, Item, Condition) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)) ))
-   print(configs[i,])
-   print(coef(summary(model)))
-}
+#for(i in 1:nrow(configs)) {
+#   model = (lmer(SurprisalReweighted ~ pp_rc * emb_c + someIntervention + (1 + pp_rc + emb_c + someIntervention|Item), data=data %>% filter(deletion_rate==configs$deletion_rate[[i]], predictability_weight==configs$predictability_weight[[i]]) %>% group_by(pp_rc, emb_c, someIntervention, Item, Condition) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)) ))
+#   print(configs[i,])
+#   print(coef(summary(model)))
+#}
 #model = (lmer(SurprisalReweighted ~ pp_rc * emb_c + someIntervention + (1 + pp_rc + emb_c + someIntervention|item) + ( 1+ pp_rc + emb_c + someIntervention|Model), data=data %>% filter()) 
 
 
@@ -60,10 +60,14 @@ for(i in 1:nrow(configs)) {
 
 
 plot = ggplot(data=surprisalSmoothed %>% group_by(Intervening, Embedding, deletion_rate, predictability_weight) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Intervening, y=SurprisalReweighted, group=paste(Embedding), color=Embedding)) + theme_bw() + geom_line() + facet_grid(predictability_weight ~ deletion_rate) + ylab("Model Surprisal") + theme(legend.position = 'bottom')
-ggsave(plot, file="figures/bartek_g_vanillaLSTM_smoothed.pdf", height=5, width=15)
+ggsave(plot, file="figures/bartek_gg_vanillaLSTM_smoothed.pdf", height=5, width=15)
 
 
-human = read.csv("analyzeBartek_human.tsv", sep="\t")
+plot = ggplot(data=surprisalSmoothed %>% filter(predictability_weight == 0.5, (deletion_rate == 0.1 | deletion_rate == 0.5)) %>% group_by(Intervening, Embedding, deletion_rate, predictability_weight) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Intervening, y=SurprisalReweighted, group=paste(Embedding), color=Embedding)) + theme_bw() + geom_line() + facet_grid(predictability_weight ~ deletion_rate) + ylab("Model Surprisal") + theme(legend.position = 'bottom')
+ggsave(plot, file="figures/bartek_gg_vanillaLSTM_smoothed_selected.pdf", height=3, width=5)
+
+
+human = read.csv("analyzeBartek_human.tsv", sep="\t") %>% filter(Stimuli == "Grodner & Gibson")
 plot = ggplot(data=human, aes(x=Intervening, y=ReadingTime, group=paste(Embedding), color=Embedding)) + theme_bw() + geom_line() + facet_grid(~Measure) + ylab("Reading Time")  + theme(legend.position = 'bottom')
 ggsave(plot, file="figures/bartek_gg_human.pdf", height=3, width=7)
 
