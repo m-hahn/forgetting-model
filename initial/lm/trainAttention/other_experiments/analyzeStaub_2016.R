@@ -74,12 +74,22 @@ ggsave(plot, file="figures/staub_2016_FirstPass_Inner.pdf", height=3, width=7)
 plot = ggplot(data=human %>% filter(Region != "V1", !HasPP, !HasParticle), aes(x=Region, y=GoPast, group=Condition, color=RCType)) + geom_line() + theme_bw()
 ggsave(plot, file="figures/staub_2016_GoPast_Inner.pdf", height=3, width=7)
 
+humanGoPast = human %>% rename(RT=GoPast) %>% mutate(Measure="ET: GoPast", FirstPass=NULL)
+humanFirstPass = human %>% rename(RT=FirstPass) %>% mutate(Measure="ET: FirstPass", GoPast=NULL)
+humanLong = rbind(humanGoPast, humanFirstPass)
+plot = ggplot(data=humanLong %>% filter(Region != "V1", !HasPP, !HasParticle), aes(x=Region, y=RT, group=Condition, color=RCType)) + geom_line() + theme_bw() + facet_grid(~Measure)
+ggsave(plot, file="figures/staub_2016_Joint_Inner.pdf", height=3, width=7)
+
+
 plot = ggplot(data=human %>% filter(Region == "V1"), aes(x=Group, y=FirstPass, group=Length, fill=Length, color=Length)) + geom_bar(stat="identity", width=.5, position = "dodge") + theme_bw()
 ggsave(plot, file="figures/staub_2016_FirstPass_MatrixVerb.pdf", height=3, width=3)
 
 
 plot = ggplot(data=human %>% filter(Region == "V1"), aes(x=Group, y=GoPast, group=Length, fill=Length, color=Length)) + geom_bar(stat="identity", width=.5, position = "dodge") + theme_bw()
 ggsave(plot, file="figures/staub_2016_GoPast_MatrixVerb.pdf", height=3, width=3)
+
+plot = ggplot(data=humanLong %>% filter(Region == "V1"), aes(x=Group, y=RT, group=Length, fill=Length, color=Length)) + geom_bar(stat="identity", width=.5, position = "dodge") + theme_bw() + facet_grid(~Measure)
+ggsave(plot, file="figures/staub_2016_Joint_MatrixVerb.pdf", height=3, width=6)
 
 
 # but these come from a different stimulus set
