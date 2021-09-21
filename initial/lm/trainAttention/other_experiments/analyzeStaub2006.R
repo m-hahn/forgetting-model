@@ -34,7 +34,10 @@ for(i in 1:nrow(configs)) {
 
 
 plot = ggplot(data=surprisalSmoothed, aes(x=Condition, y=SurprisalReweighted, color=Condition)) + geom_point() + facet_grid(predictability_weight ~ deletion_rate)
-ggsave(plot, file="staub2006_vanillaLSTM_smoothed.pdf", height=10, width=10)
+ggsave(plot, file="figures/staub2006_vanillaLSTM_smoothed.pdf", height=10, width=10)
 
+#plot = ggplot(data=surprisalSmoothed %>% filter(predictability_weight==0.5, deletion_rate == 0.05 | deletion_rate == 0.5), aes(x=Condition, y=SurprisalReweighted, color=Condition)) + geom_point() + facet_grid(predictability_weight ~ deletion_rate)
+plot = ggplot(data=surprisalSmoothed %>% filter(predictability_weight==0.5, deletion_rate == 0.5), aes(x=Condition, y=SurprisalReweighted, color=Condition)) + geom_point() + facet_grid(predictability_weight ~ deletion_rate)
+ggsave(plot, file="figures/staub2006_vanillaLSTM_smoothed_selected.pdf", height=3, width=3)
 
 
