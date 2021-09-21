@@ -1,4 +1,4 @@
-import argv
+import sys
 import random
 import subprocess
 scripts = []
@@ -13,7 +13,7 @@ for i in range(5, 100, 5):
      configurations.add((i/100,j))
 
 import glob
-for _ in range(int(argv[1])):
+for _ in range(int(sys.argv[1])):
    logs = glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/results/{script}_*")
    for log in logs:
       with open(log, "r") as inFile:
