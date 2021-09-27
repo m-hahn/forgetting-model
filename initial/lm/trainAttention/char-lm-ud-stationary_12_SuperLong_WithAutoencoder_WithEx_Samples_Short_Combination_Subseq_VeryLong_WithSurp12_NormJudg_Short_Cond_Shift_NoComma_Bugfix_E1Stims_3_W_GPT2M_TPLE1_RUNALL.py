@@ -4,10 +4,10 @@ scripts = []
 
 import sys
 
-script = "char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_L.py"
+script = "char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_TPLE1.py"
 
 import glob
-models = glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_S.py_*.model")
+models = glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_TPS.py_*.model")
 random.shuffle(models)
 if len(sys.argv) > 1:
    limit = int(sys.argv[1])
@@ -29,7 +29,7 @@ for model in models:
       if lambda_ < 1:
         print("EXCLUDE", ID)
         continue
-      if delta < 0.7: # and delta*10 != int(delta*10):
+      if delta < 0.2: # and delta*10 != int(delta*10):
         print("EXCLUDE", ID)
         continue
 #      if lambda_ != 1 or delta not in [0.7, 0.75, 0.8]:

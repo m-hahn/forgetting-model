@@ -589,8 +589,8 @@ checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.loa
 print("ARGUMENTS OF ORIGINAL MODEL ", checkpoint["arguments"])
 # Amortized Reconstruction Posterior
 if True or args.load_from_autoencoder is not None:
-  if checkpoint["arguments"].deletion_rate not in [0.05,0.5] or checkpoint["arguments"].predictability_weight != 0.5:
-      assert False, "rejecting models outside of relevant parameter space"
+#  if checkpoint["arguments"].deletion_rate not in [0.05,0.5] or checkpoint["arguments"].predictability_weight != 0.5:
+#      assert False, "rejecting models outside of relevant parameter space"
 
   print(checkpoint["arguments"].load_from_autoencoder)
   checkpoint_ = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(checkpoint["arguments"].load_from_autoencoder)+".txt")

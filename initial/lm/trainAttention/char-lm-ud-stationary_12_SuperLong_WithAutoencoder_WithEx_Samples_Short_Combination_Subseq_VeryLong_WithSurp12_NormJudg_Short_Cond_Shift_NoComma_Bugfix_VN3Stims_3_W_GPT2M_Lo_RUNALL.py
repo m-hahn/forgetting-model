@@ -36,6 +36,13 @@ for model in models:
    if len(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/{script}_{stimulus_file}_{ID}_Model"))>0:
      print("EXISTS", ID)
      continue
+   with open(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/results/*_{ID}")[0], "r") as inFile:
+      args = dict([x.split("=") for x in next(inFile).strip().replace("Namespace(", "").rstrip(")").split(", ") ])
+      delta = float(args["deletion_rate"])
+      lambda_ = float(args["predictability_weight"])
+      if lambda_ != 1:
+        print("FOR NOW DON'T CONSIDER")
+        continue
    print("DOES NOT EXIST", ID)
    command = ["/u/nlp/anaconda/main/anaconda3/envs/py36-mhahn/bin/python", script, "--stimulus_file="+stimulus_file, "--criticalRegions="+criticalRegions, "--load_from_joint="+ID]
    print(command)

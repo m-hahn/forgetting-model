@@ -5,13 +5,13 @@ scripts = []
 
 import sys
 
-script = "char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_S.py"
+script = "char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_TPS.py"
 
 configurations = set()
 for i in range(5, 100, 5):
-  if i/100 < 0.4 or i/100 > 0.65:
+  if i/100 < 0.2 or i/100 > 0.75:
     continue
-  for j in [0, 0.25, 0.5, 0.75, 1]:
+  for j in [1]: #[0, 0.25, 0.5, 0.75, 1]:
      configurations.add((i/100,j))
 from collections import defaultdict
 countsByConfig = defaultdict(int)
@@ -24,7 +24,7 @@ for _ in range(int(sys.argv[1])):
           args = dict([x.split("=") for x in next(inFile).strip().replace("Namespace(", "").rstrip(")").split(", ")])
       try:
          countsByConfig[(float(args["deletion_rate"]), float(args["predictability_weight"]))] += 1
-         if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 2:
+         if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 3:
             configurations.remove((float(args["deletion_rate"]), float(args["predictability_weight"])))
       except KeyError:
          pass
