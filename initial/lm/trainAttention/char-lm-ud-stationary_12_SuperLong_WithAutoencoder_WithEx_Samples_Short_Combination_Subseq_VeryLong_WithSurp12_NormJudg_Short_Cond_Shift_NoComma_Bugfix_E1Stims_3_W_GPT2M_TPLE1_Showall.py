@@ -39,10 +39,4 @@ for model in models:
         continue
 
    print("DOES NOT EXIST", ID, delta, lambda_)
-#   continue
-   command = ["/u/nlp/anaconda/main/anaconda3/envs/py36-mhahn/bin/python", script, "--load_from_joint="+ID]
-   print(command)
-   subprocess.call(command)
-   count += 1
-   if count >= limit:
-     break
+
