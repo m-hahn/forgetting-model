@@ -47,6 +47,7 @@ parser.add_argument("--char_dropout_prob", type=float, default=random.choice([0.
 ## Learning Rates
 parser.add_argument("--learning_rate_memory", type = float, default= random.choice([0.00002, 0.00005, 0.0001, 0.0001, 0.0001]))  # Can also use 0.0001, which leads to total convergence to deterministic solution withtin maximum iterations (March 25, 2021)   #, 0.0001, 0.0002 # 1e-7, 0.000001, 0.000002, 0.000005, 0.000007, 
 parser.add_argument("--learning_rate_autoencoder", type = float, default= random.choice([0.001, 0.01, 0.1, 0.1, 0.1, 0.1])) # 0.0001, 
+parser.add_argument("--learning_rate_lm", type = float, default= random.choice([0.0002, 0.0005, 0.001])) # 0.0001, 
 parser.add_argument("--lr_decay", type=float, default=random.choice([1.0]))
 parser.add_argument("--reward_multiplier_baseline", type=float, default=0.1)
 parser.add_argument("--dual_learning_rate", type=float, default=random.choice([0.01, 0.02, 0.05, 0.1, 0.2, 0.3]))
@@ -56,16 +57,17 @@ parser.add_argument("--entropy_weight", type=float, default=random.choice([0.0])
 
 
 # Control
+parser.add_argument("--clip_lm", type=bool, default=random.choice([False, True, True, True]))
 parser.add_argument("--verbose", type=bool, default=False)
 parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.00005, 0.0001, 0.0002, 0.0003, 0.0005, 0.0007, 0.0008, 0.001])) # 0.0,  0.005, 0.01, 0.1, 0.4]))
 
 # Lambda and Delta Parameters
 parser.add_argument("--deletion_rate", type=float, default=0.5)
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0.0, 0.25, 0.5, 0.75, 1.0]))
+parser.add_argument("--predictability_weight", type=float, default=1)
 
 
-TRAIN_LM = False
-assert not TRAIN_LM
+TRAIN_LM = True
+assert TRAIN_LM
 
 
 
@@ -76,6 +78,9 @@ import math
 args=parser.parse_args()
 
 ############################
+
+
+assert args.learning_rate_lm < 0.01
 
 assert args.predictability_weight >= 0
 assert args.predictability_weight <= 1
@@ -412,7 +417,7 @@ class LanguageModel:
        return lm_lossTensor 
 
 
-lm = LanguageModel()
+#lm = LanguageModel()
 
 #character_embeddings = torch.nn.Embedding(num_embeddings = len(itos_chars_total)+3, embedding_dim=args.char_emb_dim).cuda()
 
@@ -432,10 +437,13 @@ class MemoryModel():
      self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
      self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
      self.memory_bilinear.weight.data.fill_(0)
+     # Word embedding matrix (will be initialized from the prediction posterior)
+     self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
      # Modules of the memory model
-     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
+     self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear, self.word_embeddings]
+
   def forward(self, numeric):
-      embedded_everything_mem = lm.word_embeddings(numeric).detach()
+      embedded_everything_mem = self.word_embeddings(numeric)
 
       # Positional embeddings
       numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
@@ -478,7 +486,7 @@ class MemoryModel():
          numeric = numeric.expand(-1, NUMBER_OF_REPLICATES)
 #      print(numeric.size(), beginning.size(), NUMBER_OF_REPLICATES)
 #      numeric = torch.cat([beginning, numeric], dim=0)
-      embedded_everything_mem = lm.word_embeddings(numeric)
+      embedded_everything_mem = self.word_embeddings(numeric)
 
       # Positional embeddings
       numeric_positions = torch.LongTensor(range(args.sequence_length+1)).cuda().unsqueeze(1)
@@ -558,49 +566,48 @@ def parameters_autoencoder():
             yield param
 
 
-
-def parameters_lm():
-   for module in lm.modules_lm:
-       for param in module.parameters():
-            yield param
-
-parameters_lm_cached = [x for x in parameters_lm()]
-
-
-#assert not TRAIN_LM
+#
+#def parameters_lm():
+#   for module in lm.modules_lm:
+#       for param in module.parameters():
+#            yield param
+#
+#parameters_lm_cached = [x for x in parameters_lm()]
+#
+#
+#assert TRAIN_LM
 #optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
 #optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
+#if args.predictability_weight > 0:
+#   optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
 
 ###############################################3
 
 checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.load_from_joint)+"*")[0])
 # Load pretrained prior and amortized posteriors
 
-#assert checkpoint["arguments"].deletion_rate in [0.7, 0.75]
-assert checkpoint["arguments"].predictability_weight == 1
-
-# Amortized Reconstruction Posterior
-if True or args.load_from_autoencoder is not None:
-  print(checkpoint["arguments"].load_from_autoencoder)
-  checkpoint_ = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(checkpoint["arguments"].load_from_autoencoder)+".txt")
-  for i in range(len(checkpoint_["components"])):
-      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint_["components"][i])
-  del checkpoint_
- 
-# Amortized Prediction Posterior
-if True or args.load_from_lm is not None:
-  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
-  checkpoint_ = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(checkpoint["arguments"].load_from_lm)+".txt")
-  for i in range(len(checkpoint_["components"])):
-      lm.modules_lm[i].load_state_dict(checkpoint_["components"][i])
-  del checkpoint_
-
+## Amortized Reconstruction Posterior
+#if args.load_from_autoencoder is not None:
+#  print(args.load_from_autoencoder)
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(checkpoint["args"].load_from_autoencoder)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
+# 
+## Amortized Prediction Posterior
+#if args.load_from_lm is not None:
+#  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(checkpoint["args"].load_from_lm)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
+#
 from torch.autograd import Variable
 
-if "lm_embeddings" in checkpoint:
-  print(lm.word_embeddings.weight)
-  assert (checkpoint["lm_embeddings"]["weight"] == lm.word_embeddings.weight).all()
-  del checkpoint["lm_embeddings"]
+# Initialize memory word embeddings from LM
+#memory.word_embeddings.weight.data.copy_(lm.word_embeddings.weight.data)
+
+
 assert set(list(checkpoint)) == set(["arguments", "words", "memory", "autoencoder"]), list(checkpoint)
 assert itos == checkpoint["words"]
 for i in range(len(checkpoint["memory"])):
@@ -879,6 +886,8 @@ def backward(loss, printHere):
       # Set stored gradients to zero
       optim_autoencoder.zero_grad()
       optim_memory.zero_grad()
+      if args.predictability_weight > 0:
+         optim_lm.zero_grad()
 
       if dual_weight.grad is not None:
          dual_weight.grad.data.fill_(0.0)
@@ -888,13 +897,14 @@ def backward(loss, printHere):
       loss.backward()
       # Gradient clipping
       torch.nn.utils.clip_grad_value_(parameters_memory_cached, 5.0) #, norm_type="inf")
-      if TRAIN_LM:
-         assert False
+      if TRAIN_LM and args.clip_lm and args.predictability_weight > 0:
+         #assert False
          torch.nn.utils.clip_grad_value_(parameters_lm_cached, 5.0) #, norm_type="inf")
 
       # Adapt parameters
       optim_autoencoder.step()
       optim_memory.step()
+      optim_lm.step()
 
 #      print(dual_weight.grad)
       dual_weight.data.add_(args.dual_learning_rate*dual_weight.grad.data)
@@ -911,9 +921,6 @@ totalStartTime = time.time()
 lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
-
-maxUpdates = 200000 if args.tuning == 1 else 10000000000
-
 def showAttention(word, POS=""):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)
     attention = attention[:,0,0]
@@ -1519,7 +1526,7 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
             print("INPUT", context, remainingInput)
             assert len(remainingInput) > 0
             for i in range(len(remainingInput)):
-              if regions[i] not in ["V1_0"]: #.startswith("V2"):
+              if regions[i] not in ["V2_0"]: #.startswith("V2"):
                 continue
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = args.sequence_length - len(context.split(" ")) - i - 1

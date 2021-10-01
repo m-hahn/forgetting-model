@@ -26,21 +26,13 @@ for _ in range(int(sys.argv[1])):
    for log in logs:
       with open(log, "r") as inFile:
           args = dict([x.split("=") for x in next(inFile).strip().replace("Namespace(", "").rstrip(")").split(", ")])
+#      print(log)
       try:
          countsByConfig[(float(args["deletion_rate"]), float(args["predictability_weight"]))] += 1
-         if float(args["deletion_rate"]) >= 0.2 and float(args["deletion_rate"]) < 0.8:
-          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 4:
-            configurations.remove((float(args["deletion_rate"]), float(args["predictability_weight"])))
-         else:
-          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 2:
-            configurations.remove((float(args["deletion_rate"]), float(args["predictability_weight"])))
+         ID = args["myID"]
+         print(float(args["deletion_rate"]), float(args["predictability_weight"]), ID)
       except KeyError:
+         print("ERROR", args)
          pass
-      print(configurations)
-   if len(configurations) == 0:
-     break
-   deletion_rate, predictability_weight = random.choice(list(configurations) )
-   command = ["/u/nlp/anaconda/main/anaconda3/envs/py36-mhahn/bin/python", script, f"--deletion_rate={deletion_rate}", f"--predictability_weight={predictability_weight}"]
-   print(command)
-   subprocess.call(command)
-
+#      print(configurations)
+   break
