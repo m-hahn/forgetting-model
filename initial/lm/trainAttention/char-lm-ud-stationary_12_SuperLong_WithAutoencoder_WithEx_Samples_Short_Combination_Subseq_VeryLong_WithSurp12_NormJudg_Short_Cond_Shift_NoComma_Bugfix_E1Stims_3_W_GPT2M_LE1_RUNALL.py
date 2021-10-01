@@ -29,7 +29,7 @@ for model in models:
          nouns = set()
          for line in inFile:
           nouns.add(line[:line.find("\t")])
-       if len(nouns) >= 50:
+       if len(nouns) >= 30:
          print("EXISTS", ID, os.path.getsize(resultsPath), len(nouns))
          continue
 
@@ -44,7 +44,7 @@ for model in models:
          nouns = set()
          for line in inFile:
           nouns.add(line[:line.find("\t")])
-       if len(nouns) >= 50:
+       if len(nouns) >= 30:
          print("EXISTS", ID, os.path.getsize(resultsPath), len(nouns))
          continue
    with open(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/results/*_{ID}")[0], "r") as inFile:
