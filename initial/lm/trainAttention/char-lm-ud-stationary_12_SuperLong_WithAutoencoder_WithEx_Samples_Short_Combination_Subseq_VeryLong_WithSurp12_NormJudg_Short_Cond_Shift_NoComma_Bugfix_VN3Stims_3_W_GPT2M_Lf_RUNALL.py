@@ -1,3 +1,5 @@
+import os
+import time
 import random
 import subprocess
 scripts = []
@@ -16,9 +18,15 @@ else:
 count = 0
 for model in models:
    ID = model[model.rfind("_")+1:model.rfind(".")]
-   if len(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/{script}_{ID}_Model"))>0:
-     print("EXISTS", ID)
-     continue
+   resultsPath = f"/u/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/{script}_{ID}_Model"
+   if len(glob.glob(resultsPath))>0:
+     if os.path.getsize(resultsPath) > 0 and time.time() - os.stat(resultsPath).st_mtime < 3600: # written to within the last hour
+       print("WORKING ON THIS?", ID)
+       continue
+     if os.path.getsize(resultsPath) > 1000:
+        print("EXISTS", ID, os.path.getsize(resultsPath))
+        continue
+     print("TODO", ID, os.path.getsize(resultsPath))
    with open(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/results/*_{ID}")[0], "r") as inFile:
       args = dict([x.split("=") for x in next(inFile).strip().replace("Namespace(", "").rstrip(")").split(", ") ])
       delta = float(args["deletion_rate"])

@@ -1,4 +1,3 @@
-assert False, "for now, focus on TPL"
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -578,7 +577,7 @@ checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.loa
 # Load pretrained prior and amortized posteriors
 
 #assert checkpoint["arguments"].deletion_rate in [0.7, 0.75]
-assert checkpoint["arguments"].predictability_weight == 1
+#assert checkpoint["arguments"].predictability_weight == 1
 
 # Amortized Reconstruction Posterior
 if True or args.load_from_autoencoder is not None:

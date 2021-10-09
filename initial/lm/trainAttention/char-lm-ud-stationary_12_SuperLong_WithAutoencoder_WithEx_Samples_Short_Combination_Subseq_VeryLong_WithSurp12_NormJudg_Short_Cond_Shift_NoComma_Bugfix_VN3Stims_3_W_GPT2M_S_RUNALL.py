@@ -29,10 +29,10 @@ for _ in range(int(sys.argv[1])):
       try:
          countsByConfig[(float(args["deletion_rate"]), float(args["predictability_weight"]))] += 1
          if float(args["deletion_rate"]) >= 0.2 and float(args["deletion_rate"]) < 0.8:
-          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 4:
+          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 1:
             configurations.remove((float(args["deletion_rate"]), float(args["predictability_weight"])))
          else:
-          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 2:
+          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 1:
             configurations.remove((float(args["deletion_rate"]), float(args["predictability_weight"])))
       except KeyError:
          pass

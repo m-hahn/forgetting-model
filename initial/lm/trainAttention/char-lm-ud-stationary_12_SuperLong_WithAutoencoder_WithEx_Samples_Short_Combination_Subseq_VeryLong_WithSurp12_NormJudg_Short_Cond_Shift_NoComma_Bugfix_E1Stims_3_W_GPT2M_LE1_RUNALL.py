@@ -51,9 +51,9 @@ for model in models:
       args = dict([x.split("=") for x in next(inFile).strip().replace("Namespace(", "").rstrip(")").split(", ") ])
       delta = float(args["deletion_rate"])
       lambda_ = float(args["predictability_weight"])
-      if lambda_ < 1:
-        print("EXCLUDE", ID)
-        continue
+  #    if lambda_ < 1:
+#        print("EXCLUDE", ID)
+ #       continue
 #      if delta < 0.3 and delta*10 != int(delta*10):
 #        print("EXCLUDE", ID)
 #        continue

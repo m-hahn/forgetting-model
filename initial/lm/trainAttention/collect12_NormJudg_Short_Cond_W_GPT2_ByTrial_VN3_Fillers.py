@@ -5,31 +5,29 @@ import os
 header0 = "Sentence Region Word Surprisal SurprisalReweighted Copy".split(" ")
 header =  header0 + ["Script", "ID", "predictability_weight", "deletion_rate", "autoencoder", "lm"]
 
+PATH0 = "/juice/scr/mhahn/reinforce-logs-both-short/results/"
 PATH = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs/"
 PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/calibration-full-logs-tsv/"
 
 with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
  print("\t".join(header), file=outFile)
- for f in os.listdir(PATH2):
+ for f in sorted(os.listdir(PATH2)):
    shib = "12_NormJudg_Short_Cond_Shift_NoComma_Bugfix"
    if shib in f:
       suffix = "script_"+f[f.index(shib)+len(shib):f.index(".py")]
-      if "_VN3Stims_" not in f or "_OnlyLoc" in f or "ZERO" in f:
+      if "_VN3Stims_" not in f or "_OnlyLoc" in f or "ZERO" in f or f.endswith("ModelTmp") or "EYE" in f or "Lf" not in f:
         continue
  #     print(f)
       #print(suffix)
-      accept = False
- #     print(f)
-#      quit()
+      assert f.endswith("_Model"), f
       ID = f.replace("_Model", "").split("_")[-1]
-      logPath = PATH+"/*_"+ID
+      logPath = PATH0+"/*_"+ID
       relevantFile = glob.glob(logPath)
       if len(relevantFile) == 0:
-        print("NO LOG FOUND", f)
+        print("ERROR NO LOG FOUND", f)
         continue
       with codecs.open(relevantFile[0], "r", 'utf-8', "ignore") as inFile:
          try:
-           iterations = next(inFile).strip()
            arguments = next(inFile).strip()
          except StopIteration:
            print("CANNOT FIND ARGUMENTS", f)
@@ -39,24 +37,37 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
 #                if "fixed" in line:
 #                     accept = True
 #                     break
-      #print(accept)
+ #     print(accept)
       if True or accept:
-          arguments = dict([x.split("=") for x in arguments[10:-1].split(", ")])
-          #print(arguments)
-          print("ACCEPTING", f)
+          try:
+            arguments = dict([x.split("=") for x in arguments[10:-1].split(", ")])
+          except ValueError:
+            print("VALUE ERROR", arguments)
+            continue
+          print(arguments)
+          print(f)
           predictability_weight = arguments["predictability_weight"]
           deletion_rate = arguments["deletion_rate"]
           try:
-           logPath = PATH2+"/*_"+ID+"_Model"
-           relevantFile = glob.glob(logPath)
-           if len(relevantFile) == 0:
-             print("FAILED TO OPEN", f)
-             continue
-           with open(relevantFile[0], "r") as inFile:
+           with open(PATH2+f, "r") as inFile:
+             print("Opened", PATH2+f+"_Model")
              data = [x.split("\t") for x in inFile.read().strip().split("\n")]
              data = data[1:]
              for line in data:
                  if len(line) < len(header0):
+                     if len(line) <= 4: # something is wrong
+                       print("ERROR Something is wrong with this row", line)
+                       continue
+                     if len(line[4]) == 0:
+                       print("ERROR Something is wrong with this row", line)
+                       continue
+                     assert len(line) == 5, line
+                     try:
+                       assert float(line[3]) < 50, line
+                       assert float(line[4]) < 50, line
+                     except ValueError:
+                      print("ERROR", line)
+                      assert False 
                      line.append("NA")
                  print("\t".join(line + [suffix, arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], arguments["load_from_autoencoder"], arguments["load_from_plain_lm"]]), file=outFile)
           except FileNotFoundError:

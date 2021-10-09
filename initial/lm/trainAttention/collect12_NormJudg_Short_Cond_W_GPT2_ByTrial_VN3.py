@@ -19,9 +19,10 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
         continue
       print(f)
       print(suffix)
-      assert f.endswith("_Model")
+      assert f.endswith("_Model"), f
       modelID = f.split("_")[-2]
-      results_files = glob.glob(PATH0+"/*_"+modelID)
+      logPath = PATH0+"/*_"+modelID
+      results_files = glob.glob(logPath)
       if len(results_files) == 0:
          print("ERROR26: NO RESULTS FILE", f)
          continue
@@ -29,6 +30,7 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
          try:
            arguments = next(inFile).strip()
          except StopIteration:
+           print("CANNOT FIND ARGUMENTS", f)
            continue
 #         for line in inFile:
 #             if "THAT" in line:

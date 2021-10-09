@@ -15,7 +15,7 @@ for _ in range(int(sys.argv[1])):
 
    countsByConfig = defaultdict(int)
    configurations = set()
-   for i in range(5, 100, 5):
+   for i in [55]: #range(5, 100, 5):
 #     if i/100 < 0.2 or i/100 > 0.75:
  #      continue
      for j in [1]: #[0, 0.25, 0.5, 0.75, 1]:
@@ -29,7 +29,7 @@ for _ in range(int(sys.argv[1])):
       try:
          countsByConfig[(float(args["deletion_rate"]), float(args["predictability_weight"]))] += 1
          if float(args["deletion_rate"]) >= 0.2 and float(args["deletion_rate"]) < 0.8:
-          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 8:
+          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 12:
             configurations.remove((float(args["deletion_rate"]), float(args["predictability_weight"])))
          else:
           if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 2:
