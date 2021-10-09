@@ -69,6 +69,35 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
                       print("ERROR", line)
                       assert False 
                      line.append("NA")
+                 if len(line[0]) == 0:
+                       print("ERROR Something is wrong with this row", line)
+                       continue
+                 if len(line[1]) == 0:
+                       print("ERROR Something is wrong with this row", line)
+                       continue
+                 if len(line[2]) == 0:
+                       print("ERROR Something is wrong with this row", line)
+                       continue
+                 if '"' in line[2]:
+                       print("ERROR Something is wrong with this row", line)
+                       continue
+
+                 if "'" in line[2]:
+                       print("Exclduing row with apostrophe to prevent downstream problems (affects two words in the dataset)", line)
+                       continue
+
+                 try:
+                   assert int(line[0]) < 200, line
+                   assert int(line[1]) < 200, line
+                   assert float(line[3]) < 200, line
+                   assert float(line[4]) < 200, line
+                 except ValueError:
+                       print("ERROR Something is wrong with this row", line)
+                       continue
+                 assert suffix.startswith("script")
+                 if len(line) > 6:
+                       print("ERROR Something is wrong with this row", line)
+                       continue
                  print("\t".join(line + [suffix, arguments["myID"], arguments["predictability_weight"], arguments["deletion_rate"], arguments["load_from_autoencoder"], arguments["load_from_plain_lm"]]), file=outFile)
           except FileNotFoundError:
              print("FAILED TO OPEN", f)
