@@ -66,22 +66,32 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
                       continue
                     line.append("NA")
                  if len(line) != 11:
-                    print("ERROR", line)
+                    print("ERROR", line, 69)
                     continue
                  assert len(line) == 11, line
                  try:
                   if float(line[6]) > 100:
                     print("WARNING: INCORRECT PERCENTAGE in line[6]", line)
                  except ValueError:
-                     print("ERROR", line)
+                     print("ERROR", line, 76)
                      continue
                  assert float(line[7]) <= 100, line
                  try:
                     assert line[9] == "nan" or float(line[9]) <= 100, line
                  except ValueError:
-                   print("ERROR", line)
+                   print("ERROR", line, 82)
                    continue
-                
+                 try:
+                   if float(line[4]) > 100:
+                     print("ERROR", line, 85)
+                     continue
+                   if float(line[5]) > 100:
+                     print("ERROR", line, 89)
+                     continue
+                 except ValueError:
+                    print("ERROR", line, 92)
+                    continue
+#                    assert False, line
                  if line[3].startswith("V"):
                     print("ERROR something is wrong with this line", line)
                     continue
