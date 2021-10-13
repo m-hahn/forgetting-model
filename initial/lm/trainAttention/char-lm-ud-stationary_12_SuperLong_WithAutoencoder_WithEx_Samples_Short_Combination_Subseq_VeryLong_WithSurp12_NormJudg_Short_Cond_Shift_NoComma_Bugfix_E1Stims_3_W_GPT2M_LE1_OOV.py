@@ -1637,7 +1637,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
+    outFilePath = "/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY
+    if len(glob.glob(outFilePath)) == 0:
+     with open(outFilePath, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
       for noun in topNouns:
  #      assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])
