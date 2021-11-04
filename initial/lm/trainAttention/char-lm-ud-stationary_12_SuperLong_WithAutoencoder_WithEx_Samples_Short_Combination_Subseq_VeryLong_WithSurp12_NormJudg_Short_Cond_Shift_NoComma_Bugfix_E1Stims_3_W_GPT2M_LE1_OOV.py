@@ -1,3 +1,4 @@
+#assert False, "for now, focus on TP"
 # Based on:
 #  char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure_TrainLoss_LastAndPos12_Long.py (loss model & code for language model)
 # And autoencoder2_mlp_bidir_Erasure_SelectiveLoss_Reinforce2_Tuning_SuperLong_Both_Saving.py (autoencoder)
@@ -576,6 +577,7 @@ parameters_lm_cached = [x for x in parameters_lm()]
 checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.load_from_joint)+"*")[0])
 # Load pretrained prior and amortized posteriors
 
+print("ARGUMENTS OF ORIGINAL MODEL ", checkpoint["arguments"])
 # Amortized Reconstruction Posterior
 if True or args.load_from_autoencoder is not None:
   print(checkpoint["arguments"].load_from_autoencoder)
@@ -1392,12 +1394,39 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
 #    topNouns = ["fact", "report"]
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w") if SANITY != "ModelTmp" else sys.stdout as outFile:
-     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat", "Word"]), file=outFile)
+    outFilePath = "/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY
+    outFilePathAlt = "/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__.replace("_OOV", "")+"_"+str(args.load_from_joint)+"_"+SANITY
+    assert outFilePath != outFilePathAlt
+    nounsDone = set()
+    mode = "w"
+
+    for path in [outFilePathAlt, outFilePath]:
+     if len(glob.glob(path)) > 0:
+        if outFilePath == path:
+           mode = "a"
+        else:
+           mode = "w"
+        with open(path, "r") as inFile:
+           for line in inFile:
+              try:
+                 noun_ = line[:line.index("\t")]
+              except ValueError:
+               print("EMPTY LINE?", line, file=sys.stderr)
+              finally:
+                 nounsDone.add(noun_)
+#    else:
+    print("NOUNS DONE", nounsDone, file=sys.stderr)
+#    assert False, nounsDone
+ #   quit()
+    with open(outFilePath, mode) if SANITY != "ModelTmp" else sys.stdout as outFile:
+     if mode == "w":
+        print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat", "Word"]), file=outFile)
      with torch.no_grad():
       TRIALS_COUNT = 0
       TOTAL_TRIALS = len(topNouns) * len(nounsAndVerbs) * 2 * 1
       for nounIndex, NOUN in enumerate(topNouns):
+        if NOUN in nounsDone:
+           continue  
         print(NOUN, "Time:", time.time() - startTimePredictions, nounIndex/len(topNouns), file=sys.stderr)
         thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
@@ -1608,7 +1637,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
+    outFilePath = "/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY
+    if len(glob.glob(outFilePath)) == 0:
+     with open(outFilePath, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
       for noun in topNouns:
  #      assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])

@@ -417,7 +417,7 @@ class LanguageModel:
        return lm_lossTensor 
 
 
-lm = LanguageModel()
+#lm = LanguageModel()
 
 #character_embeddings = torch.nn.Embedding(num_embeddings = len(itos_chars_total)+3, embedding_dim=args.char_emb_dim).cuda()
 
@@ -437,7 +437,9 @@ class MemoryModel():
      self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
      self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
      self.memory_bilinear.weight.data.fill_(0)
+     # Word embedding matrix (will be initialized from the prediction posterior)
      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
+     # Modules of the memory model
      self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear, self.word_embeddings]
 
   def forward(self, numeric):
@@ -564,46 +566,46 @@ def parameters_autoencoder():
             yield param
 
 
-
-def parameters_lm():
-   for module in lm.modules_lm:
-       for param in module.parameters():
-            yield param
-
-parameters_lm_cached = [x for x in parameters_lm()]
-
-
-assert TRAIN_LM
-optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
-if args.predictability_weight > 0:
-   optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
+#
+#def parameters_lm():
+#   for module in lm.modules_lm:
+#       for param in module.parameters():
+#            yield param
+#
+#parameters_lm_cached = [x for x in parameters_lm()]
+#
+#
+#assert TRAIN_LM
+#optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
+#optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
+#if args.predictability_weight > 0:
+#   optim_lm = torch.optim.SGD(parameters_lm(), lr=args.learning_rate_lm, momentum=0.0) # 0.02, 0.9
 
 ###############################################3
 
 checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.load_from_joint)+"*")[0])
 # Load pretrained prior and amortized posteriors
 
-# Amortized Reconstruction Posterior
-if args.load_from_autoencoder is not None:
-  print(args.load_from_autoencoder)
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(checkpoint["args"].load_from_autoencoder)+".txt")
-  for i in range(len(checkpoint["components"])):
-      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
- 
-# Amortized Prediction Posterior
-if args.load_from_lm is not None:
-  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
-  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(checkpoint["args"].load_from_lm)+".txt")
-  for i in range(len(checkpoint["components"])):
-      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
-  del checkpoint
-
+## Amortized Reconstruction Posterior
+#if args.load_from_autoencoder is not None:
+#  print(args.load_from_autoencoder)
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+"autoencoder2_mlp_bidir_Erasure_SelectiveLoss.py"+"_code_"+str(checkpoint["args"].load_from_autoencoder)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      autoencoder.modules_autoencoder[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
+# 
+## Amortized Prediction Posterior
+#if args.load_from_lm is not None:
+#  lm_file = "char-lm-ud-stationary-vocab-wiki-nospaces-bptt-2-words_NoNewWeightDrop_NoChars_Erasure.py"
+#  checkpoint = torch.load("/u/scr/mhahn/CODEBOOKS/"+args.language+"_"+lm_file+"_code_"+str(checkpoint["args"].load_from_lm)+".txt")
+#  for i in range(len(checkpoint["components"])):
+#      lm.modules_lm[i].load_state_dict(checkpoint["components"][i])
+#  del checkpoint
+#
 from torch.autograd import Variable
 
 # Initialize memory word embeddings from LM
-memory.word_embeddings.weight.data.copy_(lm.word_embeddings.weight.data)
+#memory.word_embeddings.weight.data.copy_(lm.word_embeddings.weight.data)
 
 
 assert set(list(checkpoint)) == set(["arguments", "words", "memory", "autoencoder"]), list(checkpoint)
@@ -736,8 +738,8 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
          return memory_hidden
 
       # Baseline predictions for prediction loss
-      baselineValues = 10*memory.sigmoid(memory.perword_baseline_outer(memory.relu(memory.perword_baseline_inner(embedded_everything_mem[-1].detach())))).squeeze(1)
-      assert tuple(baselineValues.size()) == (NUMBER_OF_REPLICATES,)
+#      baselineValues = 10*memory.sigmoid(memory.perword_baseline_outer(memory.relu(memory.perword_baseline_inner(embedded_everything_mem[-1].detach())))).squeeze(1)
+ #     assert tuple(baselineValues.size()) == (NUMBER_OF_REPLICATES,)
 
 
       # NOISE MEMORY ACCORDING TO MODEL
@@ -758,7 +760,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
       if onlyProvideMemoryResult:
         return numeric, numeric_noised
-
+      assert False, "this version of the code uses an unintialized lm"
       input_tensor_pure = Variable(numeric[:-1], requires_grad=False)
       input_tensor_noised = Variable(numeric_noised[:-1], requires_grad=False)
       target_tensor_full = Variable(numeric[1:], requires_grad=False)
@@ -775,16 +777,16 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       ##########################################
       ##########################################
       # RUN LANGUAGE MODEL (amortized prediction of next word)
-      if args.predictability_weight > 0:
-       lm_lossTensor = lm.forward(input_tensor_noised, target_tensor_full, NUMBER_OF_REPLICATES)
+#      if args.predictability_weight > 0:
+ #      lm_lossTensor = lm.forward(input_tensor_noised, target_tensor_full, NUMBER_OF_REPLICATES)
       ##########################################
       ##########################################
 
       # Reward, term 1
-      if args.predictability_weight > 0:
-        negativeRewardsTerm1 = 2*args.predictability_weight * lm_lossTensor.mean(dim=0) + 2*(1-args.predictability_weight) * autoencoder_lossTensor.mean(dim=0)
-      else:
-        negativeRewardsTerm1 = autoencoder_lossTensor.mean(dim=0)
+#      if args.predictability_weight > 0:
+#        negativeRewardsTerm1 = 2*args.predictability_weight * lm_lossTensor.mean(dim=0) + 2*(1-args.predictability_weight) * autoencoder_lossTensor.mean(dim=0)
+#      else:
+#        negativeRewardsTerm1 = autoencoder_lossTensor.mean(dim=0)
 
 
       # Reward, term 2
@@ -796,13 +798,12 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       # Autoencoder Loss
       loss += autoencoder_lossTensor.mean()
 
-      loss += lm_lossTensor.mean() 
       # Overall Reward
-      negativeRewardsTerm = negativeRewardsTerm1 + dual_weight * (negativeRewardsTerm2-retentionTarget)
+      #negativeRewardsTerm = negativeRewardsTerm1 + dual_weight * (negativeRewardsTerm2-retentionTarget)
       # for the dual weight
-      loss += (dual_weight * (negativeRewardsTerm2-retentionTarget).detach()).mean()
-      if printHere:
-          print(negativeRewardsTerm1.mean(), dual_weight, negativeRewardsTerm2.mean(), retentionTarget)
+      #loss += (dual_weight * (negativeRewardsTerm2-retentionTarget).detach()).mean()
+      #if printHere:
+       #   print(negativeRewardsTerm1.mean(), dual_weight, negativeRewardsTerm2.mean(), retentionTarget)
       #print(loss)
 
       # baselineValues: the baselines for the prediction loss (term 1)
@@ -812,15 +813,15 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       # Reward Minus Baseline
       # Detached surprisal and mean retention
 #      rewardMinusBaseline = (negativeRewardsTerm.detach() - baselineValues - args.RATE_WEIGHT * memory_hidden.mean(dim=0).squeeze(dim=1).detach())
-      rewardMinusBaseline = (negativeRewardsTerm.detach() - baselineValues - (dual_weight * (memory_hidden.mean(dim=0).squeeze(dim=1) - retentionTarget)).detach())
+#      rewardMinusBaseline = (negativeRewardsTerm.detach() - baselineValues - (dual_weight * (memory_hidden.mean(dim=0).squeeze(dim=1) - retentionTarget)).detach())
 
       # Important to detach from the baseline!!! 
-      loss += (rewardMinusBaseline.detach() * bernoulli_logprob_perBatch.squeeze(1)).mean()
-      if args.entropy_weight > 0:
-         loss -= args.entropy_weight  * entropy
+#      loss += (rewardMinusBaseline.detach() * bernoulli_logprob_perBatch.squeeze(1)).mean()
+ #     if args.entropy_weight > 0:
+  #       loss -= args.entropy_weight  * entropy
 
       # Loss for trained baseline
-      loss += args.reward_multiplier_baseline * rewardMinusBaseline.pow(2).mean()
+   #   loss += args.reward_multiplier_baseline * rewardMinusBaseline.pow(2).mean()
 
 
       ############################
@@ -835,17 +836,18 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
       global expectedRetentionRate
 
       expectedRetentionRate = factor * expectedRetentionRate + (1-factor) * float(memory_hidden.mean())
-      runningAverageBaselineDeviation = factor * runningAverageBaselineDeviation + (1-factor) * float((rewardMinusBaseline).abs().mean())
+ #     runningAverageBaselineDeviation = factor * runningAverageBaselineDeviation + (1-factor) * float((rewardMinusBaseline).abs().mean())
 
-      if args.predictability_weight > 0:
-       runningAveragePredictionLoss = factor * runningAveragePredictionLoss + (1-factor) * round(float(lm_lossTensor.mean()),3)
+ #     if args.predictability_weight > 0:
+#       runningAveragePredictionLoss = factor * runningAveragePredictionLoss + (1-factor) * round(float(lm_lossTensor.mean()),3)
+      
       runningAverageReconstructionLoss = factor * runningAverageReconstructionLoss + (1-factor) * round(float(autoencoder_lossTensor.mean()),3)
-      runningAverageReward = factor * runningAverageReward + (1-factor) * float(negativeRewardsTerm.mean())
+ #     runningAverageReward = factor * runningAverageReward + (1-factor) * float(negativeRewardsTerm.mean())
       ############################
 
       if printHere:
-         if args.predictability_weight > 0:
-          lm_losses = lm_lossTensor.data.cpu().numpy()
+  #       if args.predictability_weight > 0:
+   #       lm_losses = lm_lossTensor.data.cpu().numpy()
          autoencoder_losses = autoencoder_lossTensor.data.cpu().numpy()
 
          numericCPU = numeric.cpu().data.numpy()
@@ -878,8 +880,9 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
 
 def backward(loss, printHere):
-      return
+      assert False
       """ An optimization step for the resource-rational objective function """
+      assert False, "this version of the code uses an unintialized lm"
       # Set stored gradients to zero
       optim_autoencoder.zero_grad()
       optim_memory.zero_grad()
@@ -919,7 +922,7 @@ lastSaved = (None, None)
 devLosses = []
 updatesCount = 0
 
-maxUpdates = 20000 if args.tuning == 1 else 10000000000
+maxUpdates = 200000 if args.tuning == 1 else 10000000000
 
 def showAttention(word, POS=""):
     attention = forward(torch.cuda.LongTensor([stoi[word]+3 for _ in range(args.sequence_length+1)]).view(-1, 1), train=True, printHere=True, provideAttention=True)

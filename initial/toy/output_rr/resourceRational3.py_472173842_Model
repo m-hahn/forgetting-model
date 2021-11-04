@@ -1,0 +1,11 @@
+Noun	Item	Region	Condition	Surprisal	SurprisalReweighted	ThatFraction	ThatFractionReweighted	SurprisalsWithThat	SurprisalsWithoutThat
+fact0	annoyed0_doctor0_NA	V1_0	SC_co	0.0	0.0	100	100	0.00010234448564006016	nan
+fact0	annoyed0_doctor0_NA	V1_0	NoSC_co	2.792	2.792	-100	-100	0.00010234448564006016	nan
+report0	annoyed0_doctor0_NA	V1_0	SC_co	0.0	0.0	100	99	0.0001888275146484375	nan
+report0	annoyed0_doctor0_NA	V1_0	NoSC_co	2.305	2.305	-100	-100	0.0001888275146484375	nan
+SCORES fact0 	 0.0 0.96 0.95 0.99 0.97 0.94 0.97 0.0
+SCORES report0 	 0.0 0.99 0.99 0.99 0.99 0.99 1.0 0.0
+SCORES doctor0 	 0.0 0.87 0.87 1.0 0.95 0.94 0.94 0.0
+SCORES annoyed0 	 0.0 0.9 0.9 0.94 0.99 1.0 0.99 0.0
+SCORES that 	 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0
+SCORES about 	 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0

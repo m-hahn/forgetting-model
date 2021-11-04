@@ -576,6 +576,7 @@ parameters_lm_cached = [x for x in parameters_lm()]
 checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.load_from_joint)+"*")[0])
 # Load pretrained prior and amortized posteriors
 
+print("ARGUMENTS OF ORIGINAL MODEL ", checkpoint["arguments"])
 # Amortized Reconstruction Posterior
 if True or args.load_from_autoencoder is not None:
   print(checkpoint["arguments"].load_from_autoencoder)

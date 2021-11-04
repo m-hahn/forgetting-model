@@ -40,6 +40,6 @@ ggsave(plot, file="figures/staub2006_vanillaLSTM_smoothed.pdf", height=10, width
 surprisalSmoothed$Region = factor(surprisalSmoothed$Region, levels=c("NP1_0", "NP1_1", "OR", "NP2_0", "NP_2_1"))
 
 plot = ggplot(data=surprisalSmoothed %>% filter(predictability_weight==0.5, deletion_rate == 0.5), aes(x=Region, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_line() + facet_grid(predictability_weight ~ deletion_rate)
-ggsave(plot, file="figures/staub2006_vanillaLSTM_smoothed_selected.pdf", height=3, width=3)
+ggsave(plot, file="figures/staub2006_vanillaLSTM_smoothed_selected.pdf", height=3, width=6)
 
 

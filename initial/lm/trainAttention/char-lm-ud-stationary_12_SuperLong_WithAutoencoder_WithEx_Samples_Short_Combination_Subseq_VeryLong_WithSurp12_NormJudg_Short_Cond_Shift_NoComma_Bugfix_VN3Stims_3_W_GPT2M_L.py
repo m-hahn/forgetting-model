@@ -576,6 +576,9 @@ parameters_lm_cached = [x for x in parameters_lm()]
 checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.load_from_joint)+"*")[0])
 # Load pretrained prior and amortized posteriors
 
+#assert checkpoint["arguments"].deletion_rate in [0.7, 0.75]
+#assert checkpoint["arguments"].predictability_weight == 1
+
 # Amortized Reconstruction Posterior
 if True or args.load_from_autoencoder is not None:
   print(checkpoint["arguments"].load_from_autoencoder)
@@ -937,26 +940,26 @@ nounsAndVerbs = []
 
 
 
-nounsAndVerbs.append({"item" : "245_0",             "compatible" : 1, "s" : "that the analyst who the banker admired /appeared on TV /was very believable."})
-nounsAndVerbs.append({"item" : "245_1",             "compatible" : 1, "s" : "that the consultant who the artist hired /surprised the janitor /shocked everyone.", })
-nounsAndVerbs.append({"item" : "245_2",             "compatible" : 1, "s" : "that the commander who the president appointed /was confirmed /troubled people.", })
-nounsAndVerbs.append({"item" : "245_3",             "compatible" : 1, "s" : "that the dancer who the audience loved /made people happy /was exciting.", })
-nounsAndVerbs.append({"item" : "245_4",             "compatible" : 1, "s" : "that the politician who the farmer supported /was refuted /did not bother the farmer.", })
-nounsAndVerbs.append({"item" : "245_5",             "compatible" : 1, "s" : "that the surgeon who the patient thanked /shocked his colleagues /was ridiculous."})
-nounsAndVerbs.append({"item" : "245_6",             "compatible" : 1, "s" : "that the principal who the teacher liked /calmed everyone down /was false."})
-nounsAndVerbs.append({"item" : "245_7",             "compatible" : 1, "s" : "that the actor who the actress loved /made her cry /was sad to hear about."})
-nounsAndVerbs.append({"item" : "245_8",             "compatible" : 1, "s" : "that the senator who the diplomat opposed /annoyed Bill /was absolutely true."})
-nounsAndVerbs.append({"item" : "245_9",             "compatible" : 1, "s" : "that the criminal who the officer arrested /stunned everyone /was disconcerting."})
-nounsAndVerbs.append({"item" : "245_10",            "compatible" : 1, "s" : "that the violinist who the sponsors backed /sounded hopeful /pleased everyone."})
-nounsAndVerbs.append({"item" : "245_11",            "compatible" : 1, "s" : "that the trader who the businessman consulted /frightened Mary /was unnerving."})
-nounsAndVerbs.append({"item" : "245_12",            "compatible" : 1, "s" : "that the neighbor who the woman distrusted /startled the child /was a lie."})
-nounsAndVerbs.append({"item" : "245_13",            "compatible" : 1, "s" : "that the student who the bully intimidated /drove everyone crazy /devastated his parents."})
-nounsAndVerbs.append({"item" : "245_14",            "compatible" : 1, "s" : "that the carpenter who the craftsman carried /confused the apprentice /was acknowledged."})
-nounsAndVerbs.append({"item" : "245_15",            "compatible" : 1, "s" : "that the CEO who the employee impressed /deserved attention /was entirely correct."})
-nounsAndVerbs.append({"item" : "245_16",            "compatible" : 1, "s" : "that the politician who the banker bribed /was credible /seemed bogus."})
-nounsAndVerbs.append({"item" : "245_17",            "compatible" : 1, "s" : "that the child who the medic rescued /was quoted in newspapers /startled the parents."})
-nounsAndVerbs.append({"item" : "245_18",            "compatible" : 1, "s" : "that the runner who the psychiatrist treated /was widely known /turned out to be incorrect."})
-nounsAndVerbs.append({"item" : "245_19",            "compatible" : 1, "s" : "that the preacher who the parishioners fired /was idiotic /had been gaining traction."})
+#nounsAndVerbs.append({"item" : "245_0",             "compatible" : 1, "s" : "that the analyst who the banker admired /appeared on TV /was very believable."})
+#nounsAndVerbs.append({"item" : "245_1",             "compatible" : 1, "s" : "that the consultant who the artist hired /surprised the janitor /shocked everyone.", })
+#nounsAndVerbs.append({"item" : "245_2",             "compatible" : 1, "s" : "that the commander who the president appointed /was confirmed /troubled people.", })
+#nounsAndVerbs.append({"item" : "245_3",             "compatible" : 1, "s" : "that the dancer who the audience loved /made people happy /was exciting.", })
+#nounsAndVerbs.append({"item" : "245_4",             "compatible" : 1, "s" : "that the politician who the farmer supported /was refuted /did not bother the farmer.", })
+#nounsAndVerbs.append({"item" : "245_5",             "compatible" : 1, "s" : "that the surgeon who the patient thanked /shocked his colleagues /was ridiculous."})
+#nounsAndVerbs.append({"item" : "245_6",             "compatible" : 1, "s" : "that the principal who the teacher liked /calmed everyone down /was false."})
+#nounsAndVerbs.append({"item" : "245_7",             "compatible" : 1, "s" : "that the actor who the actress loved /made her cry /was sad to hear about."})
+#nounsAndVerbs.append({"item" : "245_8",             "compatible" : 1, "s" : "that the senator who the diplomat opposed /annoyed Bill /was absolutely true."})
+#nounsAndVerbs.append({"item" : "245_9",             "compatible" : 1, "s" : "that the criminal who the officer arrested /stunned everyone /was disconcerting."})
+#nounsAndVerbs.append({"item" : "245_10",            "compatible" : 1, "s" : "that the violinist who the sponsors backed /sounded hopeful /pleased everyone."})
+#nounsAndVerbs.append({"item" : "245_11",            "compatible" : 1, "s" : "that the trader who the businessman consulted /frightened Mary /was unnerving."})
+#nounsAndVerbs.append({"item" : "245_12",            "compatible" : 1, "s" : "that the neighbor who the woman distrusted /startled the child /was a lie."})
+#nounsAndVerbs.append({"item" : "245_13",            "compatible" : 1, "s" : "that the student who the bully intimidated /drove everyone crazy /devastated his parents."})
+#nounsAndVerbs.append({"item" : "245_14",            "compatible" : 1, "s" : "that the carpenter who the craftsman carried /confused the apprentice /was acknowledged."})
+#nounsAndVerbs.append({"item" : "245_15",            "compatible" : 1, "s" : "that the CEO who the employee impressed /deserved attention /was entirely correct."})
+#nounsAndVerbs.append({"item" : "245_16",            "compatible" : 1, "s" : "that the politician who the banker bribed /was credible /seemed bogus."})
+#nounsAndVerbs.append({"item" : "245_17",            "compatible" : 1, "s" : "that the child who the medic rescued /was quoted in newspapers /startled the parents."})
+#nounsAndVerbs.append({"item" : "245_18",            "compatible" : 1, "s" : "that the runner who the psychiatrist treated /was widely known /turned out to be incorrect."})
+#nounsAndVerbs.append({"item" : "245_19",            "compatible" : 1, "s" : "that the preacher who the parishioners fired /was idiotic /had been gaining traction."})
 nounsAndVerbs.append({"item" : "238_Critical_VN1",  "compatible" : 1, "s" : "that the carpenter who the craftsman carried /confused the apprentice /was acknowledged."})
 nounsAndVerbs.append({"item" : "238_Critical_VN1",  "compatible" : 2, "s" : "that the carpenter who the craftsman carried /hurt the apprentice /was acknowledged."})
 nounsAndVerbs.append({"item" : "238_Critical_VN2",  "compatible" : 1, "s" : "that the daughter who the sister found /frightened the grandmother /seemed concerning."})
@@ -1463,12 +1466,33 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
 #    topNouns = ["fact", "report"]
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w") if SANITY != "ModelTmp" else sys.stdout as outFile:
-     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat", "Word"]), file=outFile)
+    outFilePath = "/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY
+    if len(glob.glob(outFilePath)) > 0:
+        mode = "a"
+        nounsDone = set()
+        with open(outFilePath, "r") as inFile:
+           for line in inFile:
+              try:
+                 noun_ = line[:line.index("\t")]
+              except ValueError:
+               print("EMPTY LINE?", line, file=sys.stderr)
+              finally:
+                 nounsDone.add(noun_)
+    else:
+        nounsDone = set()
+        mode = "w"
+    print("NOUNS DONE", nounsDone, file=sys.stderr)
+#    assert False, nounsDone
+ #   quit()
+    with open(outFilePath, mode) if SANITY != "ModelTmp" else sys.stdout as outFile:
+     if mode == "w":
+        print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat", "Word"]), file=outFile)
      with torch.no_grad():
       TRIALS_COUNT = 0
       TOTAL_TRIALS = len(topNouns) * len(nounsAndVerbs) * 2 * 1
       for nounIndex, NOUN in enumerate(topNouns):
+        if NOUN in nounsDone:
+           continue  
         print(NOUN, "Time:", time.time() - startTimePredictions, nounIndex/len(topNouns), file=sys.stderr)
         thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
@@ -1679,7 +1703,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
+    outFilePath = "/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY
+    if len(glob.glob(outFilePath)) == 0:
+     with open(outFilePath, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
       for noun in topNouns:
  #      assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])

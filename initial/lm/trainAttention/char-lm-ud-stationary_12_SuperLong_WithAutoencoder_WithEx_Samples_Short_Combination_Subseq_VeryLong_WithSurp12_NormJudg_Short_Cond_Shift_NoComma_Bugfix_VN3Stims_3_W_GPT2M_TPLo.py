@@ -1,5 +1,5 @@
 # Example: ~/python-py37-mhahn char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_TPLo.py --load_from_joint=163008048 --stimulus_file=Staub2006
-# ~/python-py37-mhahn char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_TPLo.py --load_from_joint=163008048 --stimulus_file=Staub2006 --criticalRegions=NP1_0,NP1_1,OR,NP2_0,NP2_1
+# ~/python-py37-mhahn char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_Lo.py --load_from_joint=163008048 --stimulus_file=Staub2006 --criticalRegions=NP1_0,NP1_1,OR,NP2_0,NP2_1
 
 # --stimulus_file=BartekEtal --criticalRegions=Critical_0
 
@@ -70,10 +70,8 @@ parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.
 parser.add_argument("--deletion_rate", type=float, default=0.5)
 parser.add_argument("--predictability_weight", type=float, default=1)
 
-
 parser.add_argument("--stimulus_file", type=str)
 parser.add_argument("--criticalRegions", type=str)
-
 
 TRAIN_LM = True
 assert TRAIN_LM
@@ -448,7 +446,9 @@ class MemoryModel():
      self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
      self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
      self.memory_bilinear.weight.data.fill_(0)
+     # Word embedding matrix (will be initialized from the prediction posterior)
      self.word_embeddings = torch.nn.Embedding(num_embeddings=len(itos)+3, embedding_dim=2*args.word_embedding_size).cuda()
+     # Modules of the memory model
      self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear, self.word_embeddings]
 
   def forward(self, numeric):
@@ -889,7 +889,7 @@ def forward(numeric, train=True, printHere=False, provideAttention=False, onlyPr
 
 
 def backward(loss, printHere):
-      return
+      assert False
       """ An optimization step for the resource-rational objective function """
       assert False, "this version of the code uses an unintialized lm"
       # Set stored gradients to zero

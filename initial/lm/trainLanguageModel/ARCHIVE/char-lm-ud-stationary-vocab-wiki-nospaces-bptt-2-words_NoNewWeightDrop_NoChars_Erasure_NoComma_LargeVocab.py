@@ -57,6 +57,8 @@ def plus(it1, it2):
    for x in it2:
       yield x
 
+
+# Load Vocabulary
 char_vocab_path = f"/u/scr/mhahn/FAIR18/{args.language.lower()}-wiki-word-vocab.txt"
 
 itos = []
