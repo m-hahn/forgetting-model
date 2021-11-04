@@ -1,0 +1,12 @@
+Noun	Item	Region	Condition	Surprisal	SurprisalReweighted	ThatFraction	ThatFractionReweighted	SurprisalsWithThat	SurprisalsWithoutThat
+report0	annoyed0_doctor0_NA	V1_0	SC_co	3.202	0.035	97	96	0.0005948188481852412	10.724014282226562
+report0	annoyed0_doctor0_NA	V1_0	NoSC_co	1.051	1.051	-100	-100	0.0005948188481852412	10.724014282226562
+fact0	annoyed0_doctor0_NA	V1_0	SC_co	0.0	0.0	100	100	0.00015398859977722168	nan
+fact0	annoyed0_doctor0_NA	V1_0	NoSC_co	2.462	2.462	-100	-100	0.00015398859977722168	nan
+SCORES fact0 	 0.0 0.88 0.86 0.95 0.93 0.94 0.98 0.0
+SCORES report0 	 0.0 0.79 0.42 0.95 0.89 0.93 0.96 0.0
+SCORES doctor0 	 0.0 0.62 0.06 0.99 0.95 0.97 0.97 0.0
+SCORES annoyed0 	 0.0 0.77 0.39 0.99 0.99 1.0 0.99 0.0
+SCORES that 	 0.0 0.0 0.01 0.01 0.01 0.0 0.0 0.0
+SCORES about 	 0.0 0.01 0.01 1.0 0.01 0.01 0.01 0.0
+Namespace(NUMBER_OF_REPLICATES=20, batchSize=1, char_dropout_prob=0.01, deletion_rate=0.55, dual_learning_rate=0.1, entropy_weight=0.0, hidden_dim_autoencoder=128, hidden_dim_lm=128, language='english', layer_num=1, learning_rate_autoencoder=0.1, learning_rate_lm=0.1, learning_rate_memory=1e-05, lr_decay=1.0, momentum=0.3, myID=273377242, predictability_weight=0.5, reward_multiplier_baseline=0.1, sequence_length=7, tuning=1, verbose=False, weight_dropout_in=0.05, weight_dropout_out=0.05, word_embedding_size=128)
