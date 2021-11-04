@@ -1,52 +1,76 @@
-0.0001 fact One 3.7519006729125
-0.0001 fact Two 1.414869088058943
-0.0001 report One 2.3054942289991662
-0.0001 report Two 2.0161013568185955
-1e-05 fact One 3.7075438698141667
-1e-05 fact Two 1.410356412641678
-1e-05 report One 2.3051810661958334
-1e-05 report Two 2.4003259708796456
-5e-07 fact One 3.7109368443483337
-5e-07 fact Two 1.4141929671168023
-5e-07 report One 2.312501728534167
-5e-07 report Two 2.6889284783972482
-1e-07 fact One 3.701128641763333
-1e-07 fact Two 1.4214453051486824
-1e-07 report One 2.2985910375925003
-1e-07 report Two 2.0820170642499725
-2e-08 fact One 3.6903067032491665
-2e-08 fact Two 1.413628583463183
-2e-08 report One 2.3005746006975
-2e-08 report Two 2.2163011737477807
-5e-07 fact One 3.689749598504166
-5e-07 fact Two 1.407550051497573
-5e-07 report One 2.2865518331533337
-5e-07 report Two 2.166600964265204
-1e-07 fact One 3.648957451185001
-1e-07 fact Two 1.4110811244074577
-1e-07 report One 2.2953306436541667
-1e-07 report Two 2.2276832458252924
-1e-05 fact One 3.6918050050724998
-1e-05 fact Two 1.4097346151251091
-1e-05 report One 2.2754599849374997
-1e-05 report Two 2.253131665910384
-0.0001 fact One 3.6429193615908333
-0.0001 fact Two 1.4120986511307712
-0.0001 report One 2.309042890866667
-0.0001 report Two 2.194916042809772
-1e-06 fact One 3.648524363836667
-1e-06 fact Two 1.4148907822868544
-1e-06 report One 2.3109905521075
-1e-06 report Two 2.3906282681370774
-0.0001 fact One 2.1976725260416665
-0.0001 fact Two 2.1976867293315614
-0.0001 report One 2.1976487636575
-0.0001 report Two 2.1976902931925517
-1e-06 fact One 3.677572687465833
-1e-06 fact Two 1.415232021050964
-1e-06 report One 2.3017314275100005
-1e-06 report Two 2.2965674380152463
-2e-08 fact One 3.7574435472483336
-2e-08 fact Two 1.4130044210079895
-2e-08 report One 2.2997300426166674
-2e-08 report Two 2.1766184639807973
+5e-07 High One 3.6864290237425 estimates-oce_sgd_toy.py_model_1117607.txt
+5e-07 High Two 1.3865173347291142 estimates-oce_sgd_toy.py_model_1117607.txt
+5e-07 Low One 2.304824014503333 estimates-oce_sgd_toy.py_model_1117607.txt
+5e-07 Low Two 1.3876174048833851 estimates-oce_sgd_toy.py_model_1117607.txt
+0.9 High One 1.817129532495833 estimates-oce_sgd_toy.py_model_8811411.txt
+0.9 High Two 1.8194106575101567 estimates-oce_sgd_toy.py_model_8811411.txt
+0.9 Low One 1.8173053463308333 estimates-oce_sgd_toy.py_model_8811411.txt
+0.9 Low Two 1.8235826759285938 estimates-oce_sgd_toy.py_model_8811411.txt
+0.01 High One 3.6909154852225003 estimates-oce_sgd_toy.py_model_4957422.txt
+0.01 High Two 1.3866388915727088 estimates-oce_sgd_toy.py_model_4957422.txt
+0.01 Low One 2.3032608628275 estimates-oce_sgd_toy.py_model_4957422.txt
+0.01 Low Two 1.3879812899975514 estimates-oce_sgd_toy.py_model_4957422.txt
+0.8 High One 1.816087931394167 estimates-oce_sgd_toy.py_model_8711640.txt
+0.8 High Two 1.816816309466822 estimates-oce_sgd_toy.py_model_8711640.txt
+0.8 Low One 1.8161024649933333 estimates-oce_sgd_toy.py_model_8711640.txt
+0.8 Low Two 1.8182202770066136 estimates-oce_sgd_toy.py_model_8711640.txt
+0.4 High One 2.655219535031667 estimates-oce_sgd_toy.py_model_8492988.txt
+0.4 High Two 1.4346040667342186 estimates-oce_sgd_toy.py_model_8492988.txt
+0.4 Low One 2.6549945473658334 estimates-oce_sgd_toy.py_model_8492988.txt
+0.4 Low Two 1.4332879384356259 estimates-oce_sgd_toy.py_model_8492988.txt
+2e-05 High One 3.6907684604325 estimates-oce_sgd_toy.py_model_8994502.txt
+2e-05 High Two 1.3865785753979167 estimates-oce_sgd_toy.py_model_8994502.txt
+2e-05 Low One 2.304100453851667 estimates-oce_sgd_toy.py_model_8994502.txt
+2e-05 Low Two 1.3880787255865628 estimates-oce_sgd_toy.py_model_8994502.txt
+0.0002 High One 3.6909709175433334 estimates-oce_sgd_toy.py_model_1511439.txt
+0.0002 High Two 1.3865069070207283 estimates-oce_sgd_toy.py_model_1511439.txt
+0.0002 Low One 2.3035157124200007 estimates-oce_sgd_toy.py_model_1511439.txt
+0.0002 Low Two 1.3879069661102077 estimates-oce_sgd_toy.py_model_1511439.txt
+0.6 High One 2.2017364700625 estimates-oce_sgd_toy.py_model_9145665.txt
+0.6 High Two 1.6322555753094274 estimates-oce_sgd_toy.py_model_9145665.txt
+0.6 Low One 2.2011204759275 estimates-oce_sgd_toy.py_model_9145665.txt
+0.6 Low Two 1.632303171480885 estimates-oce_sgd_toy.py_model_9145665.txt
+1e-05 High One 3.6880750854791664 estimates-oce_sgd_toy.py_model_4553506.txt
+1e-05 High Two 1.3865363815179164 estimates-oce_sgd_toy.py_model_4553506.txt
+1e-05 Low One 2.3034769693999997 estimates-oce_sgd_toy.py_model_4553506.txt
+1e-05 Low Two 1.3876989446581252 estimates-oce_sgd_toy.py_model_4553506.txt
+0.1 High One 3.6911766926449996 estimates-oce_sgd_toy.py_model_8325562.txt
+0.1 High Two 1.386856754000364 estimates-oce_sgd_toy.py_model_8325562.txt
+0.1 Low One 2.3027539054558335 estimates-oce_sgd_toy.py_model_8325562.txt
+0.1 Low Two 1.3881788185488022 estimates-oce_sgd_toy.py_model_8325562.txt
+0.5 High One 2.4875555435816668 estimates-oce_sgd_toy.py_model_944295.txt
+0.5 High Two 1.5053618773818753 estimates-oce_sgd_toy.py_model_944295.txt
+0.5 Low One 2.4873859683683333 estimates-oce_sgd_toy.py_model_944295.txt
+0.5 Low Two 1.5053311356653645 estimates-oce_sgd_toy.py_model_944295.txt
+0.2 High One 3.6288034518575003 estimates-oce_sgd_toy.py_model_5127550.txt
+0.2 High Two 1.3902911978463546 estimates-oce_sgd_toy.py_model_5127550.txt
+0.2 Low One 2.3144903977708333 estimates-oce_sgd_toy.py_model_5127550.txt
+0.2 Low Two 1.3872987758368225 estimates-oce_sgd_toy.py_model_5127550.txt
+0.0001 High One 3.687660555045 estimates-oce_sgd_toy.py_model_1373852.txt
+0.0001 High Two 1.3865601979196358 estimates-oce_sgd_toy.py_model_1373852.txt
+0.0001 Low One 2.3016145428025 estimates-oce_sgd_toy.py_model_1373852.txt
+0.0001 Low Two 1.3882165420799486 estimates-oce_sgd_toy.py_model_1373852.txt
+1e-07 High One 3.6889412204425 estimates-oce_sgd_toy.py_model_3978143.txt
+1e-07 High Two 1.3865445430084373 estimates-oce_sgd_toy.py_model_3978143.txt
+1e-07 Low One 2.3014336427041666 estimates-oce_sgd_toy.py_model_3978143.txt
+1e-07 Low Two 1.3878037178266671 estimates-oce_sgd_toy.py_model_3978143.txt
+0.002 High One 3.6880668997758335 estimates-oce_sgd_toy.py_model_6087776.txt
+0.002 High Two 1.3865611404181248 estimates-oce_sgd_toy.py_model_6087776.txt
+0.002 Low One 2.2999235590291667 estimates-oce_sgd_toy.py_model_6087776.txt
+0.002 Low Two 1.3882941951351553 estimates-oce_sgd_toy.py_model_6087776.txt
+0.7 High One 1.8181031545000002 estimates-oce_sgd_toy.py_model_3436284.txt
+0.7 High Two 1.818427022546248 estimates-oce_sgd_toy.py_model_3436284.txt
+0.7 Low One 1.8173341751108334 estimates-oce_sgd_toy.py_model_3436284.txt
+0.7 Low Two 1.824181507652396 estimates-oce_sgd_toy.py_model_3436284.txt
+1e-06 High One 3.6914270718875 estimates-oce_sgd_toy.py_model_2726362.txt
+1e-06 High Two 1.3865577578545303 estimates-oce_sgd_toy.py_model_2726362.txt
+1e-06 Low One 2.301854789255833 estimates-oce_sgd_toy.py_model_2726362.txt
+1e-06 Low Two 1.3880076439431253 estimates-oce_sgd_toy.py_model_2726362.txt
+2e-08 High One 3.693239907423333 estimates-oce_sgd_toy.py_model_1848388.txt
+2e-08 High Two 1.386516374845833 estimates-oce_sgd_toy.py_model_1848388.txt
+2e-08 Low One 2.3030316630991665 estimates-oce_sgd_toy.py_model_1848388.txt
+2e-08 Low Two 1.3875771152477603 estimates-oce_sgd_toy.py_model_1848388.txt
+0.3 High One 3.3617780605950003 estimates-oce_sgd_toy.py_model_4677573.txt
+0.3 High Two 1.4069567024706255 estimates-oce_sgd_toy.py_model_4677573.txt
+0.3 Low One 2.386243542035 estimates-oce_sgd_toy.py_model_4677573.txt
+0.3 Low Two 1.404895236715989 estimates-oce_sgd_toy.py_model_4677573.txt
