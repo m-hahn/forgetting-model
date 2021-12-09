@@ -1020,7 +1020,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
     numberOfSamples = 6
     IMPORTANCE_SAMPLING_K = 12
     import scoreWithGPT2Medium as scoreWithGPT2
-    sentences = [(1, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "looked", "at", "the", "tall", "player", "tossed", "the", "ball"])])]
+    sentences = [(1, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "smiles", "at", "the", "tall", "player", "thrown", "the", "ball"])])]
     with torch.no_grad():
       outFile = sys.stdout
 #     with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint if SANITY != "ZeroLoss" else "ZERO")+"_"+SANITY, "w") as outFile:
@@ -1074,6 +1074,12 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               print("NOISED: ", " ".join([itos_total[int(x)] for x in numeric_noised[:,0].cpu()]))
               result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*IMPORTANCE_SAMPLING_K, fillInBefore=pointWhereToStart)
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
+#              for z in range(21):
+ #                print(z, itos_total[resultNumeric[z,0]], itos_total[numeric_noised[z,0]])
+              for z in range(resultNumeric.size()[1]):
+                 if z % 2 == 0:
+                   print("LCSTerm", z, " ".join([itos_total[resultNumeric[r,z]] for r in range(21)])) #, itos_total[numeric_noised_second[z,0]])
+
               likelihood = memory.compute_likelihood(resultNumeric, numeric_noised, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=1, computeProbabilityStartingFrom=pointWhereToStart, expandReplicates=False)
               nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*IMPORTANCE_SAMPLING_K)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
@@ -1092,8 +1098,16 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               resultNumeric2 = torch.cat([numeric[:1], resultNumeric2[:-1]], dim=0)
               assert itos_total[int(resultNumeric[20,0])] == remainingInput[i]
              
-    #          print(resultNumeric2.size(), numeric.size(), numeric_noised_second.size())
-     #         print(resultNumeric.size(), resultNumeric2.size())
+              numeric_noised_second = torch.cat([numeric[:1], numeric_noised_second[:-2], numeric_noised_second[-1:]], dim=0)
+              assert itos_total[int(numeric_noised_second[20,0])] == "<SOS>"
+
+#              print(resultNumeric2.size(), numeric.size(), numeric_noised_second.size())
+ #             print(resultNumeric.size(), resultNumeric2.size())
+              for z in range(resultNumeric2.size()[1]):
+                 if z % 2 == 0:
+                   print("SecondTerm", z, " ".join([itos_total[resultNumeric2[r,z]] for r in range(21)])) #, itos_total[numeric_noised_second[z,0]])
+#              quit()
+            
               likelihood2 = memory.compute_likelihood(resultNumeric2, numeric_noised_second, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=1, computeProbabilityStartingFrom=pointWhereToStart, expandReplicates=False)
       #        print(likelihood.size(), likelihood2.size())
 
@@ -1165,7 +1179,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               log_importance_weights_maxima, _ = log_importance_weights.max(dim=1, keepdim=True)
               print(log_importance_weights[0])
               for j in range(2*IMPORTANCE_SAMPLING_K): # TODO the importance weights seem wacky
-                 if j % 3 != 0:
+                 if j % 2 != 0:
                     continue
                  print("TERM1", j, "@@", batch[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
               print(" ".join([itos_total[int(x)] for x in numeric_noised[:, 0].detach().cpu()]))
@@ -1185,7 +1199,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               log_importance_weights_maxima, _ = log_importance_weights.max(dim=1, keepdim=True)
               print(log_importance_weights[0])
               for j in range(2*IMPORTANCE_SAMPLING_K): # TODO the importance weights seem wacky
-                 if j % 3 != 0:
+                 if j % 2 != 0:
                     continue
                  print("TERM2", j, "@@", batch[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
               print(" ".join([itos_total[int(x)] for x in numeric_noised[:, 0].detach().cpu()]))
