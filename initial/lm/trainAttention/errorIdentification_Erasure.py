@@ -1,4 +1,43 @@
+# ~/python-py37-mhahn errorIdentification_Erasure.py --load_from_joint=42600474
 # Derived from char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_Lo.py
+
+# Run the following with 'thrown' and 'tossed'
+#(base) mhahn@jagupard14:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ ~/python-py37-mhahn errorIdentification_Erasure.py --load_from_joint=42600474 | grep EIS
+
+#EIS 2 tensor(-0., device='cuda:0') looked
+#EIS 2 tensor(-0., device='cuda:0') looked
+#EIS 3 tensor(-0., device='cuda:0') at
+#EIS 3 tensor(-0., device='cuda:0') at
+#EIS 4 tensor(2.2477, device='cuda:0') the
+#EIS 4 tensor(2.4675, device='cuda:0') the
+#EIS 5 tensor(0.2465, device='cuda:0') tall
+#EIS 5 tensor(0.4443, device='cuda:0') tall
+#EIS 6 tensor(0.5819, device='cuda:0') player
+#EIS 6 tensor(0.4019, device='cuda:0') player
+#EIS 7 tensor(0.5925, device='cuda:0') thrown
+#EIS 7 tensor(0.6150, device='cuda:0') thrown
+#EIS 8 tensor(0.2161, device='cuda:0') the
+#EIS 8 tensor(0.2339, device='cuda:0') the
+#EIS 9 tensor(0.1116, device='cuda:0') ball
+#EIS 9 tensor(0.0900, device='cuda:0') ball
+
+#EIS 2 tensor(-0., device='cuda:0') looked
+#EIS 2 tensor(-0., device='cuda:0') looked
+#EIS 3 tensor(-0., device='cuda:0') at
+#EIS 3 tensor(-0., device='cuda:0') at
+#EIS 4 tensor(2.3882, device='cuda:0') the
+#EIS 4 tensor(2.5018, device='cuda:0') the
+#EIS 5 tensor(0.2831, device='cuda:0') tall
+#EIS 5 tensor(0.2473, device='cuda:0') tall
+#EIS 6 tensor(0.6217, device='cuda:0') player
+#EIS 6 tensor(0.4174, device='cuda:0') player
+#EIS 7 tensor(1.1199, device='cuda:0') tossed
+#EIS 7 tensor(1.0654, device='cuda:0') tossed
+#EIS 8 tensor(0.0817, device='cuda:0') the
+#EIS 8 tensor(0.0679, device='cuda:0') the
+#EIS 9 tensor(0.0174, device='cuda:0') ball
+#EIS 9 tensor(0.0187, device='cuda:0') ball
+
 
 # Example: ~/python-py37-mhahn char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_TPLo.py --load_from_joint=163008048 --stimulus_file=Staub2006
 # ~/python-py37-mhahn char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_Lo.py --load_from_joint=163008048 --stimulus_file=Staub2006 --criticalRegions=NP1_0,NP1_1,OR,NP2_0,NP2_1
@@ -979,8 +1018,9 @@ def getSurprisalsStimuli(SANITY="Sanity"):
   #     sentences = sorted(sentences.items(), key=lambda x:x[0])
   #  assert SANITY in ["ModelTmp", "Model", "Sanity", "ZeroLoss"]
     numberOfSamples = 6
+    IMPORTANCE_SAMPLING_K = 12
     import scoreWithGPT2Medium as scoreWithGPT2
-    sentences = [(1, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["coach", "smiled", "at", "the", "player", "tossed"])])]
+    sentences = [(1, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "looked", "at", "the", "tall", "player", "tossed", "the", "ball"])])]
     with torch.no_grad():
       outFile = sys.stdout
 #     with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint if SANITY != "ZeroLoss" else "ZERO")+"_"+SANITY, "w") as outFile:
@@ -999,8 +1039,8 @@ def getSurprisalsStimuli(SANITY="Sanity"):
           print("INPUT", context, remainingInput)
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
-            
-            if not (args.criticalRegions is None) and regions[i] not in args.criticalRegions:
+            if regions[i] < 2: 
+#            if not (args.criticalRegions is None) and regions[i] not in args.criticalRegions:
               continue
             for repetition in range(2):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
@@ -1013,7 +1053,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               if SANITY == "Sanity":
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
-                 numeric_noised = torch.where(numeric == stoi["that"]+3, 0*numeric, numeric)
+                 numeric_noised = torch.where(numeric == stoi["at"]+3, 0*numeric, numeric)
               elif SANITY == "ZeroLoss":
                  numeric = numerified
                  numeric = numeric.expand(-1, numberOfSamples)
@@ -1022,9 +1062,9 @@ def getSurprisalsStimuli(SANITY="Sanity"):
                  assert SANITY in ["Model", "ModelTmp"]
                  numeric, numeric_noised = forward(numerified, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=numberOfSamples)
                  numeric_noised = torch.where(numeric == stoi["."]+3, numeric, numeric_noised)
-              # Next, expand the tensor to get 24 samples from the reconstruction posterior for each replicate
-              numeric = numeric.unsqueeze(2).expand(-1, -1, 24).view(-1, numberOfSamples*24)
-              numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, 24).contiguous().view(-1, numberOfSamples*24)
+              # Next, expand the tensor to get IMPORTANCE_SAMPLING_K samples from the reconstruction posterior for each replicate
+              numeric = numeric.unsqueeze(2).expand(-1, -1, IMPORTANCE_SAMPLING_K).view(-1, numberOfSamples*IMPORTANCE_SAMPLING_K)
+              numeric_noised = numeric_noised.unsqueeze(2).expand(-1, -1, IMPORTANCE_SAMPLING_K).contiguous().view(-1, numberOfSamples*IMPORTANCE_SAMPLING_K)
 
 
 
@@ -1032,37 +1072,54 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               numeric_noised[args.sequence_length] = 0 # A simple hack for dealing with the issue that the last word 
               # Now get samples from the amortized reconstruction posterior
               print("NOISED: ", " ".join([itos_total[int(x)] for x in numeric_noised[:,0].cpu()]))
-              result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*24, fillInBefore=pointWhereToStart)
+              result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*IMPORTANCE_SAMPLING_K, fillInBefore=pointWhereToStart)
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
               likelihood = memory.compute_likelihood(resultNumeric, numeric_noised, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=1, computeProbabilityStartingFrom=pointWhereToStart, expandReplicates=False)
-              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*24)]).unsqueeze(0).cuda()
+              nextWord = torch.LongTensor([stoi_total.get(remainingInput[i], stoi_total["OOV"]) for _ in range(numberOfSamples*IMPORTANCE_SAMPLING_K)]).unsqueeze(0).cuda()
               resultNumeric = torch.cat([resultNumeric[:-1], nextWord], dim=0).contiguous()
 
               # Second, get reconstructions when the new word is KNOWN
-              print(numeric_noised.size(), nextWord.size(), resultNumeric.size())
-              numeric_noised_second = torch.cat([numeric_noised[:-1], nextWord], dim=0).contiguous()
-              result2, resultNumeric2, fractions2, thatProbs2, amortizedPosterior2 = autoencoder.sampleReconstructions(numeric, numeric_noised_second, None, 2, numberOfBatches=numberOfSamples*24, fillInBefore=pointWhereToStart)
+#              print(numeric_noised.size(), nextWord.size(), resultNumeric.size())
+              numeric_noised_second = torch.cat([numeric_noised[1:-1], nextWord, nextWord], dim=0).contiguous() # Make the new word available
+              numeric_noised_second[args.sequence_length] = 0 # A simple hack for dealing with the issue that the last word 
+              numeric_second = torch.cat([numeric_noised[1:-1], nextWord, nextWord], dim=0).contiguous()
+              result2, resultNumeric2, fractions2, thatProbs2, amortizedPosterior2 = autoencoder.sampleReconstructions(numeric_second, numeric_noised_second, None, 2, numberOfBatches=numberOfSamples*IMPORTANCE_SAMPLING_K, fillInBefore=pointWhereToStart)
+#              print(result2[0])
+ #             print(result2[1])
+  #            print(result2[2])
+   #           print(result2[3])
               resultNumeric2 = resultNumeric2.transpose(0,1).contiguous()
-              print(resultNumeric.size(), resultNumeric2.size())
+              resultNumeric2 = torch.cat([numeric[:1], resultNumeric2[:-1]], dim=0)
+              assert itos_total[int(resultNumeric[20,0])] == remainingInput[i]
+             
+    #          print(resultNumeric2.size(), numeric.size(), numeric_noised_second.size())
+     #         print(resultNumeric.size(), resultNumeric2.size())
               likelihood2 = memory.compute_likelihood(resultNumeric2, numeric_noised_second, train=False, printHere=False, provideAttention=False, onlyProvideMemoryResult=True, NUMBER_OF_REPLICATES=1, computeProbabilityStartingFrom=pointWhereToStart, expandReplicates=False)
-              print(likelihood.size(), likelihood2.size())
+      #        print(likelihood.size(), likelihood2.size())
 
-              likelihood = likelihood.view(numberOfSamples, 24)
-              likelihood2 = likelihood2.view(numberOfSamples, 24)
+              likelihood = likelihood.view(numberOfSamples, IMPORTANCE_SAMPLING_K)
+              likelihood2 = likelihood2.view(numberOfSamples, IMPORTANCE_SAMPLING_K)
 
+              amortizedPosterior = amortizedPosterior.view(numberOfSamples, IMPORTANCE_SAMPLING_K)
+              amortizedPosterior2 = amortizedPosterior2.view(numberOfSamples, IMPORTANCE_SAMPLING_K)
 
-              resultNumeric = resultNumeric.view(21, numberOfSamples, 24)
-              resultNumeric2 = resultNumeric2.view(21, numberOfSamples, 24)
+              resultNumeric = resultNumeric.view(21, numberOfSamples, IMPORTANCE_SAMPLING_K)
+              resultNumeric2 = resultNumeric2.view(21, numberOfSamples, IMPORTANCE_SAMPLING_K)
 
-              numeric_noised = numeric_noised.view(21, numberOfSamples, 24)
-              numeric_noised_second = numeric_noised_second.view(21, numberOfSamples, 24)
+              numeric_noised = numeric_noised.view(21, numberOfSamples, IMPORTANCE_SAMPLING_K)
+              numeric_noised_second = numeric_noised_second.view(21, numberOfSamples, IMPORTANCE_SAMPLING_K)
 
-              likelihood = torch.cat([likelihood, likelihood2], dim=2)
-              resultNumeric = torch.cat([resultNumeric, resultNumeric2], dim=2)
-              numeric_noised = torch.cat([numeric_noised, numeric_noised_second], dim=2)
-
-
-              quit()
+              likelihood = torch.cat([likelihood, likelihood2], dim=1).view(numberOfSamples*2*IMPORTANCE_SAMPLING_K)
+              amortizedPosterior = torch.cat([amortizedPosterior, amortizedPosterior2], dim=1).view(numberOfSamples*2*IMPORTANCE_SAMPLING_K) - 0.6931472 # we take the mixture of two proposal distributions, one aware of wr and the other one not
+              resultNumeric = torch.cat([resultNumeric, resultNumeric2], dim=2).view(21, numberOfSamples*2*IMPORTANCE_SAMPLING_K)
+              numeric_noised = torch.cat([numeric_noised, numeric_noised_second], dim=2).view(21, numberOfSamples*2*IMPORTANCE_SAMPLING_K)
+              result_ = []
+              for g in range(numberOfSamples):
+                 for h in range(IMPORTANCE_SAMPLING_K):
+                  result_.append(result[g*IMPORTANCE_SAMPLING_K+h])
+                 for h in range(IMPORTANCE_SAMPLING_K):
+                  result_.append(result2[g*IMPORTANCE_SAMPLING_K+h])
+              result = result_
 
 
               # Evaluate the prior on these samples to estimate next-word surprisal
@@ -1072,65 +1129,90 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               for h in range(len(batch)):
                  batch[h] = batch[h][:1].upper() + batch[h][1:]
                  assert batch[h][0] != " ", batch[h]
+                 if h % 3 == 0:
+                    print(h, batch[h])
 #              # Add the preceding context
 #              batchPreceding = [" ".join([itos_total[resultNumeric_cpu[r,s]] for r in range(0,pointWhereToStart+1)]) for s in range(resultNumeric.size()[1])]
 #              batch = [x.replace(" .", ".")+" "+y for x, y in zip(batchPreceding, batch)]
 #              print(batch)
               totalSurprisal = scoreWithGPT2.scoreSentences(batch)
-              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
-              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 24)
+              surprisals_past = torch.FloatTensor([x["past"] for x in totalSurprisal]).cuda().view(numberOfSamples, 2*IMPORTANCE_SAMPLING_K)
+              surprisals_nextWord = torch.FloatTensor([x["next"] for x in totalSurprisal]).cuda().view(numberOfSamples, 2*IMPORTANCE_SAMPLING_K)
 
-#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*24)
+# The subsequent code snippet should be a plug-in for GPT2
+#              totalSurprisal, _, samplesFromLM, predictionsPlainLM = plain_lm.forward(resultNumeric, train=False, computeSurprisals=True, returnLastSurprisal=False, numberOfBatches=numberOfSamples*IMPORTANCE_SAMPLING_K)
 #              assert resultNumeric.size()[0] == args.sequence_length+1
 #              assert totalSurprisal.size()[0] == args.sequence_length
 #              # For each of the `numberOfSamples' many replicates, evaluate (i) the probability of the next word under the Monte Carlo estimate of the next-word posterior, (ii) the corresponding surprisal, (iii) the average of those surprisals across the 'numberOfSamples' many replicates.
-#              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, 24)
+#              totalSurprisal = totalSurprisal.view(args.sequence_length, numberOfSamples, IMPORTANCE_SAMPLING_K)
 #              surprisals_past = totalSurprisal[:-1].sum(dim=0)
 #              surprisals_nextWord = totalSurprisal[-1]
 
-              # where numberOfSamples is how many samples we take from the noise model, and 24 is how many samples are drawn from the amortized posterior for each noised sample
-              amortizedPosterior = amortizedPosterior.view(numberOfSamples, 24)
-              likelihood = likelihood.view(numberOfSamples, 24)
+              # where numberOfSamples is how many samples we take from the noise model, and IMPORTANCE_SAMPLING_K is how many samples are drawn from the amortized posterior for each noised sample
+              amortizedPosterior = amortizedPosterior.view(numberOfSamples, 2*IMPORTANCE_SAMPLING_K)
+              likelihood = likelihood.view(numberOfSamples, 2*IMPORTANCE_SAMPLING_K)
     #          print(surprisals_past.size(), surprisals_nextWord.size(), amortizedPosterior.size(), likelihood.size())
    #           print(amortizedPosterior.mean(), likelihood.mean(), surprisals_past.mean(), surprisals_nextWord.mean())
-              unnormalizedLogTruePosterior = likelihood - surprisals_past
-  #            print(unnormalizedLogTruePosterior)
- #             print(amortizedPosterior.mean())
+
+
+
+
+              # PART 1: computing the other term: importance reweighting for P(TP|mt,wt)
+              unnormalizedLogTruePosterior = likelihood - surprisals_past - surprisals_nextWord
               assert float(unnormalizedLogTruePosterior.max()) <= 1e-5
               assert float(amortizedPosterior.max()) <= 1e-5
               log_importance_weights = unnormalizedLogTruePosterior - amortizedPosterior
               log_importance_weights_maxima, _ = log_importance_weights.max(dim=1, keepdim=True)
-#              assert False, "the importance weights seem wacky"
               print(log_importance_weights[0])
-              for j in range(24): # TODO the importance weights seem wacky
+              for j in range(2*IMPORTANCE_SAMPLING_K): # TODO the importance weights seem wacky
                  if j % 3 != 0:
                     continue
-                 print(j, "@@", result[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
+                 print("TERM1", j, "@@", batch[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
               print(" ".join([itos_total[int(x)] for x in numeric_noised[:, 0].detach().cpu()]))
-#              quit()
-#              print(log_importance_weights_maxima)
               log_importance_weighted_probs_unnormalized = torch.log(torch.exp(log_importance_weights - log_importance_weights_maxima - surprisals_nextWord).sum(dim=1)) + log_importance_weights_maxima.squeeze(1)
               log_importance_weights_sum = torch.log(torch.exp(log_importance_weights - log_importance_weights_maxima).sum(dim=1)) + log_importance_weights_maxima.squeeze(1)
               reweightedSurprisals = -(log_importance_weighted_probs_unnormalized - log_importance_weights_sum)
-              #print(reweightedSurprisals.size())
-              #quit()
-#              print(log_importance_weighted_probs_unnormalized.size(), log_importance_weights_maxima.size())
               reweightedSurprisalsMean = reweightedSurprisals.mean()
-#              quit()
+              surprisalOfNextWord_OtherTerm = surprisals_nextWord.mean(dim=1).mean()
 
-              surprisalOfNextWord = surprisals_nextWord.exp().mean(dim=1).log().mean()
-  #            print("PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in numerified[:,0]]), surprisalOfNextWord, reweightedSurprisalsMean)
-   #           quit()
-              # for printing
-              nextWordSurprisal_cpu = surprisals_nextWord.view(-1).detach().cpu()
-#              reweightedSurprisal_cpu = reweightedSurprisals.detach().cpu()
-#              print(nextWordSurprisal_cpu.size())
+              #quit()
+
+              # PART 2: computing LCS: importance reweighting for P(Tp|mt) and doing log-sum-exp
+              unnormalizedLogTruePosterior = likelihood - surprisals_past
+              assert float(unnormalizedLogTruePosterior.max()) <= 1e-5
+              assert float(amortizedPosterior.max()) <= 1e-5
+              log_importance_weights = unnormalizedLogTruePosterior - amortizedPosterior
+              log_importance_weights_maxima, _ = log_importance_weights.max(dim=1, keepdim=True)
+              print(log_importance_weights[0])
+              for j in range(2*IMPORTANCE_SAMPLING_K): # TODO the importance weights seem wacky
+                 if j % 3 != 0:
+                    continue
+                 print("TERM2", j, "@@", batch[j], float(surprisals_past[0, j]), float(surprisals_nextWord[0, j]), float(log_importance_weights[0, j]), float(likelihood[0, j]), float(amortizedPosterior[0, j]))
+              print(" ".join([itos_total[int(x)] for x in numeric_noised[:, 0].detach().cpu()]))
+              log_importance_weighted_probs_unnormalized = torch.log(torch.exp(log_importance_weights - log_importance_weights_maxima - surprisals_nextWord).sum(dim=1)) + log_importance_weights_maxima.squeeze(1)
+              log_importance_weights_sum = torch.log(torch.exp(log_importance_weights - log_importance_weights_maxima).sum(dim=1)) + log_importance_weights_maxima.squeeze(1)
+              reweightedSurprisals = -(log_importance_weighted_probs_unnormalized - log_importance_weights_sum)
+              reweightedSurprisalsMean = reweightedSurprisals.mean()
+              surprisalOfNextWord_LCS = surprisals_nextWord.exp().mean(dim=1).log().mean()
 
 
-              for q in range(0, min(3*24, resultNumeric.size()[1]),  24):
-                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//24]))
-              print("SURPRISAL", i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
-              print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
+              EIS_NextWord =  -(surprisalOfNextWord_OtherTerm - surprisalOfNextWord_LCS)
+
+#              print(surprisalOfNextWord_OtherTerm) # these are nonnegative, i.e. minus what they are in the formula
+ #             print(surprisalOfNextWord_LCS)
+              print("EIS", regions[i], EIS_NextWord, remainingInput[i])
+              continue
+#
+#              # for printing
+##              nextWordSurprisal_cpu = surprisals_nextWord.view(-1).detach().cpu()
+##              reweightedSurprisal_cpu = reweightedSurprisals.detach().cpu()
+##              print(nextWordSurprisal_cpu.size())
+#
+#
+#              for q in range(0, min(3*2*IMPORTANCE_SAMPLING_K, resultNumeric.size()[1]),  2*IMPORTANCE_SAMPLING_K):
+#                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//IMPORTANCE_SAMPLING_K]))
+#              print("SURPRISAL", i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
+#              print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
 
 
-getSurprisalsStimuli(SANITY=("Model" if args.deletion_rate > 0 else "ZeroLoss"))
+getSurprisalsStimuli(SANITY="Sanity") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))
