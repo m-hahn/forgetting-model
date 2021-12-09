@@ -76,6 +76,16 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
                      print("ERROR", line)
                      continue
                  assert float(line[7]) <= 100, line
+                 if  len(line[0]) == 0:
+                    print("ERROR Incorrect noun formatting", line)
+                    continue
+          
+                 try:
+                   assert float(line[5]) < 60, line
+                   assert float(line[5]) >= 0, line
+                 except ValueError:
+                   print("ERROR Incorrect surprisal formatting", line)
+                   continue
                  try:
                     assert line[9] == "nan" or float(line[9]) <= 100, line
                  except ValueError:

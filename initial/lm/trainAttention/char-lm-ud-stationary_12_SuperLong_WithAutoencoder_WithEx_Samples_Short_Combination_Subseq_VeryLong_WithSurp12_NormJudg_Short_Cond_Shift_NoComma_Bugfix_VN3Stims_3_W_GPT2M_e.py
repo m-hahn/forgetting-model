@@ -432,6 +432,7 @@ class MemoryModel():
      self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
      self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
      self.memory_bilinear.weight.data.fill_(0)
+     # Modules of the memory model
      self.modules_memory = [self.memory_mlp_inner, self.memory_mlp_outer, self.memory_mlp_inner_from_pos, self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter, self.memory_bilinear, self.memory_mlp_inner_bilinear]
   def forward(self, numeric):
       embedded_everything_mem = lm.word_embeddings(numeric).detach()
@@ -566,14 +567,18 @@ def parameters_lm():
 parameters_lm_cached = [x for x in parameters_lm()]
 
 
-assert not TRAIN_LM
-optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
-optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
+#assert not TRAIN_LM
+#optim_autoencoder = torch.optim.SGD(parameters_autoencoder(), lr=args.learning_rate_autoencoder, momentum=0.0) # 0.02, 0.9
+#optim_memory = torch.optim.SGD(parameters_memory(), lr=args.learning_rate_memory, momentum=args.momentum) # 0.02, 0.9
 
 ###############################################3
 
 checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.load_from_joint)+"*")[0])
 # Load pretrained prior and amortized posteriors
+
+print("ARGUMENTS OF ORIGINAL MODEL ", checkpoint["arguments"])
+#assert checkpoint["arguments"].deletion_rate in [0.7, 0.75]
+#assert checkpoint["arguments"].predictability_weight == 1
 
 # Amortized Reconstruction Posterior
 if True or args.load_from_autoencoder is not None:
@@ -593,9 +598,10 @@ if True or args.load_from_lm is not None:
 
 from torch.autograd import Variable
 
-print(lm.word_embeddings.weight)
-assert (checkpoint["lm_embeddings"]["weight"] == lm.word_embeddings.weight).all()
-del checkpoint["lm_embeddings"]
+if "lm_embeddings" in checkpoint:
+  print(lm.word_embeddings.weight)
+  assert (checkpoint["lm_embeddings"]["weight"] == lm.word_embeddings.weight).all()
+  del checkpoint["lm_embeddings"]
 assert set(list(checkpoint)) == set(["arguments", "words", "memory", "autoencoder"]), list(checkpoint)
 assert itos == checkpoint["words"]
 for i in range(len(checkpoint["memory"])):

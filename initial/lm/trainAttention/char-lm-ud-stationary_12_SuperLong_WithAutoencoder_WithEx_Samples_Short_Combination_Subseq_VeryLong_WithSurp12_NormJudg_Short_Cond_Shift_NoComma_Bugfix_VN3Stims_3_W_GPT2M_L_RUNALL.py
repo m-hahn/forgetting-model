@@ -28,14 +28,14 @@ for model in models:
          nouns = set()
          for line in inFile:
           nouns.add(line[:line.find("\t")])
-       if len(nouns) >= 40:
+       if len(nouns) >= 50:
          print("EXISTS", ID, os.path.getsize(resultsPath), len(nouns))
          continue
    with open(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/results/*_{ID}")[0], "r") as inFile:
       args = dict([x.split("=") for x in next(inFile).strip().replace("Namespace(", "").rstrip(")").split(", ") ])
       delta = float(args["deletion_rate"])
       lambda_ = float(args["predictability_weight"])
-      if lambda_ == 1:
+      if lambda_ != 0.75:
         print("EXCLUDE", ID)
         continue
 #      if delta < 0.2: # and delta*10 != int(delta*10):

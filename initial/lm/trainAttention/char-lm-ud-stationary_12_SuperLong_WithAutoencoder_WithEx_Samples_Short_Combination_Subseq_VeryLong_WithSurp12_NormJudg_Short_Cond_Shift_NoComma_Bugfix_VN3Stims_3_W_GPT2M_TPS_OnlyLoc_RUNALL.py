@@ -15,8 +15,8 @@ for _ in range(int(sys.argv[1])):
 
    countsByConfig = defaultdict(int)
    configurations = set()
-   for i in range(10, 100, 10):
-     for j in [1]: #[0, 0.25, 0.5, 0.75, 1]:
+   for i in range(40, 60, 5):
+     for j in [0.75]: #[0, 0.25, 0.5, 0.75, 1]:
         configurations.add((i/100,j))
 
    logs = glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/results/{script}_*")

@@ -7,6 +7,7 @@ from collections import defaultdict
 
 results = defaultdict(list)
 for name in os.listdir(PATH):
+  print(name)
   if "NoComma_Bugfix" in name:
    with open(PATH+name, "r") as inFile:
       args = next(inFile).strip()
@@ -33,8 +34,8 @@ with open(f"{__file__}.txt", "w") as outFile:
     print(lambda_, delta_, file=outFile)
     print(lambda_, delta_)
     for x, a, b, y in scores:
-       print("\t".join([str(w) for w in [round(x/2, 2), round(a,2), round(b,2), y["learning_rate_memory"], y["learning_rate_autoencoder"], float(y.get("learning_rate_lm", 0)), y["momentum"], y["myID"], y["script"]]]), file=outFileTSV)
-       print("\t".join([str(w) for w in [round(x/2, 2), round(a,2), round(b,2), y["learning_rate_memory"], y["learning_rate_autoencoder"], float(y.get("learning_rate_lm", 0)), y["momentum"], y["myID"]]]), file=outFile)
+       print("\t".join([str(w) for w in [round(x/2, 2), round(a,2), round(b,2), y["learning_rate_memory"], y["learning_rate_autoencoder"], float(y.get("learning_rate_lm", 0)), y["momentum"], y["myID"]]]), file=outFileTSV)
+       print("\t".join([str(w) for w in [round(x/2, 2), round(a,2), round(b,2), y["learning_rate_memory"], y["learning_rate_autoencoder"], float(y.get("learning_rate_lm", 0)), y["momentum"], y["myID"], y["script"]]]), file=outFile)
        print("\t".join([str(w) for w in [round(x/2, 2), round(a,2), round(b,2), y["learning_rate_memory"], y["learning_rate_autoencoder"], float(y.get("learning_rate_lm", 0)), y["momentum"], y["myID"]]]))
     
 

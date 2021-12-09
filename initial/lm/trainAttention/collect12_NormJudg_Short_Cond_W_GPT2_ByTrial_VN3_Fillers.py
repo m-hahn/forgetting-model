@@ -67,7 +67,7 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
                        assert float(line[4]) < 50, line
                      except ValueError:
                       print("ERROR", line)
-                      assert False 
+                      continue
                      line.append("NA")
                  if len(line[0]) == 0:
                        print("ERROR Something is wrong with this row", line)
@@ -85,10 +85,19 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
                  if "'" in line[2]:
                        print("Exclduing row with apostrophe to prevent downstream problems (affects two words in the dataset)", line)
                        continue
-
+                 try:
+                    assert int(line[5]) >= 0, line
+                 except ValueError:
+                     print("ERROR", line)
+                     continue
+                 if 0 in [len(x) for x in line]:
+                      print("ERROR", line)
+                      continue
+         
                  try:
                    assert int(line[0]) < 200, line
-                   assert int(line[1]) < 200, line
+                   if int(line[1]) > 24:
+                     print("ERROR", line)
                    assert float(line[3]) < 200, line
                    assert float(line[4]) < 200, line
                  except ValueError:

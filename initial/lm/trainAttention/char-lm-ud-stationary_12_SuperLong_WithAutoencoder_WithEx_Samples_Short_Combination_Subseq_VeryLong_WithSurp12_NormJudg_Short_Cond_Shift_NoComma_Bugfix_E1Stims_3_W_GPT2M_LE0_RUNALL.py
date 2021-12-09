@@ -13,10 +13,13 @@ if len(sys.argv) > 1:
    limit = int(sys.argv[1])
 else:
    limit = 1000
+import os
+import time
 count = 0
 for model in models:
    ID = model[model.rfind("_")+1:model.rfind(".")]
    resultsPath = f"/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/{script}_{ID}_Model"
+   NOUNS_Done = 0
    if len(glob.glob(resultsPath))>0:
      if os.path.getsize(resultsPath) > 0 and time.time() - os.stat(resultsPath).st_mtime < 3600: # written to within the last hour
        print("WORKING ON THIS?", ID)
@@ -26,10 +29,14 @@ for model in models:
          nouns = set()
          for line in inFile:
           nouns.add(line[:line.find("\t")])
-       if len(nouns) >= 20:
+       NOUNS_Done += len(nouns)
+       if len(nouns) >= 50:
          print("EXISTS", ID, os.path.getsize(resultsPath), len(nouns))
          continue
 
+   if NOUNS_Done >= 50:
+     print("EXISTS", ID, os.path.getsize(resultsPath), NOUNS_Done)
+     continue
    with open(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/results/*_{ID}")[0], "r") as inFile:
       args = dict([x.split("=") for x in next(inFile).strip().replace("Namespace(", "").rstrip(")").split(", ") ])
       delta = float(args["deletion_rate"])
@@ -37,6 +44,8 @@ for model in models:
 #      if lambda_ != 1:
  #       print("FOR NOW DON'T CONSIDER")
 #        continue
+      if delta < 0.3 or delta > 0.8:
+        continue
 #      if delta < 0.3 and delta*10 != int(delta*10):
 #        print("EXCLUDE", ID)
 #        continue
