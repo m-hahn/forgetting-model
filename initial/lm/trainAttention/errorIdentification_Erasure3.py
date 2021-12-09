@@ -1,4 +1,6 @@
 # ~/python-py37-mhahn errorIdentification_Erasure.py --load_from_joint=42600474
+# ~/python-py37-mhahn errorIdentification_Erasure3.py --load_from_joint=631984614  | grep EIS
+# ~/python-py37-mhahn errorIdentification_Erasure3.py --load_from_joint=832508929  | grep EIS
 # Derived from char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_Lo.py
 
 # Run the following with 'thrown' and 'tossed'
@@ -1020,7 +1022,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
     numberOfSamples = 6
     IMPORTANCE_SAMPLING_K = 12
     import scoreWithGPT2Medium as scoreWithGPT2
-    sentences = [(1, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "looked", "at", "the", "tall", "player", "tossed", "the", "ball"])])]
+    sentences = [(1, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "smiles", "at", "the", "tall", "player", "tossed", "the", "ball"])])]
     with torch.no_grad():
       outFile = sys.stdout
 #     with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint if SANITY != "ZeroLoss" else "ZERO")+"_"+SANITY, "w") as outFile:
@@ -1074,14 +1076,8 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               print("NOISED: ", " ".join([itos_total[int(x)] for x in numeric_noised[:,0].cpu()]))
               result, resultNumeric, fractions, thatProbs, amortizedPosterior = autoencoder.sampleReconstructions(numeric, numeric_noised, None, 2, numberOfBatches=numberOfSamples*IMPORTANCE_SAMPLING_K, fillInBefore=pointWhereToStart)
               resultNumeric = resultNumeric.transpose(0,1).contiguous()
-              for z in range(21):
-                 if z < 20 and itos_total[numeric_noised[z,0]] == "<SOS>":
-                   print(z, "!")
-                   for k in range(resultNumeric.size()[1]):
-                      resultNumeric[z,k] = stoi_total[["at", "and", "as", "toward", "when", "to", "after"][k%6]]
-                 print(z, itos_total[resultNumeric[z,0]], itos_total[numeric_noised[z,0]])
-              amortizedPosterior = 0*amortizedPosterior
-  #            quit()
+#              for z in range(21):
+ #                print(z, itos_total[resultNumeric[z,0]], itos_total[numeric_noised[z,0]])
               for z in range(resultNumeric.size()[1]):
                  if z % 2 == 0:
                    print("LCSTerm", z, " ".join([itos_total[resultNumeric[r,z]] for r in range(21)])) #, itos_total[numeric_noised_second[z,0]])
@@ -1109,12 +1105,6 @@ def getSurprisalsStimuli(SANITY="Sanity"):
 
 #              print(resultNumeric2.size(), numeric.size(), numeric_noised_second.size())
  #             print(resultNumeric.size(), resultNumeric2.size())
-              for z in range(21):
-                 if z < 20 and itos_total[numeric_noised[z,0]] == "<SOS>":
-                   for k in range(resultNumeric2.size()[1]):
-                      resultNumeric2[z,k] = stoi_total[["at", "and", "as", "toward", "when", "to", "after"][k%6]]
-                 print(z, itos_total[resultNumeric2[z,0]], itos_total[numeric_noised[z,0]])
-              amortizedPosterior2 = 0*amortizedPosterior2
               for z in range(resultNumeric2.size()[1]):
                  if z % 2 == 0:
                    print("SecondTerm", z, " ".join([itos_total[resultNumeric2[r,z]] for r in range(21)])) #, itos_total[numeric_noised_second[z,0]])
@@ -1241,4 +1231,4 @@ def getSurprisalsStimuli(SANITY="Sanity"):
 #              print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
 
 
-getSurprisalsStimuli(SANITY="Sanity") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))
+getSurprisalsStimuli(SANITY="Model") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))
