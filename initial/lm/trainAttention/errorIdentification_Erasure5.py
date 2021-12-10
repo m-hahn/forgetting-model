@@ -1041,8 +1041,8 @@ def getSurprisalsStimuli(SANITY="Sanity"):
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
             #if regions[i] < 2: 
-            if not (args.criticalRegions is None) and regions[i] not in args.criticalRegions:
-              continue
+#            if not (args.criticalRegions is None) and regions[i] not in args.criticalRegions:
+            #  continue
             for repetition in range(2):
               numerified = encodeContextCrop(" ".join(remainingInput[:i+1]), "later the nurse suggested they treat the patient with an antibiotic but in the end this did not happen . " + context)
               pointWhereToStart = max(0, args.sequence_length - len(context.split(" ")) - i - 1) # some sentences are too long
@@ -1233,4 +1233,4 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( EIS_NextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
 
 
-getSurprisalsStimuli(SANITY="Model") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))
+getSurprisalsStimuli(SANITY="Sanity") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))

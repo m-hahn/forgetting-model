@@ -1190,6 +1190,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               reweightedSurprisals = -(log_importance_weighted_probs_unnormalized - log_importance_weights_sum)
               reweightedSurprisalsMean = reweightedSurprisals.mean()
               surprisalOfNextWord_OtherTerm = surprisals_nextWord.mean(dim=1).mean()
+              reweightedSurprisals_OtherTerm = reweightedSurprisalsMean
 
               #quit()
 
@@ -1210,9 +1211,11 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               reweightedSurprisals = -(log_importance_weighted_probs_unnormalized - log_importance_weights_sum)
               reweightedSurprisalsMean = reweightedSurprisals.mean()
               surprisalOfNextWord_LCS = surprisals_nextWord.exp().mean(dim=1).log().mean()
+              reweightedSurprisals_LCS = reweightedSurprisalsMean
 
 
-              EIS_NextWord =  -(surprisalOfNextWord_OtherTerm - surprisalOfNextWord_LCS)
+#              EIS_NextWord =  -(surprisalOfNextWord_OtherTerm - surprisalOfNextWord_LCS)
+              EIS_NextWord =  -(reweightedSurprisals_OtherTerm - reweightedSurprisals_LCS)
 
 #              print(surprisalOfNextWord_OtherTerm) # these are nonnegative, i.e. minus what they are in the formula
  #             print(surprisalOfNextWord_LCS)
@@ -1231,4 +1234,4 @@ def getSurprisalsStimuli(SANITY="Sanity"):
 #              print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
 
 
-getSurprisalsStimuli(SANITY="Model") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))
+getSurprisalsStimuli(SANITY="Sanity") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))
