@@ -1078,9 +1078,9 @@ def getSurprisalsStimuli(SANITY="Sanity"):
     sentences = [(1, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "looked", "at", "the", "tall", "player", "tossed", "the", "ball"])])]
     sentences += [(2, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "looked", "at", "the", "tall", "player", "thrown", "the", "ball"])])]
     with torch.no_grad():
-      outFile = sys.stdout
-#     with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint if SANITY != "ZeroLoss" else "ZERO")+"_"+SANITY, "w") as outFile:
-      print("\t".join(["Sentence", "Item", "Condition", "Region", "Word", "Surprisal", "SurprisalReweighted", "Repetition"]), file=outFile)
+#      outFile = sys.stdout
+     with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv-EIS/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint if SANITY != "ZeroLoss" else "ZERO")+"_"+SANITY, "w") as outFile:
+      print("\t".join(["Sentence", "Item", "Condition", "Region", "Word", "EISReweighted", "SurprisalReweighted", "Repetition"]), file=outFile)
       TRIALS_COUNT = 0
       for sentenceID, sentence in sentences:
           print(sentenceID)
