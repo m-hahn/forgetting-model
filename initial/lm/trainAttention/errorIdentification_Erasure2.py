@@ -1,6 +1,45 @@
 # ~/python-py37-mhahn errorIdentification_Erasure.py --load_from_joint=42600474
 # Derived from char-lm-ud-stationary_12_SuperLong_WithAutoencoder_WithEx_Samples_Short_Combination_Subseq_VeryLong_WithSurp12_NormJudg_Short_Cond_Shift_NoComma_Bugfix_VN3Stims_3_W_GPT2M_Lo.py
 
+# Sanity-check model deleting specifically 'at', in the Sanity setting
+#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ ~/python-py37-mhahn errorIdentification_Erasure2.py --load_from_joint=688174451 | grep EIS
+#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ ~/python-py37-mhahn errorIdentification_Erasure2.py --load_from_joint=245600212 | grep EIS
+#EIS 3 tensor(-0., device='cuda:0') at
+#EIS 3 tensor(-0., device='cuda:0') at
+#EIS 4 tensor(0.1193, device='cuda:0') the
+#EIS 4 tensor(0.1193, device='cuda:0') the
+#EIS 5 tensor(0.0173, device='cuda:0') tall
+#EIS 5 tensor(0.0173, device='cuda:0') tall
+#EIS 6 tensor(0.0012, device='cuda:0') player
+#EIS 6 tensor(0.0012, device='cuda:0') player
+#EIS 7 tensor(2.8284, device='cuda:0') tossed
+#EIS 7 tensor(2.8284, device='cuda:0') tossed
+#EIS 8 tensor(0.3883, device='cuda:0') the
+#EIS 8 tensor(0.3883, device='cuda:0') the
+#EIS 9 tensor(0.0005, device='cuda:0') ball
+#EIS 9 tensor(0.0005, device='cuda:0') ball
+#EIS 2 tensor(-0., device='cuda:0') looked
+#EIS 2 tensor(-0., device='cuda:0') looked
+#EIS 3 tensor(-0., device='cuda:0') at
+#EIS 3 tensor(-0., device='cuda:0') at
+#EIS 4 tensor(0.1193, device='cuda:0') the
+#EIS 4 tensor(0.1193, device='cuda:0') the
+#EIS 5 tensor(0.0173, device='cuda:0') tall
+#EIS 5 tensor(0.0173, device='cuda:0') tall
+#EIS 6 tensor(0.0012, device='cuda:0') player
+#EIS 6 tensor(0.0012, device='cuda:0') player
+#EIS 7 tensor(0.0234, device='cuda:0') thrown
+#EIS 7 tensor(0.0234, device='cuda:0') thrown
+#EIS 8 tensor(0.0341, device='cuda:0') the
+#EIS 8 tensor(0.0341, device='cuda:0') the
+#EIS 9 tensor(0.0045, device='cuda:0') ball
+#EIS 9 tensor(0.0045, device='cuda:0') ball
+#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ 
+#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ 
+#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ 
+
+
+
 # Run the following with 'thrown' and 'tossed'
 #(base) mhahn@jagupard14:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ ~/python-py37-mhahn errorIdentification_Erasure.py --load_from_joint=42600474 | grep EIS
 
@@ -1021,6 +1060,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
     IMPORTANCE_SAMPLING_K = 12
     import scoreWithGPT2Medium as scoreWithGPT2
     sentences = [(1, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "looked", "at", "the", "tall", "player", "tossed", "the", "ball"])])]
+    sentences += [(2, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "looked", "at", "the", "tall", "player", "thrown", "the", "ball"])])]
     with torch.no_grad():
       outFile = sys.stdout
 #     with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint if SANITY != "ZeroLoss" else "ZERO")+"_"+SANITY, "w") as outFile:
@@ -1102,7 +1142,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
    #           print(result2[3])
               resultNumeric2 = resultNumeric2.transpose(0,1).contiguous()
               resultNumeric2 = torch.cat([numeric[:1], resultNumeric2[:-1]], dim=0)
-              assert itos_total[int(resultNumeric[20,0])] == remainingInput[i]
+              assert itos_total[int(resultNumeric[20,0])] in ["OOV", remainingInput[i]], (itos_total[int(resultNumeric[20,0])] , remainingInput[i])
              
               numeric_noised_second = torch.cat([numeric[:1], numeric_noised_second[:-2], numeric_noised_second[-1:]], dim=0)
               assert itos_total[int(numeric_noised_second[20,0])] == "<SOS>"
@@ -1200,6 +1240,7 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               reweightedSurprisals = -(log_importance_weighted_probs_unnormalized - log_importance_weights_sum)
               reweightedSurprisalsMean = reweightedSurprisals.mean()
               surprisalOfNextWord_OtherTerm = surprisals_nextWord.mean(dim=1).mean()
+              reweightedSurprisals_OtherTerm = reweightedSurprisalsMean
 
               #quit()
 
@@ -1220,25 +1261,27 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               reweightedSurprisals = -(log_importance_weighted_probs_unnormalized - log_importance_weights_sum)
               reweightedSurprisalsMean = reweightedSurprisals.mean()
               surprisalOfNextWord_LCS = surprisals_nextWord.exp().mean(dim=1).log().mean()
+              reweightedSurprisals_LCS = reweightedSurprisalsMean
 
 
-              EIS_NextWord =  -(surprisalOfNextWord_OtherTerm - surprisalOfNextWord_LCS)
+#              EIS_NextWord =  -(surprisalOfNextWord_OtherTerm - surprisalOfNextWord_LCS)
+              EIS_NextWord =  -(reweightedSurprisals_OtherTerm - reweightedSurprisals_LCS)
 
 #              print(surprisalOfNextWord_OtherTerm) # these are nonnegative, i.e. minus what they are in the formula
  #             print(surprisalOfNextWord_LCS)
               print("EIS", regions[i], EIS_NextWord, remainingInput[i])
-              continue
-#
-#              # for printing
-##              nextWordSurprisal_cpu = surprisals_nextWord.view(-1).detach().cpu()
-##              reweightedSurprisal_cpu = reweightedSurprisals.detach().cpu()
-##              print(nextWordSurprisal_cpu.size())
-#
-#
-#              for q in range(0, min(3*2*IMPORTANCE_SAMPLING_K, resultNumeric.size()[1]),  2*IMPORTANCE_SAMPLING_K):
-#                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//IMPORTANCE_SAMPLING_K]))
-#              print("SURPRISAL", i, regions[i], remainingInput[i],float( surprisalOfNextWord), float(reweightedSurprisalsMean))
-#              print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( surprisalOfNextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
+#              continue
+
+              # for printing
+              nextWordSurprisal_cpu = surprisals_nextWord.view(-1).detach().cpu()
+              reweightedSurprisal_cpu = reweightedSurprisals.detach().cpu()
+#              print(nextWordSurprisal_cpu.size())
+
+
+              for q in range(0, min(3*2*IMPORTANCE_SAMPLING_K, resultNumeric.size()[1]),  2*IMPORTANCE_SAMPLING_K):
+                  print("DENOISED PREFIX + NEXT WORD", " ".join([itos_total[int(x)] for x in resultNumeric[:,q]]), float(nextWordSurprisal_cpu[q])) #, float(reweightedSurprisal_cpu[q//IMPORTANCE_SAMPLING_K]))
+              print("SURPRISAL", i, regions[i], remainingInput[i],float( surprisalOfNextWord_LCS), float(reweightedSurprisalsMean))
+              print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( EIS_NextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
 
 
 getSurprisalsStimuli(SANITY="Sanity") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))

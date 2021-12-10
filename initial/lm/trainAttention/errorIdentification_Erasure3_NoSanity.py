@@ -6,76 +6,91 @@
 
 
 #(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ ~/python-py37-mhahn errorIdentification_Erasure3.py --load_from_joint=245600212 | grep EIS                        
-#Namespace(NUMBER_OF_REPLICATES=12, batchSize=1, char_dropout_prob=0.01, criticalRegions=None, deletion_rate=0.5, dual_learning_rate=0.02, entropy_weight=0.0, hidden_dim_autoencoder=512, hidden_dim_lm=1024, language='english', layer_num=2, learning_rate_autoencoder=0.001, learning_rate_memory=2e-05, load_from_joint='245600212', lr_decay=1.0, momentum=0.7, myID=648144500, predictability_weight=1.0, reward_multiplier_baseline=0.1, sequence_length=20, stimulus_file=None, tuning=1, verbose=False, weight_dropout_in=0.05, weight_dropout_out=0.05, word_embedding_size=512)
+#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ ~/python-py37-mhahn errorIdentification_Erasure3.py --load_from_joint=688174451 | grep EIS
+#
+
+
+
+#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ ~/python-py37-mhahn errorIdentification_Erasure3_NoSanity.py --load_from_joint=688174451 | grep EIS               
+#Namespace(NUMBER_OF_REPLICATES=12, batchSize=1, char_dropout_prob=0.01, criticalRegions=None, deletion_rate=0.5, dual_learning_rate=0.01, entropy_weight=0.0, hidden_dim_autoencoder=512, hidden_dim_lm=1024, language='english', layer_num=2, learning_rate_autoencoder=0.1, learning_rate_memory=0.0001, load_from_joint='688174451', lr_decay=1.0, momentum=0.5, myID=971858606, predictability_weight=0.25, reward_multiplier_baseline=0.1, sequence_length=20, stimulus_file=None, tuning=1, verbose=False, weight_dropout_in=0.05, weight_dropout_out=0.05, word_embedding_size=512)
+#
 #/u/nlp/anaconda/main/anaconda3/envs/py37-mhahn/lib/python3.7/site-packages/torch/nn/_reduction.py:42: UserWarning: size_average and reduce args will be deprecated, please use reduction='none' instead.
 #  warnings.warn(warning.format(ret))
-#2021-12-09 20:31:11.852606: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcudart.so.11.0
+#2021-12-09 20:36:22.070234: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcudart.so.11.0
 #/u/nlp/anaconda/main/anaconda3/envs/py37-mhahn/lib/python3.7/site-packages/transformers/modeling_gpt2.py:149: UserWarning: where received a uint8 condition tensor. This behavior is deprecated and will be removed in a future version of PyTorch. Use a boolean condition instead. (Triggered internally at  /pytorch/aten/src/ATen/native/TensorCompare.cpp:255.)
 #  w = torch.where(mask, w, self.masked_bias)
-#EIS 2 tensor(-0., device='cuda:0') looked
-#EIS 2 tensor(-0., device='cuda:0') looked
-#EIS 3 tensor(-0., device='cuda:0') at
-#EIS 3 tensor(-0., device='cuda:0') at
-#EIS 4 tensor(0.4650, device='cuda:0') the
-#EIS 4 tensor(0.4143, device='cuda:0') the
-#EIS 5 tensor(0.1227, device='cuda:0') tall
-#EIS 5 tensor(0.1163, device='cuda:0') tall
-#EIS 6 tensor(0.0789, device='cuda:0') player
-#EIS 6 tensor(0.1590, device='cuda:0') player
-#EIS 7 tensor(2.9748, device='cuda:0') tossed
-#EIS 7 tensor(2.7511, device='cuda:0') tossed
-#EIS 8 tensor(0.2249, device='cuda:0') the
-#EIS 8 tensor(0.3260, device='cuda:0') the
-#EIS 9 tensor(0.0015, device='cuda:0') ball
-#EIS 9 tensor(0.0011, device='cuda:0') ball
-#EIS 2 tensor(-0., device='cuda:0') looked
-#EIS 2 tensor(-0., device='cuda:0') looked
-#EIS 3 tensor(-0., device='cuda:0') at
-#EIS 3 tensor(-0., device='cuda:0') at
-#EIS 4 tensor(0.3102, device='cuda:0') the
-#EIS 4 tensor(0.2684, device='cuda:0') the
-#EIS 5 tensor(0.1337, device='cuda:0') tall
-#EIS 5 tensor(0.1504, device='cuda:0') tall
-#EIS 6 tensor(0.1068, device='cuda:0') player
-#EIS 6 tensor(0.0718, device='cuda:0') player
-#EIS 7 tensor(0.0430, device='cuda:0') thrown
-#EIS 7 tensor(0.0869, device='cuda:0') thrown
-#EIS 8 tensor(0.1540, device='cuda:0') the
-#EIS 8 tensor(0.0400, device='cuda:0') the
-#EIS 9 tensor(0.0206, device='cuda:0') ball
-#EIS 9 tensor(0.0294, device='cuda:0') ball
-#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ 
+#EIS 2 tensor(0.3980, device='cuda:0') looked
+#EIS 2 tensor(0.4847, device='cuda:0') looked
+#EIS 3 tensor(0.7166, device='cuda:0') at
+#EIS 3 tensor(0.0268, device='cuda:0') at
+#EIS 4 tensor(0.7607, device='cuda:0') the
+#EIS 4 tensor(0.1473, device='cuda:0') the
+#EIS 5 tensor(1.2446, device='cuda:0') tall
+#EIS 5 tensor(1.7208, device='cuda:0') tall
+#EIS 6 tensor(1.0971, device='cuda:0') player
+#EIS 6 tensor(1.3872, device='cuda:0') player
+#EIS 7 tensor(0.5704, device='cuda:0') tossed
+#EIS 7 tensor(0.7520, device='cuda:0') tossed
+#EIS 8 tensor(0.3881, device='cuda:0') the
+#EIS 8 tensor(0.8725, device='cuda:0') the
+#EIS 9 tensor(2.7217, device='cuda:0') ball
+#EIS 9 tensor(1.8845, device='cuda:0') ball
+#EIS 2 tensor(0.3588, device='cuda:0') looked
+#EIS 2 tensor(0.6078, device='cuda:0') looked
+#EIS 3 tensor(0.0753, device='cuda:0') at
+#EIS 3 tensor(0.5942, device='cuda:0') at
+#EIS 4 tensor(1.0394, device='cuda:0') the
+#EIS 4 tensor(0.8424, device='cuda:0') the
+#EIS 5 tensor(2.0810, device='cuda:0') tall
+#EIS 5 tensor(3.8318, device='cuda:0') tall
+#EIS 6 tensor(1.4549, device='cuda:0') player
+#EIS 6 tensor(1.6485, device='cuda:0') player
+#EIS 7 tensor(1.0555, device='cuda:0') thrown
+#EIS 7 tensor(0.4897, device='cuda:0') thrown
+#EIS 8 tensor(0.9981, device='cuda:0') the
+#EIS 8 tensor(0.3138, device='cuda:0') the
+#EIS 9 tensor(3.3716, device='cuda:0') ball
+#EIS 9 tensor(5.0169, device='cuda:0') ball
 
 
-#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ ~/python-py37-mhahn errorIdentification_Erasure3.py --load_from_joint=688174451 | grep EIS
-#EIS 4 tensor(0.5857, device='cuda:0') the
-#EIS 4 tensor(0.2977, device='cuda:0') the
-#EIS 5 tensor(0.0961, device='cuda:0') tall
-#EIS 5 tensor(0.1015, device='cuda:0') tall
-#EIS 6 tensor(0.2317, device='cuda:0') player
-#EIS 6 tensor(0.1249, device='cuda:0') player
-#EIS 7 tensor(1.8664, device='cuda:0') tossed
-#EIS 7 tensor(0.5476, device='cuda:0') tossed
-#EIS 8 tensor(0.2947, device='cuda:0') the
-#EIS 8 tensor(0.1532, device='cuda:0') the
-#EIS 9 tensor(0.0013, device='cuda:0') ball
-#EIS 9 tensor(0.0019, device='cuda:0') ball
-#EIS 2 tensor(-0., device='cuda:0') looked
-#EIS 2 tensor(-0., device='cuda:0') looked
-#EIS 3 tensor(-0., device='cuda:0') at
-#EIS 3 tensor(-0., device='cuda:0') at
-#EIS 4 tensor(0.1933, device='cuda:0') the
-#EIS 4 tensor(0.5148, device='cuda:0') the
-#EIS 5 tensor(0.1133, device='cuda:0') tall
-#EIS 5 tensor(0.1280, device='cuda:0') tall
-#EIS 6 tensor(0.2429, device='cuda:0') player
-#EIS 6 tensor(0.2226, device='cuda:0') player
-#EIS 7 tensor(0.0584, device='cuda:0') thrown
-#EIS 7 tensor(0.1427, device='cuda:0') thrown
-#EIS 8 tensor(0.1121, device='cuda:0') the
-#EIS 8 tensor(0.1070, device='cuda:0') the
-#EIS 9 tensor(0.0167, device='cuda:0') ball
-#EIS 9 tensor(0.0188, device='cuda:0') ball
+#(base) mhahn@jagupard12:/juice/scr/mhahn/CODE/forgetting-model/initial/lm/trainAttention$ ~/python-py37-mhahn errorIdentification_Erasure3_NoSanity.py --load_from_joint=245600212 | grep EIS               Namespace(NUMBER_OF_REPLICATES=12, batchSize=1, char_dropout_prob=0.01, criticalRegions=None, deletion_rate=0.5, dual_learning_rate=0.3, entropy_weight=0.0, hidden_dim_autoencoder=512, hidden_dim_lm=1024, language='english', layer_num=2, learning_rate_autoencoder=0.1, learning_rate_memory=5e-05, load_from_joint='245600212', lr_decay=1.0, momentum=0.7, myID=712105040, predictability_weight=0.25, reward_multiplier_baseline=0.1, sequence_length=20, stimulus_file=None, tuning=1, verbose=False, weight_dropout_in=0.05, weight_dropout_out=0.05, word_embedding_size=512)
+#/u/nlp/anaconda/main/anaconda3/envs/py37-mhahn/lib/python3.7/site-packages/torch/nn/_reduction.py:42: UserWarning: size_average and reduce args will be deprecated, please use reduction='none' instead.
+#  warnings.warn(warning.format(ret))
+#2021-12-09 20:33:59.091154: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcudart.so.11.0
+#/u/nlp/anaconda/main/anaconda3/envs/py37-mhahn/lib/python3.7/site-packages/transformers/modeling_gpt2.py:149: UserWarning: where received a uint8 condition tensor. This behavior is deprecated and will be removed in a future version of PyTorch. Use a boolean condition instead. (Triggered internally at  /pytorch/aten/src/ATen/native/TensorCompare.cpp:255.)
+#  w = torch.where(mask, w, self.masked_bias)
+#EIS 2 tensor(0.4911, device='cuda:0') looked
+#EIS 2 tensor(0.2901, device='cuda:0') looked
+#EIS 3 tensor(0.0596, device='cuda:0') at
+#EIS 3 tensor(0.0311, device='cuda:0') at
+#EIS 4 tensor(0.6942, device='cuda:0') the
+#EIS 4 tensor(0.6547, device='cuda:0') the
+#EIS 5 tensor(0.6626, device='cuda:0') tall
+#EIS 5 tensor(0.6520, device='cuda:0') tall
+#EIS 6 tensor(1.6773, device='cuda:0') player
+#EIS 6 tensor(0.5959, device='cuda:0') player
+#EIS 7 tensor(1.4867, device='cuda:0') tossed
+#EIS 7 tensor(1.0440, device='cuda:0') tossed
+#EIS 8 tensor(0.2593, device='cuda:0') the
+#EIS 8 tensor(0.2227, device='cuda:0') the
+#EIS 9 tensor(3.5354, device='cuda:0') ball
+#EIS 9 tensor(1.8935, device='cuda:0') ball
+#EIS 2 tensor(0.4754, device='cuda:0') looked
+#EIS 2 tensor(0.3584, device='cuda:0') looked
+#EIS 3 tensor(0.0402, device='cuda:0') at
+#EIS 3 tensor(0.0425, device='cuda:0') at
+#EIS 4 tensor(1.2969, device='cuda:0') the
+#EIS 4 tensor(0.3664, device='cuda:0') the
+#EIS 5 tensor(0.3416, device='cuda:0') tall
+#EIS 5 tensor(0.5265, device='cuda:0') tall
+#EIS 6 tensor(1.7305, device='cuda:0') player
+#EIS 6 tensor(0.7565, device='cuda:0') player
+#EIS 7 tensor(0.4223, device='cuda:0') thrown
+#EIS 7 tensor(0.4576, device='cuda:0') thrown
+#EIS 8 tensor(0.3163, device='cuda:0') the
+#EIS 8 tensor(0.3408, device='cuda:0') the
+#EIS 9 tensor(4.3664, device='cuda:0') ball
+#EIS 9 tensor(5.8406, device='cuda:0') ball
 
 
 
@@ -1273,4 +1288,4 @@ def getSurprisalsStimuli(SANITY="Sanity"):
               print("\t".join([str(w) for w in [sentenceID, ITEM, CONDITION, regions[i], remainingInput[i], round(float( EIS_NextWord),3), round(float( reweightedSurprisalsMean),3), repetition]]), file=outFile)
 
 
-getSurprisalsStimuli(SANITY="Sanity") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))
+getSurprisalsStimuli(SANITY="Model") #("Model" if args.deletion_rate > 0 else "ZeroLoss"))
