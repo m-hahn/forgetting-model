@@ -274,7 +274,7 @@ def forward(numeric, train=True, printHere=False):
       beginning = numeric[numeric.size()[0]-1].view(1, args.batchSize)
 
       input_tensor = Variable(numeric_noised[:-1], requires_grad=False)
-      target_tensor = Variable(numeric[1:], requires_grad=False)
+      target_tensor = Variable(numeric_noised[1:], requires_grad=False) # predict the next un-noised word from the previous un-noised words (this is okay in this setting of uniform noise for pretraining)
 
 
 
