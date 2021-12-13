@@ -8,10 +8,31 @@ if len(sys.argv) > 1:
 else:
   stimulus_file = "tabor_2004_expt1_3_tokenized" #random.choice(["BartekEtal", "Staub2006", "Staub_2016"])
 
-if stimulus_file == "tabor_2004_expt1_3_tokenized":
+if stimulus_file == "ChristiansonGardenpathLinger":
+  criticalRegions = "fifth_0,sixth_0"
+elif stimulus_file == "tabor_2004_expt1_3_tokenized":
   criticalRegions = "participle_0"
+elif stimulus_file == "BartekEtal":
+   criticalRegions="Critical_0"
+elif stimulus_file == "BartekGG":
+   criticalRegions="Critical_0"
+elif stimulus_file == "Staub2006":
+   criticalRegions = "NP1_0,NP1_1,OR,NP2_0,NP2_1"
+elif stimulus_file == "cunnings-sturt-2018":
+   criticalRegions = "critical"
+elif stimulus_file == "Staub_2016":
+   criticalRegions = "V0,D1,N1,V1"
+elif stimulus_file == "V11_E1_EN":
+   criticalRegions = "Critical_0"
+elif stimulus_file == "TaborHutchins":
+   criticalRegions = "Final_0"
+elif stimulus_file == "Chen2005":
+   criticalRegions = "critical_1,critical_2,critical_3,critical_4,critical_5"
+elif stimulus_file == "VanDyke_Lewis_2003":
+   criticalRegions = "R4_0,R4_1"
 else:
    assert False, stimulus_file
+
 
 script = "errorIdentification_Erasure4.py"
 
