@@ -1402,12 +1402,31 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     import scoreWithGPT2Medium as scoreWithGPT2
     global topNouns
 #    topNouns = ["fact", "report"]
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w") if SANITY != "ModelTmp" else sys.stdout as outFile:
-     print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat", "Word"]), file=outFile)
+    outFilePath = "/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY
+    if len(glob.glob(outFilePath)) > 0:
+        mode = "a"
+        nounsDone = set()
+        with open(outFilePath, "r") as inFile:
+           for line in inFile:
+              try:
+                 noun_ = line[:line.index("\t")]
+              except ValueError:
+               print("EMPTY LINE?", line, file=sys.stderr)
+              finally:
+                 nounsDone.add(noun_)
+    else:
+        nounsDone = set()
+        mode = "w"
+    print("NOUNS DONE", nounsDone, file=sys.stderr)
+    with open(outFilePath, mode) if SANITY != "ModelTmp" else sys.stdout as outFile:
+     if mode == "w":
+        print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat", "Word"]), file=outFile)
      with torch.no_grad():
       TRIALS_COUNT = 0
       TOTAL_TRIALS = len(topNouns) * len(nounsAndVerbs) * 2 * 1
       for nounIndex, NOUN in enumerate(topNouns):
+        if NOUN in nounsDone:
+           continue  
         print(NOUN, "Time:", time.time() - startTimePredictions, nounIndex/len(topNouns), file=sys.stderr)
         thatFractions = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
         thatFractionsReweighted = {x : defaultdict(float) for x in ["SC_compatible", "NoSC_neither", "SC_incompatible", "SCRC_compatible", "SCRC_incompatible"]}
@@ -1618,7 +1637,9 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
     print("SURPRISALS BY NOUN", surprisalsPerNoun)
     print("THAT (fixed) BY NOUN", thatFractionsPerNoun)
     print("SURPRISALS_PER_NOUN PLAIN_LM, WITH VERB, NEW")
-    with open("/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
+    outFilePath = "/u/scr/mhahn/reinforce-logs-both-short/full-logs-tsv/"+__file__+"_"+str(args.load_from_joint)+"_"+SANITY
+    if len(glob.glob(outFilePath)) == 0:
+     with open(outFilePath, "w")  if SANITY != "ModelTmp" else sys.stdout as outFile:
       print("Noun", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", file=outFile)
       for noun in topNouns:
  #      assert "SCRC_incompatible" in surprisalsPerNoun[noun], list(surprisalsPerNoun[noun])

@@ -16,23 +16,28 @@ for _ in range(int(sys.argv[1])):
    countsByConfig = defaultdict(int)
    configurations = set()
    for i in range(5, 100, 5):
-#     if i/100 < 0.2 or i/100 > 0.75:
- #      continue
+     if i/100 < 0.3 or i/100 > 0.7:
+       continue
      for j in [0, 0.25, 0.5, 0.75, 1]:
+        if j != 0.75:
+            continue
         configurations.add((i/100,j))
+   configurations = [(0.5, 0.75)]
 
    logs = glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/results/{script}_*")
 
    for log in logs:
       with open(log, "r") as inFile:
           args = dict([x.split("=") for x in next(inFile).strip().replace("Namespace(", "").rstrip(")").split(", ")])
+      if (float(args["deletion_rate"]), float(args["predictability_weight"])) not in configurations:
+        continue 
       try:
          countsByConfig[(float(args["deletion_rate"]), float(args["predictability_weight"]))] += 1
-         if float(args["deletion_rate"]) >= 0.2 and float(args["deletion_rate"]) < 0.8:
-          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 1:
+         if float(args["deletion_rate"]) >= 0.4 and float(args["deletion_rate"]) < 0.6:
+          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 15:
             configurations.remove((float(args["deletion_rate"]), float(args["predictability_weight"])))
          else:
-          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 1:
+          if countsByConfig[float(args["deletion_rate"]), float(args["predictability_weight"])] >= 3:
             configurations.remove((float(args["deletion_rate"]), float(args["predictability_weight"])))
       except KeyError:
          pass

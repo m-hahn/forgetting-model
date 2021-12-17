@@ -576,6 +576,7 @@ parameters_lm_cached = [x for x in parameters_lm()]
 checkpoint = torch.load(glob.glob("/u/scr/mhahn/CODEBOOKS_MEMORY/*"+str(args.load_from_joint)+"*")[0])
 # Load pretrained prior and amortized posteriors
 
+print("ARGUMENTS OF ORIGINAL MODEL ", checkpoint["arguments"])
 #assert checkpoint["arguments"].deletion_rate in [0.7, 0.75]
 #assert checkpoint["arguments"].predictability_weight == 1
 
@@ -1482,8 +1483,6 @@ def getTotalSentenceSurprisals(SANITY="Model", VERBS=2): # Surprisal for EOS aft
         nounsDone = set()
         mode = "w"
     print("NOUNS DONE", nounsDone, file=sys.stderr)
-#    assert False, nounsDone
- #   quit()
     with open(outFilePath, mode) if SANITY != "ModelTmp" else sys.stdout as outFile:
      if mode == "w":
         print("\t".join(["Noun", "Item", "Region", "Condition", "Surprisal", "SurprisalReweighted", "ThatFraction", "ThatFractionReweighted", "SurprisalsWithThat", "SurprisalsWithoutThat", "Word"]), file=outFile)

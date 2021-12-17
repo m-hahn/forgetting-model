@@ -26,6 +26,17 @@ with open(f"/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv/{__file
       except StopIteration:
          continue
       for line in inFile:
-        print("\t".join(line.rstrip("\n").split("\t") + [script[-10:], ID, args["deletion_rate"], args["predictability_weight"]]), file=outFile)
+        line = line.rstrip("\n").split("\t")
+        if len(line) != 8:
+           print("ERROR", line)
+           continue
+        try:
+          assert float(line[5]) > 0, line
+          assert float(line[6]) > 0, line
+        except ValueError:
+           print("ERROR", line)
+           continue
+        
+        print("\t".join(line + [script[-10:], ID, args["deletion_rate"], args["predictability_weight"]]), file=outFile)
       
 

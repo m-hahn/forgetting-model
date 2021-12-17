@@ -6,8 +6,8 @@ header = "Noun Item Region Condition Surprisal SurprisalReweighted ThatFraction 
 header += ["S1", "S2", "Word", "Script", "ID", "predictability_weight", "deletion_rate", "autoencoder", "lm"]
 
 PATH0 = "/juice/scr/mhahn/reinforce-logs-both-short/results/"
-PATH = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs/"
-PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem/"
+PATH = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs-onlyLoc/"
+PATH2 = "/juice/scr/mhahn/reinforce-logs-both-short/full-logs-tsv-perItem-onlyLoc/"
 
 with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
  print("\t".join(header), file=outFile)
@@ -15,7 +15,7 @@ with open(f"{PATH2}/{__file__}.tsv", "w") as outFile:
    shib = "12_NormJudg_Short_Cond_Shift_NoComma_Bugfix"
    if shib in f:
       suffix = "script_"+f[f.index(shib)+len(shib):f.index(".py")]
-      if "_VN3Stims_" not in f or "_OnlyLoc" in f or "ZERO" in f or "_LE" in f or "Li" not in f:
+      if "_VN3Stims_" not in f or "ZERO" in f or "_LE" in f or "TPLi" in f or "Li.py" in f:
         continue
       print(f)
       print(suffix)
