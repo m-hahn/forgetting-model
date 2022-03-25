@@ -3,7 +3,7 @@ library(dplyr)
 
 
 
-data = read.csv("averages_Short_Cond_VN2_ZERO.tsv", quote='"', sep="\t")
+data = read.csv("averages_Short_Cond_VN3_ZERO.tsv", quote='"', sep="\t")
 
 
 
@@ -35,7 +35,7 @@ data$HasRC = grepl("RC", data$Condition)
 data$HasSCHasRC = (paste(data$HasSC, data$HasRC, sep="_"))
 
 library(stringr)
-data$Script = str_replace(data$Script, "script__VN2Stims_3_W_", "")
+data$Script = str_replace(data$Script, "script__VN3Stims_3_W_", "")
 data$Script = str_replace(data$Script, "_ZERO", "")
 
 data$Script = as.factor(data$Script)
@@ -45,6 +45,15 @@ plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(Script, compatible,
                                 "TRUE_FALSE"="#00BA38",
                                 "TRUE_TRUE"="#619CFF")) 
 ggsave(plot, file="figures/predictions-surprisal-zero_VN.pdf", width=5, height=2)
+
+
+
+plot = ggplot(data %>% filter(Region == "V2_0") %>% group_by(Script, compatible, HasSCHasRC, HasSC, HasRC, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(~Script) + theme_bw() + theme(legend.position = "none") + xlab("Embedding Bias") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
+                                "TRUE_FALSE"="#00BA38",
+                                "TRUE_TRUE"="#619CFF")) 
+ggsave(plot, file="figures/predictions-surprisal-zero_VN3_InnerVerb.pdf", width=5, height=2)
+
+
 
 
 plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(Script, compatible, HasSCHasRC, HasSC, HasRC, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + geom_point() + facet_grid(~Script) + theme_bw() + theme(legend.position = "none") + xlab("Embedding Bias") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",

@@ -3,7 +3,7 @@ library(dplyr)
 
 
 
-data = read.csv("averages_Short_Cond_W_GPT2_VN2.tsv", quote='"', sep="\t")
+data = read.csv("prepareMeansByExperiment.R.tsv", quote='"', sep="\t")
 
 
 counts = unique(read.csv("~/forgetting/corpus_counts/wikipedia/results/counts4NEW_Processed.tsv", sep="\t"))
@@ -29,6 +29,9 @@ library(lme4)
 
 plot = ggplot(data %>% filter(Region == "V2_0") %>% group_by(predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun)) + facet_grid(predictability_weight~deletion_rate)
 
+plot = ggplot(data %>% filter(Region == "V2_0") %>% group_by(predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + facet_grid(predictability_weight~deletion_rate)
+
+
 plot = ggplot(data %>% filter(Region == "V2_1") %>% group_by(predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=Condition)) + geom_smooth(method="lm") + geom_text(aes(label=Noun)) + facet_grid(predictability_weight~deletion_rate)
 
 # By Script (and thus stimuli)
@@ -41,13 +44,13 @@ plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(Script, predictabil
 
 
 
-data$compatible = grepl("_compatible", data$Condition)
+data$compatible = grepl("_co", data$Condition)
 data$HasSC = !grepl("NoSC", data$Condition)
 data$HasRC = grepl("RC", data$Condition)
 
 data$HasSCHasRC = (paste(data$HasSC, data$HasRC, sep="_"))
 
-plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(predictability_weight~deletion_rate) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
+plot = ggplot(data %>% filter(Experiment=="Experiment1", Region == "V1_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(predictability_weight~deletion_rate) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
                                 "TRUE_FALSE"="#00BA38",
                                 "TRUE_TRUE"="#619CFF")) 
 ggsave(plot, file="figures/predictions-surprisal_VN.pdf", width=5, height=5)
@@ -68,6 +71,18 @@ plot = ggplot(data %>% filter(Region == "V1_0") %>% group_by(compatible, HasSCHa
                                 "TRUE_FALSE"="#00BA38",
                                 "TRUE_TRUE"="#619CFF")) 
 ggsave(plot, file="figures/conceptual-predictions-that_VN.pdf", width=5, height=5)
+
+
+
+plot = ggplot(data %>% filter(Experiment=="Experiment2", Region == "V2_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(predictability_weight~deletion_rate) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
+                                "TRUE_FALSE"="#00BA38",
+                                "TRUE_TRUE"="#619CFF")) 
+ggsave(plot, file="figures/predictions-surprisal_VN-MiddleVerb-Expt2.pdf", width=5, height=5)
+
+plot = ggplot(data %>% filter(Experiment=="Experiment2", Region == "V2_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + theme_bw() + theme(legend.position = "none") + xlab("Embedding Bias") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
+                                "TRUE_FALSE"="#00BA38",
+                                "TRUE_TRUE"="#619CFF")) 
+ggsave(plot, file="figures/conceptual-predictions-surprisal_VN_MiddleVerb-Expt2.pdf", width=2, height=2)
 
 
 
