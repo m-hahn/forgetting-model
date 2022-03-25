@@ -30,6 +30,10 @@ elif stimulus_file == "Chen2005":
    criticalRegions = "critical_1,critical_2,critical_3,critical_4,critical_5"
 elif stimulus_file == "VanDyke_Lewis_2003":
    criticalRegions = "R4_0,R4_1"
+elif stimulus_file == "GrodnerEtAl2003":
+   criticalRegions = "verb2_0,post1_0"
+elif stimulus_file == "PrasadAdaptation":
+   criticalRegions = "verb2_0,post1_0"
 else:
    assert False, stimulus_file
 
@@ -43,7 +47,7 @@ limit = 1000
 count = 0
 for model in models:
    ID = model[model.rfind("_")+1:model.rfind(".")]
-   if len(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv-EIC/{script}_{stimulus_file}_{ID}_Model"))>0:
+   if len(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv-EIS/{script}_{stimulus_file}_{ID}_Model"))>0:
      print("EXISTS", ID)
      continue
    with open(glob.glob(f"/u/scr/mhahn/reinforce-logs-both-short/results/*_{ID}")[0], "r") as inFile:

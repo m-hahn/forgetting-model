@@ -60,7 +60,7 @@ parser.add_argument("--tuning", type=int, default=1) #random.choice([0.00001, 0.
 
 # Lambda and Delta Parameters
 parser.add_argument("--deletion_rate", type=float, default=random.choice([0.4, 0.5, 0.6, 0.7]))
-parser.add_argument("--predictability_weight", type=float, default=random.choice([0, 0.25, 0.5]))
+parser.add_argument("--predictability_weight", type=float, default=random.choice([0.25, 0.5]))
 
 
 TRAIN_LM = False

@@ -403,6 +403,7 @@ class MemoryModel():
      self.perword_baseline_outer = torch.nn.Linear(500, 1).cuda()
 #     self.memory_bilinear = torch.nn.Linear(256, 500, bias=False).cuda()
  #    self.memory_bilinear.weight.data.fill_(0)
+     # Summarize all modules
      self.modules_memory = [self.positional_embeddings, self.perword_baseline_inner, self.perword_baseline_outer, self.memory_word_pos_inter]
 
 

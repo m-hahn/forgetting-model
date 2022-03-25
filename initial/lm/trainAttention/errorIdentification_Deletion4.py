@@ -646,23 +646,21 @@ def getLikelihoodDP(resultNumeric_gpu, numeric_noised, resultNumeric, IMPORTANCE
 
 
 def getSurprisalsStimuli(SANITY="Sanity"):
-   # with open(f"/u/scr/mhahn/STIMULI/{args.stimulus_file}.tsv", "r") as inFile:
-    #   data = [x.split("\t") for x in inFile.read().strip().split("\n")]
-    #   header = data[0]
-    #   assert header == ["Sentence", "Item", "Condition", "Region", "Word", "NumInSent"]
-    #   header = dict(list(zip(header, range(len(header)))))
-    #   data = data[1:]
-#       from collections import defaultdict
- #      sentences = defaultdict(list)
-  #     for line in data:
-  #         sentences[line[header["Sentence"]]].append(line)
-  #     sentences = sorted(sentences.items(), key=lambda x:x[0])
-  #  assert SANITY in ["ModelTmp", "Model", "Sanity", "ZeroLoss"]
+    with open(f"/u/scr/mhahn/STIMULI/{args.stimulus_file}.tsv", "r") as inFile:
+       data = [x.split("\t") for x in inFile.read().strip().split("\n")]
+       header = data[0]
+       assert header == ["Sentence", "Item", "Condition", "Region", "Word", "NumInSent"], header
+       header = dict(list(zip(header, range(len(header)))))
+       data = data[1:]
+       from collections import defaultdict
+       sentences = defaultdict(list)
+       for line in data:
+           sentences[line[header["Sentence"]]].append(line)
+       sentences = sorted(sentences.items(), key=lambda x:x[0])
+    assert SANITY in ["ModelTmp", "Model", "Sanity", "ZeroLoss"]
     numberOfSamples = 6
     IMPORTANCE_SAMPLING_K = 12
     import scoreWithGPT2Medium as scoreWithGPT2
-    sentences = [(1, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "looked", "at", "the", "tall", "player", "tossed", "the", "ball"])])]
-    sentences += [(2, [{"Item" : 1, "Condition" : 1, "Region" : i, "Word" : x} for i, x in  enumerate(["the", "coach", "looked", "at", "the", "tall", "player", "thrown", "the", "ball"])])]
     with torch.no_grad():
 #      outFile = sys.stdout
      with open("/u/scr/mhahn/reinforce-logs-both-short/stimuli-full-logs-tsv-EIS/"+__file__+"_"+args.stimulus_file.replace("/", "-")+"_"+str(args.load_from_joint if SANITY != "ZeroLoss" else "ZERO")+"_"+SANITY, "w") as outFile:
@@ -670,10 +668,10 @@ def getSurprisalsStimuli(SANITY="Sanity"):
       TRIALS_COUNT = 0
       for sentenceID, sentence in sentences:
           print(sentenceID)
-          ITEM = sentence[0]["Item"]
-          CONDITION = sentence[0]["Condition"]
-          regions = [x["Region"] for x in sentence]
-          sentence = [x["Word"].lower() for x in sentence]
+          ITEM = sentence[0][header["Item"]]
+          CONDITION = sentence[0][header["Condition"]]
+          regions = [x[header["Region"]] for x in sentence]
+          sentence = [x[header["Word"]].lower() for x in sentence]
           context = sentence[0]
 
           remainingInput = sentence[1:]
@@ -681,8 +679,8 @@ def getSurprisalsStimuli(SANITY="Sanity"):
           print("INPUT", context, remainingInput)
           assert len(remainingInput) > 0
           for i in range(len(remainingInput)):
-            if regions[i] < 2: 
-#            if not (args.criticalRegions is None) and regions[i] not in args.criticalRegions:
+            #if regions[i] < 2: 
+            if not (args.criticalRegions is None) and regions[i] not in args.criticalRegions:
               continue
             for repetition in range(2):
               sentence_proc = " ".join(remainingInput[:i+1])
