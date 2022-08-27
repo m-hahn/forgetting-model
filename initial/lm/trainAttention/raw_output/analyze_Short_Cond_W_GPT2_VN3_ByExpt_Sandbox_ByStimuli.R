@@ -34,8 +34,9 @@ data$HasRC = grepl("RC", data$Condition)
 
 data$HasSCHasRC = (paste(data$HasSC, data$HasRC, sep="_"))
 
+data$HasTP = grepl("TP", data$Script)
 
-plot = ggplot(data %>% filter(predictability_weight==1.0) %>% filter(Experiment=="Experiment2", Region == "V1_0") %>% group_by(Script, compatible, HasSCHasRC, HasSC, HasRC, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(Script+predictability_weight~deletion_rate) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
+plot = ggplot(data %>% filter(Experiment=="Experiment2", Region == "V1_0") %>% group_by(HasTP, compatible, HasSCHasRC, HasSC, HasRC, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(predictability_weight+HasTP~deletion_rate) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
                                 "TRUE_FALSE"="#00BA38",
                                 "TRUE_TRUE"="#619CFF")) 
 ggsave(plot, file="figures/predictions-surprisal_VN_Experiment2.pdf", width=5, height=5)
@@ -43,6 +44,11 @@ ggsave(plot, file="figures/predictions-surprisal_VN_Experiment2.pdf", width=5, h
 plot = ggplot(data %>% filter(Experiment=="Experiment2", Region == "V1_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC, predictability_weight, deletion_rate, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(predictability_weight~deletion_rate) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
                                 "TRUE_FALSE"="#00BA38",
                                 "TRUE_TRUE"="#619CFF")) 
+
+plot = ggplot(data %>% mutate(deletion_rate_interval = round(deletion_rate, 1)) %>% filter(Experiment=="Experiment2", Region == "V1_0") %>% group_by(compatible, HasSCHasRC, HasSC, HasRC, predictability_weight, deletion_rate_interval, Condition, Noun, Ratio) %>% summarise(SurprisalReweighted=mean(SurprisalReweighted)), aes(x=Ratio, y=SurprisalReweighted, group=Condition, color=HasSCHasRC)) + geom_smooth(method="lm", aes(linetype=compatible), se=F) + facet_grid(predictability_weight~deletion_rate_interval) + theme_bw() + theme(legend.position = "none") + xlab("Log Embedding Rate") + ylab("Average Surprisal") + scale_color_manual(values = c("FALSE_FALSE" = "#F8766D",
+                                "TRUE_FALSE"="#00BA38",
+                                "TRUE_TRUE"="#619CFF")) 
+
 
 
 
