@@ -1,4 +1,4 @@
-predictability_weight	deletion_rate	NData	AIC	Coefficient	Correlation	
+predictability_weight	deletion_rate	NData	AIC	Coefficient	EIS1	EIS2	
 0	0.2	7271	91807.35	3.77791	0.8898147	1.350949	
 0.5	0.6	7271	91800.73	4.519461	1.446435	0.3884374	
 0	0.35	7271	91810.08	3.764715	0.6838763	1.317835	
